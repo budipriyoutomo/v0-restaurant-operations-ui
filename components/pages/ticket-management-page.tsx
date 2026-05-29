@@ -52,71 +52,71 @@ export function TicketManagementPage() {
   })
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Ticket Management</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Operational and service tickets</p>
+          <h1 className="text-3xl font-bold">Ticket Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">Operational and service tickets</p>
         </div>
-        <button className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
-          <Plus className="size-3.5" /> New Ticket
+        <button className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
+          <Plus className="size-4" /> New Ticket
         </button>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        <div className="p-3 rounded-lg bg-muted/50 border border-border">
-          <p className="text-[10px] text-muted-foreground mb-1">OPEN TICKETS</p>
-          <p className="text-lg font-bold">12</p>
-          <p className="text-[10px] text-muted-foreground mt-1">+2 this week</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="p-4 rounded-lg bg-muted/50 border border-border">
+          <p className="text-xs text-muted-foreground font-semibold mb-2 uppercase tracking-wide">Open Tickets</p>
+          <p className="text-2xl font-bold">12</p>
+          <p className="text-xs text-muted-foreground mt-2">+2 this week</p>
         </div>
-        <div className="p-3 rounded-lg bg-muted/50 border border-border">
-          <p className="text-[10px] text-muted-foreground mb-1">IN PROGRESS</p>
-          <p className="text-lg font-bold text-blue-600">3</p>
-          <p className="text-[10px] text-muted-foreground mt-1">-1 from yesterday</p>
+        <div className="p-4 rounded-lg bg-muted/50 border border-border">
+          <p className="text-xs text-muted-foreground font-semibold mb-2 uppercase tracking-wide">In Progress</p>
+          <p className="text-2xl font-bold text-blue-600">3</p>
+          <p className="text-xs text-muted-foreground mt-2">-1 from yesterday</p>
         </div>
-        <div className="p-3 rounded-lg bg-muted/50 border border-border">
-          <p className="text-[10px] text-muted-foreground mb-1">RESOLVED</p>
-          <p className="text-lg font-bold text-success">28</p>
-          <p className="text-[10px] text-muted-foreground mt-1">this month</p>
+        <div className="p-4 rounded-lg bg-muted/50 border border-border">
+          <p className="text-xs text-muted-foreground font-semibold mb-2 uppercase tracking-wide">Resolved</p>
+          <p className="text-2xl font-bold text-success">28</p>
+          <p className="text-xs text-muted-foreground mt-2">this month</p>
         </div>
-        <div className="p-3 rounded-lg bg-muted/50 border border-border">
-          <p className="text-[10px] text-muted-foreground mb-1">AVG RESOLUTION</p>
-          <p className="text-lg font-bold">2.3d</p>
-          <p className="text-[10px] text-muted-foreground mt-1">↓ 12% vs last month</p>
+        <div className="p-4 rounded-lg bg-muted/50 border border-border">
+          <p className="text-xs text-muted-foreground font-semibold mb-2 uppercase tracking-wide">Avg Resolution</p>
+          <p className="text-2xl font-bold">2.3d</p>
+          <p className="text-xs text-muted-foreground mt-2">↓ 12% vs last month</p>
         </div>
-        <div className="p-3 rounded-lg bg-muted/50 border border-border">
-          <p className="text-[10px] text-muted-foreground mb-1">CRITICAL</p>
-          <p className="text-lg font-bold text-destructive">1</p>
-          <p className="text-[10px] text-muted-foreground mt-1">requires attention</p>
+        <div className="p-4 rounded-lg bg-muted/50 border border-border">
+          <p className="text-xs text-muted-foreground font-semibold mb-2 uppercase tracking-wide">Critical</p>
+          <p className="text-2xl font-bold text-destructive">1</p>
+          <p className="text-xs text-muted-foreground mt-2">requires attention</p>
         </div>
       </div>
 
       {/* Search and Filter */}
-      <div className="flex gap-2">
+      <div className="flex gap-3">
         <div className="flex-1 relative">
-          <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search tickets..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-9 pr-4 py-2 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:bg-muted/50 transition-colors">
+        <button className="flex items-center gap-2 px-4 py-2 rounded-md border border-border hover:bg-muted/50 transition-colors font-medium text-sm">
           <Filter className="size-4" />
-          <span className="text-sm">Filter</span>
+          Filter
         </button>
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Ticket List */}
-        <div className="lg:col-span-2 space-y-2">
+        <div className="lg:col-span-2 space-y-3">
           {filteredTickets.length === 0 ? (
-            <div className="p-8 rounded-lg border border-border text-center">
+            <div className="p-12 rounded-lg border border-border text-center">
               <p className="text-muted-foreground">No tickets found</p>
             </div>
           ) : (
@@ -125,29 +125,29 @@ export function TicketManagementPage() {
                 key={ticket.id}
                 onClick={() => setSelectedTicket(ticket)}
                 className={cn(
-                  'p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md',
+                  'p-4 rounded-lg border cursor-pointer transition-all',
                   selectedTicket?.id === ticket.id
-                    ? 'bg-primary/10 border-primary shadow-md'
-                    : 'bg-muted/20 border-border hover:bg-muted/40'
+                    ? 'bg-primary/10 border-primary shadow-sm'
+                    : 'bg-muted/20 border-border hover:bg-muted/40 hover:shadow-sm'
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-[10px] font-bold text-primary">{ticket.id}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-mono text-xs font-bold text-primary">{ticket.id}</span>
                       <PriorityBadge priority={ticket.priority} />
-                      {ticket.priority === 'critical' && <Pin className="size-3 text-destructive" />}
+                      {ticket.priority === 'critical' && <Pin className="size-3.5 text-destructive" />}
                     </div>
-                    <h3 className="font-semibold text-sm line-clamp-2">{ticket.title}</h3>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-[10px] text-muted-foreground">{ticket.outlet}</span>
-                      <span className="text-[10px] text-muted-foreground">•</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{ticket.category}</span>
+                    <h3 className="font-semibold text-sm line-clamp-2 mb-2">{ticket.title}</h3>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground">{ticket.outlet}</span>
+                      <span className="text-xs text-muted-foreground">•</span>
+                      <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground">{ticket.category}</span>
                       {ticket.attachments > 0 && (
                         <>
-                          <span className="text-[10px] text-muted-foreground">•</span>
-                          <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                            <MessageSquare className="size-3" />
+                          <span className="text-xs text-muted-foreground">•</span>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MessageSquare className="size-3.5" />
                             {ticket.attachments}
                           </div>
                         </>
@@ -156,7 +156,7 @@ export function TicketManagementPage() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <StatusBadge status={ticket.status} />
-                    <p className="text-[10px] text-muted-foreground mt-2">{ticket.created}</p>
+                    <p className="text-xs text-muted-foreground mt-2">{ticket.created}</p>
                   </div>
                 </div>
               </div>
@@ -166,56 +166,56 @@ export function TicketManagementPage() {
 
         {/* Detail Panel */}
         {selectedTicket && (
-          <div className="lg:col-span-1 p-4 rounded-lg border border-border bg-muted/30 max-h-[600px] overflow-y-auto">
-            <div className="space-y-4">
+          <div className="lg:col-span-1 p-5 rounded-lg border border-border bg-muted/30 max-h-[700px] overflow-y-auto">
+            <div className="space-y-5">
               {/* Header */}
-              <div>
+              <div className="pb-4 border-b border-border">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-[10px] font-bold text-primary">{selectedTicket.id}</span>
-                  <button className="p-1 hover:bg-muted rounded transition-colors">
+                  <span className="font-mono text-xs font-bold text-primary">{selectedTicket.id}</span>
+                  <button className="p-1.5 hover:bg-muted rounded transition-colors">
                     <Eye className="size-4 text-muted-foreground" />
                   </button>
                 </div>
-                <h2 className="font-bold text-sm">{selectedTicket.title}</h2>
+                <h2 className="font-bold text-base">{selectedTicket.title}</h2>
               </div>
 
               {/* Status and Priority */}
-              <div className="p-2.5 rounded-md bg-muted/50 border border-border space-y-2">
+              <div className="p-3 rounded-md bg-muted/50 border border-border space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-muted-foreground">Status</span>
+                  <span className="text-xs text-muted-foreground font-medium">Status</span>
                   <StatusBadge status={selectedTicket.status} />
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-muted-foreground">Priority</span>
+                  <span className="text-xs text-muted-foreground font-medium">Priority</span>
                   <PriorityBadge priority={selectedTicket.priority} />
                 </div>
               </div>
 
               {/* Details */}
-              <div className="space-y-2.5 text-[11px]">
+              <div className="space-y-3.5 text-xs">
                 <div>
-                  <p className="text-muted-foreground mb-1">Description</p>
-                  <p className="text-foreground leading-relaxed">{selectedTicket.description}</p>
+                  <p className="text-muted-foreground font-medium mb-1.5">Description</p>
+                  <p className="text-foreground leading-relaxed text-xs">{selectedTicket.description}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground mb-1">Outlet</p>
+                  <p className="text-muted-foreground font-medium mb-1.5">Outlet</p>
                   <p className="text-foreground font-semibold">{selectedTicket.outlet}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground mb-1">Category</p>
+                  <p className="text-muted-foreground font-medium mb-1.5">Category</p>
                   <p className="text-foreground font-semibold">{selectedTicket.category}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground mb-1">Assigned To</p>
+                  <p className="text-muted-foreground font-medium mb-1.5">Assigned To</p>
                   <p className="text-foreground font-semibold">{selectedTicket.assignee}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-muted-foreground mb-1">Created</p>
+                    <p className="text-muted-foreground font-medium mb-1">Created</p>
                     <p className="text-foreground text-[10px] font-mono">{selectedTicket.created}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground mb-1">Due</p>
+                    <p className="text-muted-foreground font-medium mb-1">Due</p>
                     <p className="text-foreground text-[10px] font-mono">{selectedTicket.dueDate}</p>
                   </div>
                 </div>
@@ -223,11 +223,11 @@ export function TicketManagementPage() {
 
               {/* Tags */}
               {selectedTicket.tags.length > 0 && (
-                <div>
-                  <p className="text-muted-foreground mb-2 text-[10px]">Tags</p>
-                  <div className="flex flex-wrap gap-1">
+                <div className="pt-3 border-t border-border">
+                  <p className="text-muted-foreground font-medium mb-2.5 text-xs">Tags</p>
+                  <div className="flex flex-wrap gap-1.5">
                     {selectedTicket.tags.map((tag) => (
-                      <span key={tag} className="px-2 py-1 rounded-full bg-primary/20 text-primary text-[9px] font-semibold">
+                      <span key={tag} className="px-2.5 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-semibold">
                         {tag}
                       </span>
                     ))}
@@ -237,19 +237,19 @@ export function TicketManagementPage() {
 
               {/* Attachments */}
               {selectedTicket.attachments > 0 && (
-                <div className="p-2 rounded-md bg-muted/50 border border-border">
-                  <p className="text-[10px] text-muted-foreground">
+                <div className="p-3 rounded-md bg-muted/50 border border-border">
+                  <p className="text-xs text-muted-foreground font-medium">
                     📎 {selectedTicket.attachments} attachment{selectedTicket.attachments > 1 ? 's' : ''}
                   </p>
                 </div>
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-2 border-t border-border">
-                <button className="flex-1 px-2 py-1.5 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 transition-colors">
+              <div className="flex gap-2.5 pt-4 border-t border-border">
+                <button className="flex-1 px-3 py-2 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
                   Update
                 </button>
-                <button className="flex-1 px-2 py-1.5 rounded-md bg-muted border border-border text-muted-foreground text-[11px] font-semibold hover:bg-muted/80 transition-colors">
+                <button className="flex-1 px-3 py-2 rounded-md bg-muted border border-border text-muted-foreground text-xs font-semibold hover:bg-muted/80 transition-colors">
                   Close
                 </button>
               </div>
