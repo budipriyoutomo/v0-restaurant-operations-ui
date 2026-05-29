@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Filter, Plus, Clock, Flame, Droplet, Wind, Monitor, Snowflake, Lightbulb, AlertCircle, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Search, Filter, Plus, Clock, Flame, Droplet, Wind, Monitor, Snowflake, Lightbulb } from 'lucide-react'
 import { EngineeringKPIBar } from '@/components/shared/engineering-kpi-bar'
-import { WorkOrderStatusBadge, RecurringIssueBadge, CriticalEquipmentBadge, DowntimeRiskBadge, SLARiskBadge, WaitingSparePartBadge, WorkOrderTypeBadge, HealthScoreBadge } from '@/components/shared/work-order-badges'
+import { WorkOrderStatusBadge, RecurringIssueBadge, DowntimeRiskBadge, SLARiskBadge, WaitingSparePartBadge, WorkOrderTypeBadge, HealthScoreBadge } from '@/components/shared/work-order-badges'
 import { CreateTicketDialog } from '@/components/dialogs/create-ticket-dialog'
 import { tickets, equipmentTypes } from '@/lib/data'
 import { cn } from '@/lib/utils'
@@ -116,7 +116,6 @@ export function TicketsPage() {
                             selectedWorkOrder?.id === wo.id ? 'border-primary ring-1 ring-primary/30' : 'border-border'
                           )}
                         >
-                          {/* Header */}
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
                               <div className={cn('p-1.5 rounded-md', wo.priority === 'critical' ? 'bg-destructive/15' : 'bg-muted')}>
@@ -127,15 +126,11 @@ export function TicketsPage() {
                                 <p className="text-[10px] text-muted-foreground truncate">{equip?.name}</p>
                               </div>
                             </div>
-                            {equip && (
-                              <HealthScoreBadge score={equip.healthScore} />
-                            )}
+                            {equip && <HealthScoreBadge score={equip.healthScore} />}
                           </div>
 
-                          {/* Title */}
                           <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">{wo.title}</p>
 
-                          {/* Badges */}
                           <div className="flex flex-wrap gap-1">
                             <WorkOrderTypeBadge type={wo.workOrderType} />
                             {badges.includes('recurring') && <RecurringIssueBadge />}
@@ -144,7 +139,6 @@ export function TicketsPage() {
                             {badges.includes('sla') && <SLARiskBadge />}
                           </div>
 
-                          {/* Location & Downtime */}
                           <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border">
                             <span>{wo.outlet}</span>
                             {wo.downtimeStart && equip && (
@@ -154,7 +148,6 @@ export function TicketsPage() {
                             )}
                           </div>
 
-                          {/* Footer */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5 text-[11px]">
                               <div className="size-5 rounded-full bg-muted text-[9px] font-bold flex items-center justify-center">
@@ -216,23 +209,88 @@ export function TicketsPage() {
               {/* Asset Information */}
               {equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes] && (
                 <div className="pb-3 border-b border-border">
-                  <p className="font-semibold mb-2">Asset Information</p>
-                  <div className="space-y-1.5 text-muted-foreground">
-                    <div className="flex justify-between">
-                      <span>Asset ID</span>
-                      <span className="font-mono">{selectedWorkOrder.assetId}</span>
+                  <p className="font-semibold mb-3 text-xs uppercase tracking-wide text-muted-foreground">Asset Information</p>
+                  <div className="space-y-2.5 text-[11px]">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Asset ID</span>
+                      <span className="font-mono font-semibold text-foreground">{selectedWorkOrder.assetId}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Equipment</span>
-                      <span className="text-foreground font-medium">{equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.name}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Equipment</span>
+                      <span className="text-foreground font-semibold">{equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.name}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Category</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Category</span>
                       <span className="text-foreground">{equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.category}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Health Score</span>
-                      <HealthScoreBadge score={equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.healthScore || 0} />
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Brand/Model</span>
+                      <span className="text-foreground font-mono text-[10px]">{equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.brand} {equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.model}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Serial Number</span>
+                      <span className="text-foreground font-mono text-[10px]">{equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.serialNumber}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="p-2 rounded-md bg-muted/30">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">Installed</p>
+                        <p className="text-[11px] font-semibold">{equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.installDate}</p>
+                      </div>
+                      <div className="p-2 rounded-md bg-muted/30">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">Warranty Expiry</p>
+                        <p className="text-[11px] font-semibold">{equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.warrantyExpiry}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Equipment Health */}
+              {equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes] && (
+                <div className="pb-3 border-b border-border">
+                  <p className="font-semibold mb-3 text-xs uppercase tracking-wide text-muted-foreground">Equipment Health</p>
+                  <div className="space-y-2.5">
+                    <div>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-[11px] text-muted-foreground">Health Score</span>
+                        <HealthScoreBadge score={equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.healthScore || 0} />
+                      </div>
+                      <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className={cn(
+                            'h-full transition-all',
+                            (equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.healthScore || 0) >= 70 ? 'bg-success' :
+                            (equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.healthScore || 0) >= 50 ? 'bg-warning' : 'bg-destructive'
+                          )}
+                          style={{width: `${equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.healthScore || 0}%`}}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2 rounded-md bg-muted/30 border border-border">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">Downtime This Month</p>
+                        <p className="text-[11px] font-semibold">{equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.downtimeThisMonth}</p>
+                      </div>
+                      <div className="p-2 rounded-md bg-muted/30 border border-border">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">Recurring Breakdowns</p>
+                        <p className="text-[11px] font-semibold">{equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.recurringBreakdowns}x</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center p-2 rounded-md bg-muted/30 border border-border">
+                      <span className="text-[11px] text-muted-foreground">Operational Risk</span>
+                      <span className={cn(
+                        'text-[10px] font-semibold px-2 py-1 rounded-full',
+                        equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.operationalRisk === 'critical' && 'bg-destructive/20 text-destructive',
+                        equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.operationalRisk === 'high' && 'bg-orange-500/20 text-orange-600',
+                        equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.operationalRisk === 'medium' && 'bg-warning/20 text-warning',
+                        equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.operationalRisk === 'low' && 'bg-success/20 text-success',
+                      )}>
+                        {equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.operationalRisk?.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-2 rounded-md bg-muted/30 border border-border">
+                      <span className="text-[11px] text-muted-foreground">PM Frequency</span>
+                      <span className="text-[11px] font-semibold">{equipmentTypes[selectedWorkOrder.assetId as keyof typeof equipmentTypes]?.maintenanceFrequency}</span>
                     </div>
                   </div>
                 </div>
@@ -289,15 +347,28 @@ export function TicketsPage() {
 
               {/* Technician Assignment */}
               <div className="pb-3 border-b border-border">
-                <p className="font-semibold mb-2">Technician Assignment</p>
-                <div className="space-y-1.5 text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Assigned To</span>
-                    <span className="text-foreground font-medium">{selectedWorkOrder.assignee}</span>
+                <p className="font-semibold mb-3 text-xs uppercase tracking-wide text-muted-foreground">Technician Assignment</p>
+                <div className="space-y-2.5 text-[11px]">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Assigned To</span>
+                    <span className="text-foreground font-semibold">{selectedWorkOrder.assignee}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>ETA</span>
-                    <span className="text-foreground font-mono">{selectedWorkOrder.technicianETA}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">ETA</span>
+                    <span className="text-foreground font-mono text-[10px]">{selectedWorkOrder.technicianETA}</span>
+                  </div>
+                  <div className="pt-1.5 grid grid-cols-2 gap-2">
+                    <div className="p-2 rounded-md bg-muted/30 border border-border">
+                      <p className="text-[10px] text-muted-foreground mb-0.5">Live Status</p>
+                      <div className="flex items-center gap-1">
+                        <span className="size-1.5 rounded-full bg-success animate-pulse" />
+                        <p className="text-[11px] font-semibold">On-site</p>
+                      </div>
+                    </div>
+                    <div className="p-2 rounded-md bg-muted/30 border border-border">
+                      <p className="text-[10px] text-muted-foreground mb-0.5">Workload</p>
+                      <p className="text-[11px] font-semibold">2 / 3 jobs</p>
+                    </div>
                   </div>
                 </div>
               </div>
