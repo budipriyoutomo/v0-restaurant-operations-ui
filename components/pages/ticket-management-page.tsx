@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Search, Filter, Plus, Clock, Eye, AlertCircle, CheckCircle2, Loader2, Archive, MessageSquare, Pin } from 'lucide-react'
+import { CreateTicketDialog } from '@/components/dialogs/create-ticket-dialog'
 import { operationalTickets } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
@@ -42,6 +43,7 @@ export function TicketManagementPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterPriority, setFilterPriority] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<string | null>(null)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
   const filteredTickets = operationalTickets.filter(ticket => {
     const matchSearch = ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -59,7 +61,10 @@ export function TicketManagementPage() {
           <h1 className="text-3xl font-bold">Ticket Management</h1>
           <p className="text-sm text-muted-foreground mt-1">Operational and service tickets</p>
         </div>
-        <button className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
+        <button 
+          onClick={() => setCreateDialogOpen(true)}
+          className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+        >
           <Plus className="size-4" /> New Ticket
         </button>
       </div>
@@ -257,6 +262,15 @@ export function TicketManagementPage() {
           </div>
         )}
       </div>
+
+      {/* Create Ticket Dialog */}
+      <CreateTicketDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSubmit={(data) => {
+          console.log('[v0] New ticket created:', data)
+        }}
+      />
     </div>
   )
 }

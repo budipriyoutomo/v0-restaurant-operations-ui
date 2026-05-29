@@ -2,29 +2,39 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import { outlets } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
 interface CreateTicketDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit?: (data: any) => void
+  onSubmit?: (data: {
+    title: string
+    description: string
+    category: string
+    outlet: string
+    priority: string
+    assignee: string
+    dueDate: string
+  }) => void
 }
 
-const categories = ['Equipment', 'Plumbing', 'Electrical', 'HVAC', 'IT / POS', 'Others']
-const priorities = ['low', 'medium', 'high', 'critical']
-const technicians = ['Ahmad Razif', 'Lee Chong Wei', 'Mohd Faris', 'Raj Kumar', 'Unassigned']
+const CATEGORIES = ['Operations', 'Procurement', 'Service Quality', 'Training', 'Compliance', 'Marketing', 'IT Support']
+const OUTLETS = ['KL Central', 'Subang', 'KLCC', 'Bangsar', 'Damansara']
+const PRIORITIES = ['Low', 'Medium', 'High', 'Critical']
+const ASSIGNEES = ['Manager KL', 'Supply Manager', 'Service Lead', 'HR Manager', 'Operations Manager', 'Marketing Coordinator', 'Unassigned']
 
 export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicketDialogProps) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    outlet: '',
-    category: '',
-    priority: 'medium',
+    category: 'Operations',
+    outlet: 'KL Central',
+    priority: 'Medium',
     assignee: 'Unassigned',
-    slaHours: '24',
+    dueDate: '',
   })
+
+  const isComplete = formData.title.trim() && formData.description.trim() && formData.dueDate
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -33,16 +43,19 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (formData.title && formData.outlet && formData.category) {
-      onSubmit?.(formData)
+    if (isComplete) {
+      onSubmit?.({
+        ...formData,
+        priority: formData.priority.toLowerCase(),
+      })
       setFormData({
         title: '',
         description: '',
-        outlet: '',
-        category: '',
-        priority: 'medium',
+        category: 'Operations',
+        outlet: 'KL Central',
+        priority: 'Medium',
         assignee: 'Unassigned',
-        slaHours: '24',
+        dueDate: '',
       })
       onOpenChange(false)
     }
@@ -54,62 +67,56 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-background">
-          <h2 className="text-sm font-semibold">Create New Ticket</h2>
+        <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
+          <h2 className="text-lg font-bold">Create New Ticket</h2>
           <button
             onClick={() => onOpenChange(false)}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1 hover:bg-muted rounded-md transition-colors"
           >
-            <X className="size-4" />
+            <X className="size-5 text-muted-foreground" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Title */}
           <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
-              Title <span className="text-destructive">*</span>
-            </label>
+            <label className="block text-sm font-semibold mb-1.5">Title <span className="text-destructive">*</span></label>
             <input
               type="text"
               name="title"
+              placeholder="Brief description of the issue"
               value={formData.title}
               onChange={handleChange}
-              placeholder="Brief title of the issue"
-              className="w-full px-3 py-2 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-              required
+              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Description</label>
+            <label className="block text-sm font-semibold mb-1.5">Description <span className="text-destructive">*</span></label>
             <textarea
               name="description"
+              placeholder="Detailed explanation of the issue"
               value={formData.description}
               onChange={handleChange}
-              placeholder="Detailed description of the issue"
-              className="w-full px-3 py-2 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring resize-none h-20"
+              rows={3}
+              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
             />
           </div>
 
           {/* Outlet */}
           <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
-              Outlet <span className="text-destructive">*</span>
-            </label>
+            <label className="block text-sm font-semibold mb-1.5">Outlet</label>
             <select
               name="outlet"
               value={formData.outlet}
               onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-              required
+              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
-              <option value="">Select an outlet</option>
-              {outlets.map((outlet) => (
-                <option key={outlet.id} value={outlet.name}>
-                  {outlet.name}
+              {OUTLETS.map((outlet) => (
+                <option key={outlet} value={outlet}>
+                  {outlet}
                 </option>
               ))}
             </select>
@@ -117,20 +124,16 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
 
           {/* Category */}
           <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
-              Category <span className="text-destructive">*</span>
-            </label>
+            <label className="block text-sm font-semibold mb-1.5">Category</label>
             <select
               name="category"
               value={formData.category}
               onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-              required
+              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
-              <option value="">Select a category</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
+              {CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
                 </option>
               ))}
             </select>
@@ -138,71 +141,65 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
 
           {/* Priority */}
           <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Priority</label>
+            <label className="block text-sm font-semibold mb-1.5">Priority</label>
             <select
               name="priority"
               value={formData.priority}
               onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
-              {priorities.map((p) => (
-                <option key={p} value={p}>
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
+              {PRIORITIES.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Assignee */}
+          {/* Assign To */}
           <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Assign To</label>
+            <label className="block text-sm font-semibold mb-1.5">Assign To</label>
             <select
               name="assignee"
               value={formData.assignee}
               onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
-              {technicians.map((tech) => (
-                <option key={tech} value={tech}>
-                  {tech}
+              {ASSIGNEES.map((assignee) => (
+                <option key={assignee} value={assignee}>
+                  {assignee}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* SLA Hours */}
+          {/* Due Date */}
           <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5">SLA (hours)</label>
-            <select
-              name="slaHours"
-              value={formData.slaHours}
+            <label className="block text-sm font-semibold mb-1.5">Due Date <span className="text-destructive">*</span></label>
+            <input
+              type="date"
+              name="dueDate"
+              value={formData.dueDate}
               onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="1">1 hour (Critical)</option>
-              <option value="2">2 hours (Urgent)</option>
-              <option value="4">4 hours (High)</option>
-              <option value="8">8 hours (Medium)</option>
-              <option value="24">24 hours (Low)</option>
-              <option value="48">48 hours (Very Low)</option>
-            </select>
+              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
           </div>
 
-          {/* Buttons */}
-          <div className="flex gap-2 pt-4 border-t border-border">
+          {/* Actions */}
+          <div className="flex gap-3 pt-4 border-t border-border">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="flex-1 px-3 py-2 rounded-md border border-border text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
+              className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!formData.title || !formData.outlet || !formData.category}
+              disabled={!isComplete}
               className={cn(
-                'flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors',
-                formData.title && formData.outlet && formData.category
+                'flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors',
+                isComplete
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-muted text-muted-foreground cursor-not-allowed'
               )}
