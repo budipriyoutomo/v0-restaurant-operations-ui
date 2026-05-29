@@ -51,46 +51,197 @@ export const realtimeAlerts = [
   { id: 'a5', type: 'warning', message: 'Water heater pressure deviation — KL Central', time: '1h ago', outlet: 'KL Central' },
 ]
 
+export const engineeringKPIs = {
+  mttr: 3.2, // Mean Time To Repair in hours
+  mtbf: 168, // Mean Time Between Failures in hours
+  activeDowntime: 12.7, // Active downtime in hours
+  pmCompliance: 94, // Preventive Maintenance compliance %
+  criticalBreakdowns: 3, // Number of critical breakdowns this month
+  maintenanceCost: 8540, // Total maintenance cost this month
+  assetHealth: 68, // Overall asset health score
+  overdueWorkOrders: 2, // Overdue work orders count
+}
+
+export const mttrTrendData = [
+  { date: 'May 1', mttr: 4.2 },
+  { date: 'May 5', mttr: 3.8 },
+  { date: 'May 10', mttr: 3.5 },
+  { date: 'May 15', mttr: 3.9 },
+  { date: 'May 20', mttr: 2.8 },
+  { date: 'May 25', mttr: 3.1 },
+  { date: 'May 28', mttr: 3.2 },
+]
+
+export const equipmentTypes = {
+  'FR-03': { name: 'Fryer Unit #3', category: 'Kitchen Equipment', icon: 'Flame', healthScore: 42, downtime: '4h 23m', recurring: true },
+  'SK-01': { name: 'Kitchen Sink', category: 'Plumbing', icon: 'Droplet', healthScore: 65, downtime: '1h 15m', recurring: false },
+  'HVAC-02': { name: 'AC Unit #2', category: 'HVAC', icon: 'Wind', healthScore: 38, downtime: '2h 45m', recurring: true },
+  'POS-01': { name: 'POS Terminal #1', category: 'IT/POS', icon: 'Monitor', healthScore: 78, downtime: '30m', recurring: false },
+  'CHR-01': { name: 'Refrigerator Chiller', category: 'Cold Storage', icon: 'Snowflake', healthScore: 72, downtime: '0m', recurring: false },
+  'LIGHT-08': { name: 'Ceiling Light Array', category: 'Electrical', icon: 'Lightbulb', healthScore: 55, downtime: '0m', recurring: false },
+  'WH-01': { name: 'Water Heater', category: 'Plumbing', icon: 'Droplet', healthScore: 48, downtime: '6h 30m', recurring: true },
+  'ICE-02': { name: 'Ice Machine #2', category: 'Equipment', icon: 'Snowflake', healthScore: 28, downtime: '8h 10m', recurring: true },
+}
+
 export const tickets = [
   {
-    id: 'TK-2048', title: 'Fryer unit not heating to target temp', outlet: 'Subang', category: 'Equipment',
-    priority: 'critical', status: 'open', assignee: 'Ahmad Razif', created: '2024-05-28 08:12', slaHours: 2,
+    id: 'WO-2048', title: 'Fryer unit not heating to target temp', outlet: 'Subang', category: 'Equipment',
+    priority: 'critical', status: 'in_progress', assignee: 'Ahmad Razif', created: '2024-05-28 08:12', slaHours: 2,
     description: 'Fryer #3 not reaching 180°C. Staff unable to operate lunch service.',
+    assetId: 'FR-03', workOrderType: 'Corrective', createdAt: '08:12', downtimeStart: '08:05',
+    businessImpact: 'High - Lunch service affected', technicianETA: '09:15', slaRiskLevel: 'critical',
+    checklist: [
+      { item: 'Temperature sensor checked', completed: true },
+      { item: 'Heating element tested', completed: true },
+      { item: 'Gas flow validated', completed: false },
+      { item: 'Thermostat recalibrated', completed: false },
+    ],
+    spareParts: [
+      { part: 'Heating Element 3kW', status: 'reserved', vendor: 'ABC Supplies' },
+    ],
+    timeline: [
+      { time: '08:12', action: 'Ticket created', user: 'System' },
+      { time: '08:15', action: 'Assigned to technician', user: 'Ops Manager' },
+      { time: '08:45', action: 'Technician acknowledged', user: 'Ahmad Razif' },
+      { time: '08:55', action: 'Technician arrived on-site', user: 'Ahmad Razif' },
+    ]
   },
   {
-    id: 'TK-2047', title: 'Drainage blockage at kitchen sink', outlet: 'KLCC', category: 'Plumbing',
+    id: 'WO-2047', title: 'Drainage blockage at kitchen sink', outlet: 'KLCC', category: 'Plumbing',
     priority: 'high', status: 'in_progress', assignee: 'Lee Chong Wei', created: '2024-05-28 07:45', slaHours: 4,
     description: 'Kitchen sink draining slowly causing operational delays.',
+    assetId: 'SK-01', workOrderType: 'Corrective', createdAt: '07:45', downtimeStart: '07:30',
+    businessImpact: 'Medium - Prep station affected', technicianETA: '10:00', slaRiskLevel: 'warning',
+    checklist: [
+      { item: 'Drain snake inspection', completed: true },
+      { item: 'Blockage identified and removed', completed: true },
+      { item: 'System pressure tested', completed: false },
+      { item: 'Water flow verified', completed: false },
+    ],
+    spareParts: [],
+    timeline: [
+      { time: '07:45', action: 'Ticket created', user: 'System' },
+      { time: '08:00', action: 'Assigned to technician', user: 'Ops Manager' },
+      { time: '08:30', action: 'Technician acknowledged', user: 'Lee Chong Wei' },
+    ]
   },
   {
-    id: 'TK-2046', title: 'Air-cond tripping MCB repeatedly', outlet: 'Bangsar', category: 'Electrical',
-    priority: 'high', status: 'in_progress', assignee: 'Mohd Faris', created: '2024-05-27 15:30', slaHours: 6,
+    id: 'WO-2046', title: 'Air-cond tripping MCB repeatedly', outlet: 'Bangsar', category: 'Electrical',
+    priority: 'high', status: 'waiting_sparepart', assignee: 'Mohd Faris', created: '2024-05-27 15:30', slaHours: 6,
     description: 'HVAC unit causing MCB to trip every 2 hours in dining area.',
+    assetId: 'HVAC-02', workOrderType: 'Corrective', createdAt: '15:30', downtimeStart: '15:15',
+    businessImpact: 'High - Dining area HVAC offline', technicianETA: 'Pending part arrival', slaRiskLevel: 'warning',
+    checklist: [
+      { item: 'MCB load analysis', completed: true },
+      { item: 'Compressor amperage checked', completed: true },
+      { item: 'Capacitor replacement planned', completed: false },
+      { item: 'System restart', completed: false },
+    ],
+    spareParts: [
+      { part: 'Compressor Capacitor 50µF', status: 'on_order', vendor: 'Electrical Depot', eta: 'May 29' },
+    ],
+    timeline: [
+      { time: '15:30', action: 'Ticket created', user: 'System' },
+      { time: '16:00', action: 'Assigned to technician', user: 'Ops Manager' },
+      { time: '16:30', action: 'Technician on-site', user: 'Mohd Faris' },
+      { time: '17:00', action: 'Waiting for spare part', user: 'Mohd Faris' },
+    ]
   },
   {
-    id: 'TK-2045', title: 'POS terminal screen flickering', outlet: 'KL Central', category: 'IT / POS',
+    id: 'WO-2045', title: 'POS terminal screen flickering', outlet: 'KL Central', category: 'IT / POS',
     priority: 'medium', status: 'open', assignee: 'Unassigned', created: '2024-05-27 12:00', slaHours: 24,
     description: 'Terminal 1 screen intermittently flickers affecting cashier.',
+    assetId: 'POS-01', workOrderType: 'Corrective', createdAt: '12:00', downtimeStart: null,
+    businessImpact: 'Low - Intermittent only', technicianETA: 'Not assigned', slaRiskLevel: 'normal',
+    checklist: [
+      { item: 'Display cable connection checked', completed: false },
+      { item: 'Driver update applied', completed: false },
+      { item: 'Display unit tested', completed: false },
+    ],
+    spareParts: [],
+    timeline: [
+      { time: '12:00', action: 'Ticket created', user: 'System' },
+    ]
   },
   {
-    id: 'TK-2044', title: 'Refrigerator compressor noise', outlet: 'Damansara', category: 'Equipment',
-    priority: 'medium', status: 'resolved', assignee: 'Raj Kumar', created: '2024-05-26 09:00', slaHours: 24,
+    id: 'WO-2044', title: 'Refrigerator compressor noise', outlet: 'Damansara', category: 'Equipment',
+    priority: 'medium', status: 'testing', assignee: 'Raj Kumar', created: '2024-05-26 09:00', slaHours: 24,
     description: 'Loud compressor noise from cold storage unit.',
+    assetId: 'CHR-01', workOrderType: 'Preventive', createdAt: '09:00', downtimeStart: null,
+    businessImpact: 'Low - Operational', technicianETA: 'Testing', slaRiskLevel: 'normal',
+    checklist: [
+      { item: 'Compressor bearing inspection', completed: true },
+      { item: 'Isolation mounts replaced', completed: true },
+      { item: 'Noise level measured', completed: true },
+      { item: 'System performance verified', completed: false },
+    ],
+    spareParts: [
+      { part: 'Rubber Isolation Mount Set', status: 'used', vendor: 'Equipment Parts Inc' },
+    ],
+    timeline: [
+      { time: '09:00', action: 'PM scheduled', user: 'System' },
+      { time: '10:30', action: 'Technician arrived', user: 'Raj Kumar' },
+      { time: '11:45', action: 'Isolation mounts replaced', user: 'Raj Kumar' },
+      { time: '12:30', action: 'Testing in progress', user: 'Raj Kumar' },
+    ]
   },
   {
-    id: 'TK-2043', title: 'Ceiling light flickering — dining area', outlet: 'Subang', category: 'Electrical',
+    id: 'WO-2043', title: 'Ceiling light flickering — dining area', outlet: 'Subang', category: 'Electrical',
     priority: 'low', status: 'open', assignee: 'Unassigned', created: '2024-05-26 08:00', slaHours: 48,
     description: 'Two ceiling lights flickering in main dining section.',
+    assetId: 'LIGHT-08', workOrderType: 'Corrective', createdAt: '08:00', downtimeStart: null,
+    businessImpact: 'Low - Cosmetic', technicianETA: 'Not assigned', slaRiskLevel: 'normal',
+    checklist: [
+      { item: 'Ballast inspection', completed: false },
+      { item: 'Fluorescent tubes replaced', completed: false },
+      { item: 'Voltage stability checked', completed: false },
+    ],
+    spareParts: [],
+    timeline: [
+      { time: '08:00', action: 'Ticket created', user: 'System' },
+    ]
   },
   {
-    id: 'TK-2042', title: 'Hot water not available — staff washroom', outlet: 'KLCC', category: 'Plumbing',
-    priority: 'medium', status: 'in_progress', assignee: 'Lee Chong Wei', created: '2024-05-25 14:00', slaHours: 8,
+    id: 'WO-2042', title: 'Hot water not available — staff washroom', outlet: 'KLCC', category: 'Plumbing',
+    priority: 'medium', status: 'acknowledged', assignee: 'Lee Chong Wei', created: '2024-05-25 14:00', slaHours: 8,
     description: 'Water heater unit offline in staff washroom.',
+    assetId: 'WH-01', workOrderType: 'Corrective', createdAt: '14:00', downtimeStart: '13:45',
+    businessImpact: 'Medium - Staff facilities', technicianETA: '15:30', slaRiskLevel: 'normal',
+    checklist: [
+      { item: 'Thermostat setting verified', completed: false },
+      { item: 'Gas supply checked', completed: false },
+      { item: 'Heat exchanger inspected', completed: false },
+    ],
+    spareParts: [],
+    timeline: [
+      { time: '14:00', action: 'Ticket created', user: 'System' },
+      { time: '14:15', action: 'Assigned to technician', user: 'Ops Manager' },
+      { time: '14:45', action: 'Technician acknowledged', user: 'Lee Chong Wei' },
+    ]
   },
   {
-    id: 'TK-2041', title: 'Ice machine not producing ice', outlet: 'KLCC', category: 'Equipment',
-    priority: 'high', status: 'open', assignee: 'Ahmad Razif', created: '2024-05-25 10:30', slaHours: 1,
+    id: 'WO-2041', title: 'Ice machine not producing ice', outlet: 'KLCC', category: 'Equipment',
+    priority: 'critical', status: 'completed', assignee: 'Ahmad Razif', created: '2024-05-25 10:30', slaHours: 1,
     description: 'Ice machine #2 completely non-functional since morning.',
+    assetId: 'ICE-02', workOrderType: 'Corrective', createdAt: '10:30', downtimeStart: '10:15',
+    businessImpact: 'Critical - No ice available', technicianETA: 'Completed', slaRiskLevel: 'critical',
+    checklist: [
+      { item: 'Refrigerant pressure verified', completed: true },
+      { item: 'Compressor test run', completed: true },
+      { item: 'Ice tray mechanism cleaned', completed: true },
+      { item: 'Full system test', completed: true },
+    ],
+    spareParts: [
+      { part: 'Ice Machine Compressor', status: 'replaced', vendor: 'Cooling Solutions' },
+    ],
+    timeline: [
+      { time: '10:30', action: 'Ticket created', user: 'System' },
+      { time: '10:45', action: 'Assigned to technician', user: 'Ops Manager' },
+      { time: '11:00', action: 'Technician arrived', user: 'Ahmad Razif' },
+      { time: '12:30', action: 'Compressor replaced', user: 'Ahmad Razif' },
+      { time: '13:00', action: 'System tested - operational', user: 'Ahmad Razif' },
+      { time: '13:15', action: 'Work order completed', user: 'Ahmad Razif' },
+    ]
   },
 ]
 
