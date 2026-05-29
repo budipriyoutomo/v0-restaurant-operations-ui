@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Search, Filter, Plus, Clock, Paperclip, MessageSquare, MoreHorizontal } from 'lucide-react'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
+import { CreateTicketDialog } from '@/components/dialogs/create-ticket-dialog'
 import { tickets } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +17,7 @@ export function TicketsPage() {
   const [view, setView] = useState<'kanban' | 'table'>('kanban')
   const [selectedTicket, setSelectedTicket] = useState<typeof tickets[0] | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
   const filtered = tickets.filter(
     (t) =>
@@ -57,7 +59,10 @@ export function TicketsPage() {
               Table
             </button>
           </div>
-          <button className="flex items-center gap-1.5 px-3 h-7 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
+          <button 
+            onClick={() => setCreateDialogOpen(true)}
+            className="flex items-center gap-1.5 px-3 h-7 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+          >
             <Plus className="size-3.5" /> New Ticket
           </button>
         </div>
@@ -268,6 +273,15 @@ export function TicketsPage() {
           </div>
         )}
       </div>
+
+      {/* Create Ticket Dialog */}
+      <CreateTicketDialog 
+        open={createDialogOpen} 
+        onOpenChange={setCreateDialogOpen}
+        onSubmit={(data) => {
+          console.log('[v0] New ticket created:', data)
+        }}
+      />
     </div>
   )
 }
