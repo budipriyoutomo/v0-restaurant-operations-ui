@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { AppShell } from '@/components/layout/app-shell'
 import { DashboardPage } from '@/components/pages/dashboard-page'
 import { TicketsPage } from '@/components/pages/tickets-page'
-import { CMMSPage } from '@/components/pages/cmms-page'
+import { TicketManagementPage } from '@/components/pages/ticket-management-page'
 import { GuestPage } from '@/components/pages/guest-page'
 import { FinancePage } from '@/components/pages/finance-page'
 import { QAPage } from '@/components/pages/qa-page'
@@ -19,8 +19,8 @@ export default function Page() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':   return <DashboardPage />
-      case 'tickets':     return <TicketsPage />
-      case 'cmms':        return <CMMSPage />
+      case 'tickets':     return <TicketManagementPage />
+      case 'cmms':        return <TicketsPage />
       case 'guest':       return <GuestPage />
       case 'finance':     return <FinancePage />
       case 'qa':          return <QAPage />

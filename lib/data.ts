@@ -72,6 +72,66 @@ export const mttrTrendData = [
   { date: 'May 28', mttr: 3.2 },
 ]
 
+// Generic Operational Tickets (non-engineering)
+export const operationalTickets = [
+  {
+    id: 'TK-5048', title: 'Staff scheduling conflict for weekend', outlet: 'Subang', category: 'Operations',
+    priority: 'high', status: 'open', assignee: 'Manager KL', created: '2024-05-28 09:30', dueDate: '2024-05-29',
+    description: 'Kitchen and front-of-house staff scheduling overlap causing coverage gaps.',
+    tags: ['scheduling', 'staffing', 'urgent'],
+    attachments: 2,
+  },
+  {
+    id: 'TK-5047', title: 'Inventory shortage — kitchen supplies', outlet: 'KLCC', category: 'Procurement',
+    priority: 'high', status: 'in_progress', assignee: 'Supply Manager', created: '2024-05-28 08:15', dueDate: '2024-05-28 EOD',
+    description: 'Critical shortage of cooking oil and flour. Reorder needed urgently.',
+    tags: ['inventory', 'procurement', 'critical'],
+    attachments: 1,
+  },
+  {
+    id: 'TK-5046', title: 'Customer feedback — slow service during rush', outlet: 'Bangsar', category: 'Service Quality',
+    priority: 'medium', status: 'open', assignee: 'Service Lead', created: '2024-05-27 19:45', dueDate: '2024-05-30',
+    description: 'Multiple complaints about wait times exceeding 45 minutes during evening service.',
+    tags: ['service-quality', 'customer-feedback'],
+    attachments: 0,
+  },
+  {
+    id: 'TK-5045', title: 'Training requirement — new menu items', outlet: 'KL Central', category: 'Training',
+    priority: 'medium', status: 'open', assignee: 'HR Manager', created: '2024-05-27 14:20', dueDate: '2024-06-05',
+    description: 'Staff training needed for 5 new menu items launching next week.',
+    tags: ['training', 'menu-launch', 'hr'],
+    attachments: 3,
+  },
+  {
+    id: 'TK-5044', title: 'Vendor performance issue — delayed deliveries', outlet: 'Damansara', category: 'Procurement',
+    priority: 'medium', status: 'in_progress', assignee: 'Supply Manager', created: '2024-05-26 10:00', dueDate: '2024-05-31',
+    description: 'Supplier consistently delivering late. Need to review contract or find alternative.',
+    tags: ['vendor', 'procurement', 'performance'],
+    attachments: 0,
+  },
+  {
+    id: 'TK-5043', title: 'Complaint resolution — wrong order delivered', outlet: 'KLCC', category: 'Service Quality',
+    priority: 'high', status: 'resolved', assignee: 'Manager KLCC', created: '2024-05-26 18:30', dueDate: '2024-05-27',
+    description: 'Customer received incorrect order. Resolved with complimentary meal offer.',
+    tags: ['service-quality', 'customer-service'],
+    attachments: 1,
+  },
+  {
+    id: 'TK-5042', title: 'Safety audit follow-up — non-compliance items', outlet: 'Subang', category: 'Compliance',
+    priority: 'critical', status: 'open', assignee: 'Operations Manager', created: '2024-05-25 11:00', dueDate: '2024-05-29',
+    description: '3 non-compliance items from recent health and safety audit need immediate remediation.',
+    tags: ['compliance', 'safety', 'urgent'],
+    attachments: 2,
+  },
+  {
+    id: 'TK-5041', title: 'Promotion campaign coordination', outlet: 'KL Central', category: 'Marketing',
+    priority: 'low', status: 'open', assignee: 'Marketing Coordinator', created: '2024-05-25 09:15', dueDate: '2024-06-10',
+    description: 'Coordinate end-of-month promotion materials and staff briefing.',
+    tags: ['marketing', 'promotion'],
+    attachments: 4,
+  },
+]
+
 export const equipmentTypes = {
   'FR-03': { 
     name: 'Fryer Unit #3', 
