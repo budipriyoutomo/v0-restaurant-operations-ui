@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Edit2, Trash2, Search, Filter, Check, X } from 'lucide-react'
-import { outlets } from '@/lib/data'
+import { Plus, Edit2, Trash2, Search, Filter, Check, X, Mail, Phone } from 'lucide-react'
+import { outlets, pics } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
 interface Outlet {
@@ -17,6 +17,15 @@ interface Category {
   name: string
   description: string
   type: 'operations' | 'maintenance'
+}
+
+interface PIC {
+  id: string
+  name: string
+  email: string
+  phone: string
+  department: string
+  categories: string[]
 }
 
 const categoryMasterData: Category[] = [
@@ -39,10 +48,11 @@ const statusColors = {
 }
 
 export function MasterDataPage() {
-  const [activeTab, setActiveTab] = useState<'outlets' | 'categories'>('outlets')
+  const [activeTab, setActiveTab] = useState<'outlets' | 'categories' | 'pics'>('outlets')
   const [searchQuery, setSearchQuery] = useState('')
   const [outletList, setOutletList] = useState<Outlet[]>(outlets)
   const [categoryList, setCategoryList] = useState<Category[]>(categoryMasterData)
+  const [picList, setPicList] = useState<PIC[]>(pics)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
 
@@ -57,6 +67,12 @@ export function MasterDataPage() {
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const filteredPics = picList.filter((pic) =>
+    pic.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    pic.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    pic.department.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   const handleDeleteOutlet = (id: string) => {
     if (confirm('Are you sure you want to delete this outlet?')) {
       setOutletList(outletList.filter((o) => o.id !== id))
@@ -69,6 +85,19 @@ export function MasterDataPage() {
     }
   }
 
+  const handleDeletePIC = (id: string) => {
+    if (confirm('Are you sure you want to delete this PIC?')) {
+      setPicList(picList.filter((p) => p.id !== id))
+    }
+  }
+
+  const getCategoryNames = (categoryIds: string[]): string => {
+    return categoryIds
+      .map(id => categoryList.find(c => c.id === id)?.name)
+      .filter(Boolean)
+      .join(', ')
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -78,7 +107,7 @@ export function MasterDataPage() {
           <p className="text-sm text-muted-foreground mt-1">Manage outlets and categories</p>
         </div>
         <button className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
-          <Plus className="size-4" /> New {activeTab === 'outlets' ? 'Outlet' : 'Category'}
+          <Plus className="size-4" /> New {activeTab === 'outlets' ? 'Outlet' : activeTab === 'categories' ? 'Category' : 'PIC'}
         </button>
       </div>
 
@@ -113,6 +142,21 @@ export function MasterDataPage() {
           )}
         >
           Categories ({categoryList.length})
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('pics')
+            setSearchQuery('')
+            setEditingId(null)
+          }}
+          className={cn(
+            'px-4 py-3 text-sm font-semibold border-b-2 transition-colors',
+            activeTab === 'pics'
+              ? 'border-primary text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          )}
+        >
+          PIC ({picList.length})
         </button>
       </div>
 
@@ -226,6 +270,85 @@ export function MasterDataPage() {
                       >
                         <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
                       </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PIC Tab */}
+      {activeTab === 'pics' && (
+        <div className="space-y-4">
+          {filteredPics.length === 0 ? (
+            <div className="p-12 rounded-lg border border-border text-center">
+              <p className="text-muted-foreground">No PICs found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {filteredPics.map((pic) => (
+                <div key={pic.id} className="p-5 rounded-lg border border-border hover:shadow-sm hover:border-primary/50 transition-all">
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-lg text-foreground mb-1">{pic.name}</h3>
+                      <p className="text-sm text-muted-foreground">{pic.department}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button className="p-1.5 hover:bg-accent rounded-md transition-colors" title="Edit">
+                        <Edit2 className="size-4 text-muted-foreground hover:text-foreground" />
+                      </button>
+                      <button 
+                        onClick={() => handleDeletePIC(pic.id)}
+                        className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors" 
+                        title="Delete"
+                      >
+                        <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="space-y-2 mb-4 pb-4 border-b border-border">
+                    <div className="flex items-center gap-3">
+                      <Mail className="size-4 text-muted-foreground" />
+                      <a href={`mailto:${pic.email}`} className="text-sm text-primary hover:underline">
+                        {pic.email}
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Phone className="size-4 text-muted-foreground" />
+                      <a href={`tel:${pic.phone}`} className="text-sm text-primary hover:underline">
+                        {pic.phone}
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Categories */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Assigned Categories</p>
+                    <div className="flex flex-wrap gap-2">
+                      {pic.categories.length === 0 ? (
+                        <p className="text-sm text-muted-foreground italic">No categories assigned</p>
+                      ) : (
+                        pic.categories.map((catId) => {
+                          const category = categoryList.find(c => c.id === catId)
+                          return category ? (
+                            <span 
+                              key={catId}
+                              className={cn(
+                                'text-xs font-semibold px-2.5 py-1 rounded-full',
+                                category.type === 'operations' 
+                                  ? 'bg-blue-100 text-blue-700' 
+                                  : 'bg-orange-100 text-orange-700'
+                              )}
+                            >
+                              {category.name}
+                            </span>
+                          ) : null
+                        })
+                      )}
                     </div>
                   </div>
                 </div>

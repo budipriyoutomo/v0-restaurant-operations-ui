@@ -8,6 +8,57 @@ export const outlets = [
   { id: '5', name: 'Outlet Subang', code: 'SBJ', status: 'critical' },
 ]
 
+export const pics = [
+  { 
+    id: 'pic-1', 
+    name: 'Ahmad Razif', 
+    email: 'ahmad.razif@restaurant.com',
+    phone: '+60 12-3456 7890',
+    department: 'Engineering',
+    categories: ['1', '7', '8', '9', '10'], // Operations, Equipment, Plumbing, Electrical, HVAC
+  },
+  { 
+    id: 'pic-2', 
+    name: 'Lee Chong Wei', 
+    email: 'lee.chong@restaurant.com',
+    phone: '+60 12-3456 7891',
+    department: 'Operations',
+    categories: ['1', '2', '3', '4', '5'], // Operations, Procurement, Service Quality, Training, Compliance
+  },
+  { 
+    id: 'pic-3', 
+    name: 'Mohd Faris', 
+    email: 'mohd.faris@restaurant.com',
+    phone: '+60 12-3456 7892',
+    department: 'Engineering',
+    categories: ['7', '8', '9'], // Equipment, Plumbing, Electrical
+  },
+  { 
+    id: 'pic-4', 
+    name: 'Raj Kumar', 
+    email: 'raj.kumar@restaurant.com',
+    phone: '+60 12-3456 7893',
+    department: 'Maintenance',
+    categories: ['1', '7', '9', '10'], // Operations, Equipment, Electrical, HVAC
+  },
+  { 
+    id: 'pic-5', 
+    name: 'Sarah Johnson', 
+    email: 'sarah.johnson@restaurant.com',
+    phone: '+60 12-3456 7894',
+    department: 'Quality',
+    categories: ['3', '4', '5', '6'], // Service Quality, Training, Compliance, Marketing
+  },
+  { 
+    id: 'pic-6', 
+    name: 'Priya Sharma', 
+    email: 'priya.sharma@restaurant.com',
+    phone: '+60 12-3456 7895',
+    department: 'Supply Chain',
+    categories: ['2', '5'], // Procurement, Compliance
+  },
+]
+
 export const ticketTrendData = [
   { date: 'May 1', open: 12, resolved: 8, escalated: 2 },
   { date: 'May 5', open: 18, resolved: 14, escalated: 3 },
