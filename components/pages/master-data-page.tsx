@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { Plus, Edit2, Trash2, Search, Filter, Check, X, Mail, Phone } from 'lucide-react'
+import { NewOutletDialog } from '@/components/dialogs/new-outlet-dialog'
+import { NewCategoryDialog } from '@/components/dialogs/new-category-dialog'
+import { NewPICDialog } from '@/components/dialogs/new-pic-dialog'
 import { outlets, pics } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
@@ -55,6 +58,9 @@ export function MasterDataPage() {
   const [picList, setPicList] = useState<PIC[]>(pics)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showOutletDialog, setShowOutletDialog] = useState(false)
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false)
+  const [showPICDialog, setShowPICDialog] = useState(false)
 
   // Filter logic
   const filteredOutlets = outletList.filter(
@@ -98,6 +104,44 @@ export function MasterDataPage() {
       .join(', ')
   }
 
+  const handleAddOutlet = (data: { name: string; code: string; status: string }) => {
+    const newOutlet: Outlet = {
+      id: String(outletList.length + 1),
+      name: data.name,
+      code: data.code.toUpperCase(),
+      status: data.status as 'operational' | 'warning' | 'critical',
+    }
+    setOutletList([...outletList, newOutlet])
+  }
+
+  const handleAddCategory = (data: { name: string; description: string; type: string }) => {
+    const newCategory: Category = {
+      id: String(categoryList.length + 1),
+      name: data.name,
+      description: data.description,
+      type: data.type as 'operations' | 'maintenance',
+    }
+    setCategoryList([...categoryList, newCategory])
+  }
+
+  const handleAddPIC = (data: {
+    name: string
+    email: string
+    phone: string
+    department: string
+    categories: string[]
+  }) => {
+    const newPIC: PIC = {
+      id: `pic-${picList.length + 1}`,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      department: data.department,
+      categories: data.categories,
+    }
+    setPicList([...picList, newPIC])
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -106,7 +150,14 @@ export function MasterDataPage() {
           <h1 className="text-3xl font-bold">Master Data</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage outlets and categories</p>
         </div>
-        <button className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
+        <button 
+          onClick={() => {
+            if (activeTab === 'outlets') setShowOutletDialog(true)
+            else if (activeTab === 'categories') setShowCategoryDialog(true)
+            else setShowPICDialog(true)
+          }}
+          className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+        >
           <Plus className="size-4" /> New {activeTab === 'outlets' ? 'Outlet' : activeTab === 'categories' ? 'Category' : 'PIC'}
         </button>
       </div>
@@ -357,6 +408,24 @@ export function MasterDataPage() {
           )}
         </div>
       )}
+
+      {/* Dialogs */}
+      <NewOutletDialog
+        open={showOutletDialog}
+        onOpenChange={setShowOutletDialog}
+        onSubmit={handleAddOutlet}
+      />
+      <NewCategoryDialog
+        open={showCategoryDialog}
+        onOpenChange={setShowCategoryDialog}
+        onSubmit={handleAddCategory}
+      />
+      <NewPICDialog
+        open={showPICDialog}
+        onOpenChange={setShowPICDialog}
+        categories={categoryList}
+        onSubmit={handleAddPIC}
+      />
     </div>
   )
 }
