@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Utensils,
   Wifi,
+  Database,
 } from 'lucide-react'
 
 const navItems = [
@@ -30,6 +31,7 @@ const navItems = [
   { id: 'it', label: 'IT Support', icon: Monitor, group: 'operations' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'insights' },
   { id: 'reports', label: 'Reports', icon: FileText, group: 'insights' },
+  { id: 'master-data', label: 'Master Data', icon: Database, group: 'system' },
   { id: 'settings', label: 'Settings', icon: Settings, group: 'system' },
   { id: 'notifications', label: 'Notifications', icon: Wifi, group: 'system' },
 ]
