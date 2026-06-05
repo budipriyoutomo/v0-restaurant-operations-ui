@@ -3,42 +3,59 @@
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
-  Ticket,
+  AlertCircle,
+  CheckSquare,
+  CheckCircle2,
   Wrench,
-  Package,
-  DollarSign,
-  ClipboardCheck,
+  Shield,
+  ShoppingCart,
+  BookOpen,
+  Megaphone,
   MessageSquareWarning,
   Monitor,
+  Package,
   BarChart3,
   FileText,
+  Database,
+  Users,
+  Bell,
   Settings,
   ChevronLeft,
   ChevronRight,
   Utensils,
-  Wifi,
-  Database,
 } from 'lucide-react'
 
 const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'main' },
-  { id: 'tickets', label: 'Tickets', icon: Ticket, group: 'main', badge: 14 },
-  { id: 'cmms', label: 'CMMS', icon: Wrench, group: 'main' },
-  { id: 'assets', label: 'Assets', icon: Package, group: 'main' },
-  { id: 'finance', label: 'Finance', icon: DollarSign, group: 'operations' },
-  { id: 'qa', label: 'QA / PQNC', icon: ClipboardCheck, group: 'operations' },
-  { id: 'guest', label: 'Guest Service', icon: MessageSquareWarning, group: 'operations' },
-  { id: 'it', label: 'IT Support', icon: Monitor, group: 'operations' },
+  // OPERATIONS - Core workflow
+  { id: 'dashboard', label: 'Executive Dashboard', icon: LayoutDashboard, group: 'operations' },
+  { id: 'issues', label: 'Issues', icon: AlertCircle, group: 'operations', badge: 14 },
+  { id: 'tasks', label: 'Tasks', icon: CheckSquare, group: 'operations', badge: 8 },
+  { id: 'approvals', label: 'Approvals', icon: CheckCircle2, group: 'operations', badge: 3 },
+  
+  // OPERATIONS MODULES - Execution domains
+  { id: 'maintenance', label: 'Maintenance', icon: Wrench, group: 'modules' },
+  { id: 'qa', label: 'QA & Compliance', icon: Shield, group: 'modules' },
+  { id: 'procurement', label: 'Procurement', icon: ShoppingCart, group: 'modules' },
+  { id: 'training', label: 'Training', icon: BookOpen, group: 'modules' },
+  { id: 'marketing', label: 'Marketing', icon: Megaphone, group: 'modules' },
+  { id: 'guest-service', label: 'Guest Service', icon: MessageSquareWarning, group: 'modules' },
+  { id: 'it-support', label: 'IT Support', icon: Monitor, group: 'modules' },
+  { id: 'assets', label: 'Assets', icon: Package, group: 'modules' },
+  
+  // INSIGHTS - Analytics & reporting
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'insights' },
   { id: 'reports', label: 'Reports', icon: FileText, group: 'insights' },
+  
+  // SYSTEM - Configuration & admin
   { id: 'master-data', label: 'Master Data', icon: Database, group: 'system' },
+  { id: 'users', label: 'Users & Roles', icon: Users, group: 'system' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, group: 'system' },
   { id: 'settings', label: 'Settings', icon: Settings, group: 'system' },
-  { id: 'notifications', label: 'Notifications', icon: Wifi, group: 'system' },
 ]
 
 const groups: { id: string; label: string }[] = [
-  { id: 'main', label: 'Operations' },
-  { id: 'operations', label: 'Modules' },
+  { id: 'operations', label: 'Operations' },
+  { id: 'modules', label: 'Operations Modules' },
   { id: 'insights', label: 'Insights' },
   { id: 'system', label: 'System' },
 ]
