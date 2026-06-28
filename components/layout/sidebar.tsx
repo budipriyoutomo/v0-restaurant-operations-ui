@@ -25,32 +25,40 @@ import {
   Utensils,
 } from 'lucide-react'
 
-const navItems = [
+interface NavItem {
+  id: string
+  label: string
+  icon: React.ElementType
+  group: string
+  badgeKey?: 'issues' | 'tasks' | 'approvals' | 'notifications'
+}
+
+const navItems: NavItem[] = [
   // OPERATIONS - Core workflow
-  { id: 'dashboard', label: 'Executive Dashboard', icon: LayoutDashboard, group: 'operations' },
-  { id: 'issues', label: 'Issues', icon: AlertCircle, group: 'operations', badge: 14 },
-  { id: 'tasks', label: 'Tasks', icon: CheckSquare, group: 'operations', badge: 8 },
-  { id: 'approvals', label: 'Approvals', icon: CheckCircle2, group: 'operations', badge: 3 },
-  
+  { id: 'dashboard',   label: 'Executive Dashboard', icon: LayoutDashboard, group: 'operations' },
+  { id: 'issues',      label: 'Issues',               icon: AlertCircle,     group: 'operations', badgeKey: 'issues' },
+  { id: 'tasks',       label: 'Tasks',                icon: CheckSquare,     group: 'operations', badgeKey: 'tasks' },
+  { id: 'approvals',   label: 'Approvals',            icon: CheckCircle2,    group: 'operations', badgeKey: 'approvals' },
+
   // OPERATIONS MODULES - Execution domains
-  { id: 'maintenance', label: 'Maintenance', icon: Wrench, group: 'modules' },
-  { id: 'qa', label: 'QA & Compliance', icon: Shield, group: 'modules' },
-  { id: 'procurement', label: 'Procurement', icon: ShoppingCart, group: 'modules' },
-  { id: 'training', label: 'Training', icon: BookOpen, group: 'modules' },
-  { id: 'marketing', label: 'Marketing', icon: Megaphone, group: 'modules' },
-  { id: 'guest-service', label: 'Guest Service', icon: MessageSquareWarning, group: 'modules' },
-  { id: 'it-support', label: 'IT Support', icon: Monitor, group: 'modules' },
-  { id: 'assets', label: 'Assets', icon: Package, group: 'modules' },
-  
+  { id: 'maintenance',  label: 'Maintenance',   icon: Wrench,               group: 'modules' },
+  { id: 'qa',           label: 'QA & Compliance',icon: Shield,              group: 'modules' },
+  { id: 'procurement',  label: 'Procurement',   icon: ShoppingCart,          group: 'modules' },
+  { id: 'training',     label: 'Training',      icon: BookOpen,              group: 'modules' },
+  { id: 'marketing',    label: 'Marketing',     icon: Megaphone,             group: 'modules' },
+  { id: 'guest-service',label: 'Guest Service', icon: MessageSquareWarning,  group: 'modules' },
+  { id: 'it-support',   label: 'IT Support',    icon: Monitor,               group: 'modules' },
+  { id: 'assets',       label: 'Assets',        icon: Package,               group: 'modules' },
+
   // INSIGHTS - Analytics & reporting
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'insights' },
-  { id: 'reports', label: 'Reports', icon: FileText, group: 'insights' },
-  
+  { id: 'reports',   label: 'Reports',   icon: FileText,  group: 'insights' },
+
   // SYSTEM - Configuration & admin
-  { id: 'master-data', label: 'Master Data', icon: Database, group: 'system' },
-  { id: 'users', label: 'Users & Roles', icon: Users, group: 'system' },
-  { id: 'notifications', label: 'Notifications', icon: Bell, group: 'system' },
-  { id: 'settings', label: 'Settings', icon: Settings, group: 'system' },
+  { id: 'master-data',   label: 'Master Data',   icon: Database, group: 'system' },
+  { id: 'users',         label: 'Users & Roles', icon: Users,    group: 'system' },
+  { id: 'notifications', label: 'Notifications', icon: Bell,     group: 'system', badgeKey: 'notifications' },
+  { id: 'settings',      label: 'Settings',      icon: Settings, group: 'system' },
 ]
 
 const groups: { id: string; label: string }[] = [
@@ -60,14 +68,22 @@ const groups: { id: string; label: string }[] = [
   { id: 'system', label: 'System' },
 ]
 
+export interface SidebarBadges {
+  issues: number
+  tasks: number
+  approvals: number
+  notifications: number
+}
+
 interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
   currentPage: string
   onNavigate: (page: string) => void
+  badges?: SidebarBadges
 }
 
-export function Sidebar({ collapsed, onToggle, currentPage, onNavigate }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges }: SidebarProps) {
   return (
     <aside
       className={cn(
@@ -102,6 +118,9 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate }: Sideba
               {groupItems.map((item) => {
                 const Icon = item.icon
                 const active = currentPage === item.id
+                const count = item.badgeKey ? (badges?.[item.badgeKey] ?? 0) : 0
+                const showBadge = count > 0
+
                 return (
                   <button
                     key={item.id}
@@ -118,13 +137,21 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate }: Sideba
                     {active && (
                       <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-r-full" />
                     )}
-                    <Icon className={cn('flex-shrink-0', collapsed ? 'size-4.5' : 'size-4')} />
+
+                    {/* Icon — with dot indicator when collapsed */}
+                    <span className="relative flex-shrink-0">
+                      <Icon className={cn(collapsed ? 'size-4.5' : 'size-4')} />
+                      {collapsed && showBadge && (
+                        <span className="absolute -top-1 -right-1 size-2 rounded-full bg-primary border border-sidebar" />
+                      )}
+                    </span>
+
                     {!collapsed && (
                       <>
                         <span className="flex-1 text-left truncate">{item.label}</span>
-                        {item.badge && (
-                          <span className="text-[10px] font-semibold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 leading-none">
-                            {item.badge}
+                        {showBadge && (
+                          <span className="text-[10px] font-semibold bg-primary text-primary-foreground rounded-full min-w-[18px] px-1.5 py-0.5 leading-none text-center">
+                            {count > 99 ? '99+' : count}
                           </span>
                         )}
                       </>

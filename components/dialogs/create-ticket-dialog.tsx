@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { IssueCategory, Priority } from '@/lib/types'
 
 interface CreateTicketDialogProps {
   open: boolean
@@ -10,26 +11,42 @@ interface CreateTicketDialogProps {
   onSubmit?: (data: {
     title: string
     description: string
-    category: string
+    category: IssueCategory
     outlet: string
-    priority: string
+    priority: Priority
     assignee: string
     dueDate: string
   }) => void
 }
 
-const CATEGORIES = ['Operations', 'Procurement', 'Service Quality', 'Training', 'Compliance', 'Marketing', 'IT Support']
+const CATEGORIES: IssueCategory[] = [
+  'Maintenance', 'IT Support', 'Compliance', 'Training',
+  'Procurement', 'Marketing', 'Asset Purchase', 'Guest Service', 'Other',
+]
 const OUTLETS = ['KL Central', 'Subang', 'KLCC', 'Bangsar', 'Damansara']
-const PRIORITIES = ['Low', 'Medium', 'High', 'Critical']
+const PRIORITIES: { label: string; value: Priority }[] = [
+  { label: 'Low', value: 'low' },
+  { label: 'Medium', value: 'medium' },
+  { label: 'High', value: 'high' },
+  { label: 'Critical', value: 'critical' },
+]
 const ASSIGNEES = ['Manager KL', 'Supply Manager', 'Service Lead', 'HR Manager', 'Operations Manager', 'Marketing Coordinator', 'Unassigned']
 
 export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicketDialogProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string
+    description: string
+    category: IssueCategory
+    outlet: string
+    priority: Priority
+    assignee: string
+    dueDate: string
+  }>({
     title: '',
     description: '',
-    category: 'Operations',
+    category: 'Maintenance',
     outlet: 'KL Central',
-    priority: 'Medium',
+    priority: 'medium',
     assignee: 'Unassigned',
     dueDate: '',
   })
@@ -44,16 +61,13 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (isComplete) {
-      onSubmit?.({
-        ...formData,
-        priority: formData.priority.toLowerCase(),
-      })
+      onSubmit?.(formData)
       setFormData({
         title: '',
         description: '',
-        category: 'Operations',
+        category: 'Maintenance',
         outlet: 'KL Central',
-        priority: 'Medium',
+        priority: 'medium',
         assignee: 'Unassigned',
         dueDate: '',
       })
@@ -148,9 +162,9 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
               onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
-              {PRIORITIES.map((priority) => (
-                <option key={priority} value={priority}>
-                  {priority}
+              {PRIORITIES.map(({ label, value }) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>

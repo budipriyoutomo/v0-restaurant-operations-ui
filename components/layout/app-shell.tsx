@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Sidebar } from './sidebar'
 import { TopNav } from './top-nav'
+import { useIssueStore } from '@/lib/store'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -12,6 +13,14 @@ interface AppShellProps {
 
 export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const { issues, tasks, approvals, auditLogs } = useIssueStore()
+
+  const badges = {
+    issues:        issues.filter((i) => i.status !== 'resolved' && i.status !== 'closed').length,
+    tasks:         tasks.filter((t) => t.status !== 'resolved' && t.status !== 'closed').length,
+    approvals:     approvals.filter((a) => a.status === 'pending').length,
+    notifications: auditLogs.length,
+  }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -20,6 +29,7 @@ export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         currentPage={currentPage}
         onNavigate={onNavigate}
+        badges={badges}
       />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <TopNav currentPage={currentPage} sidebarCollapsed={sidebarCollapsed} />

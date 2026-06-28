@@ -1,7 +1,10 @@
 import { cn } from '@/lib/utils'
 
 type Priority = 'critical' | 'high' | 'medium' | 'low'
-type Status = 'open' | 'in_progress' | 'resolved' | 'escalated' | 'scheduled' | 'completed' | 'overdue' | 'pending' | 'approved' | 'rejected'
+type Status =
+  | 'open' | 'assigned' | 'in-progress' | 'in_progress' | 'waiting' | 'resolved' | 'closed'
+  | 'escalated' | 'scheduled' | 'completed' | 'overdue' | 'pending' | 'approved' | 'rejected'
+  | 'cancelled'
 
 export function PriorityBadge({ priority }: { priority: Priority }) {
   return (
@@ -26,16 +29,21 @@ export function PriorityBadge({ priority }: { priority: Priority }) {
 
 export function StatusBadge({ status }: { status: Status }) {
   const config: Record<Status, { label: string; className: string }> = {
-    open: { label: 'Open', className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400' },
+    open:        { label: 'Open',        className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400' },
+    assigned:    { label: 'Assigned',    className: 'bg-purple-500/15 text-purple-600 dark:text-purple-400' },
+    'in-progress': { label: 'In Progress', className: 'bg-warning/15 text-warning' },
     in_progress: { label: 'In Progress', className: 'bg-warning/15 text-warning' },
-    resolved: { label: 'Resolved', className: 'bg-success/15 text-success' },
-    escalated: { label: 'Escalated', className: 'bg-destructive/15 text-destructive' },
-    scheduled: { label: 'Scheduled', className: 'bg-primary/15 text-primary' },
-    completed: { label: 'Completed', className: 'bg-success/15 text-success' },
-    overdue: { label: 'Overdue', className: 'bg-destructive/15 text-destructive' },
-    pending: { label: 'Pending', className: 'bg-warning/15 text-warning' },
-    approved: { label: 'Approved', className: 'bg-success/15 text-success' },
-    rejected: { label: 'Rejected', className: 'bg-destructive/15 text-destructive' },
+    waiting:     { label: 'Waiting',     className: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400' },
+    resolved:    { label: 'Resolved',    className: 'bg-success/15 text-success' },
+    closed:      { label: 'Closed',      className: 'bg-muted text-muted-foreground' },
+    escalated:   { label: 'Escalated',   className: 'bg-destructive/15 text-destructive' },
+    scheduled:   { label: 'Scheduled',   className: 'bg-primary/15 text-primary' },
+    completed:   { label: 'Completed',   className: 'bg-success/15 text-success' },
+    overdue:     { label: 'Overdue',     className: 'bg-destructive/15 text-destructive' },
+    pending:     { label: 'Pending',     className: 'bg-warning/15 text-warning' },
+    approved:    { label: 'Approved',    className: 'bg-success/15 text-success' },
+    rejected:    { label: 'Rejected',    className: 'bg-destructive/15 text-destructive' },
+    cancelled:   { label: 'Cancelled',   className: 'bg-muted text-muted-foreground' },
   }
   const c = config[status] ?? config.open
   return (

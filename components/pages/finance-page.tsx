@@ -8,23 +8,12 @@ import { StatusBadge, PriorityBadge } from '@/components/shared/priority-badge'
 import { expenseRequests, financeSummary } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
-const budgetBreakdown = [
-  { category: 'Maintenance', amount: 22400, budget: 28000, color: '#3b82f6' },
-  { category: 'Supplies', amount: 14800, budget: 18000, color: '#10b981' },
-  { category: 'Safety', amount: 6200, budget: 8000, color: '#f59e0b' },
-  { category: 'IT', amount: 4940, budget: 6000, color: '#8b5cf6' },
-  { category: 'Other', amount: 4000, budget: 5000, color: '#6b7280' },
-]
+const budgetBreakdown: { category: string; amount: number; budget: number; color: string }[] = []
+const monthlySpend:    { month: string; spend: number }[] = []
 
-const monthlySpend = [
-  { month: 'Jan', spend: 10200 },
-  { month: 'Feb', spend: 9400 },
-  { month: 'Mar', spend: 11800 },
-  { month: 'Apr', spend: 10600 },
-  { month: 'May', spend: 10340 },
-]
-
-const usageRatio = Math.round((financeSummary.spent / financeSummary.totalBudget) * 100)
+const usageRatio = financeSummary.totalBudget > 0
+  ? Math.round((financeSummary.spent / financeSummary.totalBudget) * 100)
+  : 0
 
 export function FinancePage() {
   const [selectedExp, setSelectedExp] = useState<typeof expenseRequests[0] | null>(null)

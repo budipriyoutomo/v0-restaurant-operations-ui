@@ -1,37 +1,49 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-interface Category {
-  id: string
-  name: string
-}
+import { MasterCategory, PIC } from '@/lib/types'
 
 interface NewPICDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  categories: Category[]
+  categories: MasterCategory[]
+  initialData?: PIC
   onSubmit?: (data: {
     name: string
     email: string
     phone: string
     department: string
     categories: string[]
-  }) => void
+  }) => Promise<void> | void
 }
 
 const departments = ['Engineering', 'Operations', 'Maintenance', 'Quality', 'Supply Chain', 'Finance']
+const defaultForm = { name: '', email: '', phone: '', department: 'Engineering', categories: [] as string[] }
 
-export function NewPICDialog({ open, onOpenChange, categories, onSubmit }: NewPICDialogProps) {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    department: 'Engineering',
-    categories: [] as string[],
-  })
+export function NewPICDialog({ open, onOpenChange, categories, initialData, onSubmit }: NewPICDialogProps) {
+  const [formData, setFormData] = useState(defaultForm)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const isEdit = !!initialData
+
+  useEffect(() => {
+    if (open) {
+      setFormData(initialData
+        ? {
+            name: initialData.name,
+            email: initialData.email,
+            phone: initialData.phone,
+            department: initialData.department,
+            categories: [...initialData.categories],
+          }
+        : defaultForm
+      )
+      setError(null)
+    }
+  }, [open, initialData])
 
   const isComplete = formData.name.trim() && formData.email.trim() && formData.phone.trim() && formData.categories.length > 0
 
@@ -49,18 +61,18 @@ export function NewPICDialog({ open, onOpenChange, categories, onSubmit }: NewPI
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (isComplete) {
-      onSubmit?.(formData)
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        department: 'Engineering',
-        categories: [],
-      })
+    if (!isComplete) return
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      await onSubmit?.(formData)
       onOpenChange(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -69,9 +81,8 @@ export function NewPICDialog({ open, onOpenChange, categories, onSubmit }: NewPI
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
-          <h2 className="text-lg font-bold">Create New PIC</h2>
+          <h2 className="text-lg font-bold">{isEdit ? 'Edit PIC' : 'Create New PIC'}</h2>
           <button
             onClick={() => onOpenChange(false)}
             className="p-1 hover:bg-muted rounded-md transition-colors"
@@ -80,9 +91,11 @@ export function NewPICDialog({ open, onOpenChange, categories, onSubmit }: NewPI
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Name */}
+          {error && (
+            <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
+          )}
+
           <div>
             <label className="block text-sm font-semibold mb-1.5">Full Name <span className="text-destructive">*</span></label>
             <input
@@ -95,7 +108,6 @@ export function NewPICDialog({ open, onOpenChange, categories, onSubmit }: NewPI
             />
           </div>
 
-          {/* Email */}
           <div>
             <label className="block text-sm font-semibold mb-1.5">Email <span className="text-destructive">*</span></label>
             <input
@@ -108,7 +120,6 @@ export function NewPICDialog({ open, onOpenChange, categories, onSubmit }: NewPI
             />
           </div>
 
-          {/* Phone */}
           <div>
             <label className="block text-sm font-semibold mb-1.5">Phone <span className="text-destructive">*</span></label>
             <input
@@ -121,7 +132,6 @@ export function NewPICDialog({ open, onOpenChange, categories, onSubmit }: NewPI
             />
           </div>
 
-          {/* Department */}
           <div>
             <label className="block text-sm font-semibold mb-1.5">Department</label>
             <select
@@ -138,50 +148,53 @@ export function NewPICDialog({ open, onOpenChange, categories, onSubmit }: NewPI
             </select>
           </div>
 
-          {/* Categories */}
           <div>
             <label className="block text-sm font-semibold mb-2">Assign Categories <span className="text-destructive">*</span></label>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {categories.map((category) => (
-                <div key={category.id} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id={`cat-${category.id}`}
-                    checked={formData.categories.includes(category.id)}
-                    onChange={() => handleCategoryToggle(category.id)}
-                    className="rounded border border-border"
-                  />
-                  <label htmlFor={`cat-${category.id}`} className="text-sm cursor-pointer flex-1">
-                    {category.name}
-                  </label>
-                </div>
-              ))}
-            </div>
+            {categories.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No categories available — add categories first.</p>
+            ) : (
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {categories.map((category) => (
+                  <div key={category.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`cat-${category.id}`}
+                      checked={formData.categories.includes(category.id)}
+                      onChange={() => handleCategoryToggle(category.id)}
+                      className="rounded border border-border"
+                    />
+                    <label htmlFor={`cat-${category.id}`} className="text-sm cursor-pointer flex-1">
+                      {category.name}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
             {formData.categories.length === 0 && (
               <p className="text-xs text-destructive mt-2">Please select at least one category</p>
             )}
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 pt-4 border-t border-border">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
               className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!isComplete}
+              disabled={!isComplete || isSubmitting}
               className={cn(
                 'flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors',
-                isComplete
+                isComplete && !isSubmitting
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-muted text-muted-foreground cursor-not-allowed'
               )}
             >
-              Create PIC
+              {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create PIC'}
             </button>
           </div>
         </form>

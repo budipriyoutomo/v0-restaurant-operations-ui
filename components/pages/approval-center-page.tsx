@@ -1,83 +1,35 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Filter, Plus, CheckCircle2, XCircle, Clock, ShoppingCart, Megaphone, BookOpen, Package, X } from 'lucide-react'
+import { Search, Filter, CheckCircle2, XCircle, Clock, ShoppingCart, Megaphone, BookOpen, Package, X, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useIssueStore } from '@/lib/store'
+import { ApprovalRequest, ApprovalType } from '@/lib/types'
 
-interface ApprovalRequest {
-  id: string
-  number: string
-  title: string
-  type: 'procurement' | 'marketing' | 'training' | 'asset-purchase'
-  description: string
-  requester: string
-  outlet: string
-  requestedDate: string
-  amount?: string
-  status: 'pending' | 'approved' | 'rejected'
-  linkedIssue: string
+const typeIcons: Record<ApprovalType, React.ReactNode> = {
+  procurement: <ShoppingCart className="size-5" />,
+  marketing: <Megaphone className="size-5" />,
+  training: <BookOpen className="size-5" />,
+  'asset-purchase': <Package className="size-5" />,
 }
 
-const mockApprovals: ApprovalRequest[] = [
-  {
-    id: 'apr-1',
-    number: 'APR-2026-00089',
-    title: 'Purchase kitchen equipment and utensils',
-    type: 'procurement',
-    description: 'Replace aging food prep station and order new utensils',
-    requester: 'Priya Sharma',
-    outlet: 'KL Central',
-    requestedDate: '2026-06-01',
-    amount: 'RM 45,000',
-    status: 'pending',
-    linkedIssue: 'ISS-2026-00132'
-  },
-  {
-    id: 'apr-2',
-    number: 'APR-2026-00086',
-    title: 'Mid-year promotional campaign launch',
-    type: 'marketing',
-    description: 'Approve marketing campaign for mid-year promotions across all outlets',
-    requester: 'Marketing Team',
-    outlet: 'All Outlets',
-    requestedDate: '2026-05-28',
-    status: 'pending',
-    linkedIssue: 'ISS-2026-00128'
-  },
-  {
-    id: 'apr-3',
-    number: 'APR-2026-00082',
-    title: 'Purchase new POS system hardware',
-    type: 'asset-purchase',
-    description: 'Upgrade POS terminals for better performance and compliance',
-    requester: 'IT Department',
-    outlet: 'KLCC',
-    requestedDate: '2026-05-25',
-    amount: 'RM 28,500',
-    status: 'pending',
-    linkedIssue: 'ISS-2026-00142'
-  },
-  {
-    id: 'apr-4',
-    number: 'APR-2026-00078',
-    title: 'Staff training program for new menu',
-    type: 'training',
-    description: 'Training program for staff on 5 new menu items launching next week',
-    requester: 'Sarah Johnson',
-    outlet: 'Bangsar',
-    requestedDate: '2026-06-01',
-    status: 'pending',
-    linkedIssue: 'ISS-2026-00135'
-  },
-]
+const typeLabels: Record<ApprovalType, string> = {
+  procurement: 'Procurement',
+  marketing: 'Marketing',
+  training: 'Training',
+  'asset-purchase': 'Asset Purchase',
+}
 
 export function ApprovalCenterPage() {
+  const { approvals, decideApproval } = useIssueStore()
   const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterType, setFilterType] = useState<string | null>(null)
+  const [filterType, setFilterType] = useState<ApprovalType | null>(null)
   const [filterStatus, setFilterStatus] = useState<string | null>('pending')
+  const [isDeciding, setIsDeciding] = useState(false)
 
-  const filteredApprovals = mockApprovals.filter((approval) => {
+  const filteredApprovals = approvals.filter((approval) => {
     const matchesSearch = approval.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       approval.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       approval.requester.toLowerCase().includes(searchQuery.toLowerCase())
@@ -86,29 +38,28 @@ export function ApprovalCenterPage() {
     return matchesSearch && matchesType && matchesStatus
   })
 
-  const typeIcons: Record<string, React.ReactNode> = {
-    procurement: <ShoppingCart className="size-5" />,
-    marketing: <Megaphone className="size-5" />,
-    training: <BookOpen className="size-5" />,
-    'asset-purchase': <Package className="size-5" />,
-  }
-
-  const typeLabels: Record<string, string> = {
-    procurement: 'Procurement',
-    marketing: 'Marketing',
-    training: 'Training',
-    'asset-purchase': 'Asset Purchase',
-  }
-
   const stats = [
-    { label: 'Pending', count: mockApprovals.filter(a => a.status === 'pending').length, color: 'text-amber-600' },
-    { label: 'Approved', count: mockApprovals.filter(a => a.status === 'approved').length, color: 'text-green-600' },
-    { label: 'Rejected', count: mockApprovals.filter(a => a.status === 'rejected').length, color: 'text-red-600' },
+    { label: 'Pending', count: approvals.filter((a) => a.status === 'pending').length, color: 'text-amber-600' },
+    { label: 'Approved', count: approvals.filter((a) => a.status === 'approved').length, color: 'text-green-600' },
+    { label: 'Rejected', count: approvals.filter((a) => a.status === 'rejected').length, color: 'text-red-600' },
   ]
+
+  const handleDecision = async (decision: 'approved' | 'rejected') => {
+    if (!selectedApproval || isDeciding) return
+    setIsDeciding(true)
+    try {
+      decideApproval(selectedApproval.id, decision)
+      toast.success(decision === 'approved' ? 'Request approved.' : 'Request rejected.')
+      setSelectedApproval(null)
+    } catch {
+      toast.error('Failed to process decision. Please try again.')
+    } finally {
+      setIsDeciding(false)
+    }
+  }
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Approval Center</h1>
@@ -145,18 +96,15 @@ export function ApprovalCenterPage() {
           </button>
         </div>
 
-        {/* Type Filters */}
         <div className="flex flex-wrap gap-2">
           <span className="text-xs font-medium text-muted-foreground py-1">Type:</span>
-          {['procurement', 'marketing', 'training', 'asset-purchase'].map((type) => (
+          {(['procurement', 'marketing', 'training', 'asset-purchase'] as ApprovalType[]).map((type) => (
             <button
               key={type}
               onClick={() => setFilterType(filterType === type ? null : type)}
               className={cn(
                 'px-3 py-1 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5',
-                filterType === type
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                filterType === type ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
               )}
             >
               {typeIcons[type]}
@@ -166,7 +114,7 @@ export function ApprovalCenterPage() {
         </div>
       </div>
 
-      {/* Approvals Grid and Drawer */}
+      {/* Approvals Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredApprovals.length === 0 ? (
           <div className="lg:col-span-2 p-12 rounded-lg border border-border text-center">
@@ -179,16 +127,12 @@ export function ApprovalCenterPage() {
               onClick={() => setSelectedApproval(approval)}
               className={cn(
                 'p-5 rounded-lg border cursor-pointer transition-all hover:shadow-md',
-                selectedApproval?.id === approval.id
-                  ? 'bg-primary/10 border-primary shadow-md'
-                  : 'bg-muted/20 border-border hover:bg-muted/40'
+                selectedApproval?.id === approval.id ? 'bg-primary/10 border-primary shadow-md' : 'bg-muted/20 border-border hover:bg-muted/40'
               )}
             >
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <div className="text-amber-600 mt-0.5 flex-shrink-0">
-                    {typeIcons[approval.type]}
-                  </div>
+                  <div className="text-amber-600 mt-0.5 flex-shrink-0">{typeIcons[approval.type]}</div>
                   <div className="flex-1 min-w-0">
                     <p className="font-mono text-xs text-primary font-bold mb-1">{approval.number}</p>
                     <h3 className="font-semibold text-sm line-clamp-2">{approval.title}</h3>
@@ -204,7 +148,13 @@ export function ApprovalCenterPage() {
               </div>
 
               <div className="flex items-center justify-between text-xs">
-                <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium">Pending</span>
+                <span className={cn(
+                  'px-2 py-0.5 rounded font-medium capitalize',
+                  approval.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                  approval.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                )}>
+                  {approval.status}
+                </span>
                 <span className="text-muted-foreground">{approval.requestedDate}</span>
               </div>
             </div>
@@ -215,35 +165,22 @@ export function ApprovalCenterPage() {
       {/* Approval Detail Side Drawer */}
       {selectedApproval && (
         <>
-          {/* Overlay */}
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setSelectedApproval(null)}
-          />
-          
-          {/* Side Drawer */}
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setSelectedApproval(null)} />
           <div className="fixed right-0 top-0 h-screen w-96 bg-background border-l border-border shadow-lg z-50 overflow-y-auto">
             <div className="p-6 space-y-6">
-              {/* Header */}
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3 flex-1 mr-2">
-                  <div className="text-amber-600 mt-1 flex-shrink-0">
-                    {typeIcons[selectedApproval.type]}
-                  </div>
+                  <div className="text-amber-600 mt-1 flex-shrink-0">{typeIcons[selectedApproval.type]}</div>
                   <div className="min-w-0">
                     <p className="font-mono text-xs text-primary font-bold mb-1">{selectedApproval.number}</p>
                     <h2 className="font-bold text-lg leading-snug">{selectedApproval.title}</h2>
                   </div>
                 </div>
-                <button
-                  onClick={() => setSelectedApproval(null)}
-                  className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1"
-                >
+                <button onClick={() => setSelectedApproval(null)} className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1">
                   <X className="size-5" />
                 </button>
               </div>
 
-              {/* Type & Status Section */}
               <div className="space-y-3 pb-6 border-b border-border">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">Type</span>
@@ -251,17 +188,21 @@ export function ApprovalCenterPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">Status</span>
-                  <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-semibold">Pending</span>
+                  <span className={cn(
+                    'px-2 py-1 rounded text-xs font-semibold capitalize',
+                    selectedApproval.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                    selectedApproval.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                  )}>
+                    {selectedApproval.status}
+                  </span>
                 </div>
               </div>
 
-              {/* Description */}
               <div className="space-y-2">
                 <p className="text-sm font-semibold">Description</p>
                 <p className="text-sm text-foreground leading-relaxed">{selectedApproval.description}</p>
               </div>
 
-              {/* Details Grid */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">Requester</p>
@@ -273,7 +214,6 @@ export function ApprovalCenterPage() {
                 </div>
               </div>
 
-              {/* Amount (if applicable) */}
               {selectedApproval.amount && (
                 <div className="space-y-2 pb-6 border-b border-border">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</p>
@@ -281,7 +221,6 @@ export function ApprovalCenterPage() {
                 </div>
               )}
 
-              {/* Dates Section */}
               <div className="space-y-3 pb-6 border-b border-border">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">Requested Date</span>
@@ -289,28 +228,46 @@ export function ApprovalCenterPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">Linked Issue</span>
-                  <span className="text-sm font-mono font-bold text-primary">{selectedApproval.linkedIssue}</span>
+                  <span className="text-sm font-mono font-bold text-primary">{selectedApproval.issueNumber}</span>
                 </div>
               </div>
 
-              {/* Info Alert */}
-              <div className="p-4 rounded-md bg-blue-100/50 border border-blue-200 space-y-1">
-                <p className="text-sm font-semibold text-blue-700">Pending Your Approval</p>
-                <p className="text-xs text-blue-700">Review the details and take action to approve, reject, or request revisions.</p>
-              </div>
+              {selectedApproval.status === 'pending' ? (
+                <>
+                  <div className="p-4 rounded-md bg-blue-100/50 border border-blue-200 space-y-1">
+                    <p className="text-sm font-semibold text-blue-700">Pending Your Approval</p>
+                    <p className="text-xs text-blue-700">Review the details and take action to approve or reject. The linked Issue will be updated automatically.</p>
+                  </div>
 
-              {/* Actions */}
-              <div className="flex flex-col gap-2 pt-6 border-t border-border">
-                <button className="w-full px-4 py-2.5 rounded-md bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-                  <CheckCircle2 className="size-4" /> Approve
-                </button>
-                <button className="w-full px-4 py-2.5 rounded-md bg-red-100 text-red-700 text-sm font-semibold hover:bg-red-200 transition-colors flex items-center justify-center gap-2">
-                  <XCircle className="size-4" /> Reject
-                </button>
-                <button className="w-full px-4 py-2.5 rounded-md border border-border text-foreground text-sm font-semibold hover:bg-muted/50 transition-colors">
-                  Request Revision
-                </button>
-              </div>
+                  <div className="flex flex-col gap-2 pt-6 border-t border-border">
+                    <button
+                      onClick={() => handleDecision('approved')}
+                      disabled={isDeciding}
+                      className="w-full px-4 py-2.5 rounded-md bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isDeciding ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleDecision('rejected')}
+                      disabled={isDeciding}
+                      className="w-full px-4 py-2.5 rounded-md bg-red-100 text-red-700 text-sm font-semibold hover:bg-red-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isDeciding ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
+                      Reject
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className={cn(
+                  'p-4 rounded-md border space-y-1',
+                  selectedApproval.status === 'approved' ? 'bg-green-100/50 border-green-200' : 'bg-red-100/50 border-red-200'
+                )}>
+                  <p className={cn('text-sm font-semibold', selectedApproval.status === 'approved' ? 'text-green-700' : 'text-red-700')}>
+                    This request has been {selectedApproval.status}.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </>

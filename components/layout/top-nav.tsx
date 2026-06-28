@@ -3,7 +3,9 @@
 import { useState } from 'react'
 import { Bell, Search, ChevronDown, Settings, LogOut, User, Sun, Moon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { outlets, notifications } from '@/lib/data'
+import { useIssueStore } from '@/lib/store'
+// outlets and notifications are loaded from the backend; the nav shows them
+// once a real outlet-management API is available. For now both are empty.
 
 const pageLabels: Record<string, string> = {
   dashboard: 'Executive Dashboard',
@@ -26,12 +28,21 @@ interface TopNavProps {
 }
 
 export function TopNav({ currentPage }: TopNavProps) {
+  const { currentUser, logout } = useIssueStore()
+
+  const outlets:      { id: string; name: string; code: string; status: string }[]                    = []
+  const notifications:{ id: string; title: string; message: string; time: string; type: string; read: boolean }[] = []
+
   const [outletOpen, setOutletOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [selectedOutlet, setSelectedOutlet] = useState(outlets[0])
+  const [selectedOutlet, setSelectedOutlet] = useState<typeof outlets[number] | null>(outlets[0] ?? null)
   const [darkMode, setDarkMode] = useState(false)
   const unreadCount = notifications.filter((n) => !n.read).length
+
+  const userInitials = currentUser
+    ? currentUser.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+    : '?'
 
   const toggleDark = () => {
     setDarkMode(!darkMode)
@@ -52,44 +63,48 @@ export function TopNav({ currentPage }: TopNavProps) {
         <kbd className="text-[10px] bg-background border border-border rounded px-1">⌘K</kbd>
       </button>
 
-      {/* Outlet switcher */}
-      <div className="relative">
-        <button
-          onClick={() => { setOutletOpen(!outletOpen); setNotifOpen(false); setProfileOpen(false) }}
-          className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border bg-muted text-xs font-medium hover:bg-accent transition-colors"
-        >
-          <span className={cn(
-            'size-1.5 rounded-full flex-shrink-0',
-            selectedOutlet.status === 'operational' ? 'bg-success' :
-            selectedOutlet.status === 'warning' ? 'bg-warning' : 'bg-destructive'
-          )} />
-          <span className="max-w-28 truncate">{selectedOutlet.name}</span>
-          <ChevronDown className="size-3 text-muted-foreground" />
-        </button>
-        {outletOpen && (
-          <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg py-1 z-50">
-            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Select Outlet</p>
-            {outlets.map((outlet) => (
-              <button
-                key={outlet.id}
-                onClick={() => { setSelectedOutlet(outlet); setOutletOpen(false) }}
-                className={cn(
-                  'w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors',
-                  selectedOutlet.id === outlet.id && 'bg-accent'
-                )}
-              >
-                <span className={cn(
-                  'size-1.5 rounded-full flex-shrink-0',
-                  outlet.status === 'operational' ? 'bg-success' :
-                  outlet.status === 'warning' ? 'bg-warning' : 'bg-destructive'
-                )} />
-                <span>{outlet.name}</span>
-                <span className="ml-auto text-muted-foreground font-mono">{outlet.code}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Outlet switcher — populated once outlet management API is available */}
+      {outlets.length > 0 && (
+        <div className="relative">
+          <button
+            onClick={() => { setOutletOpen(!outletOpen); setNotifOpen(false); setProfileOpen(false) }}
+            className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border bg-muted text-xs font-medium hover:bg-accent transition-colors"
+          >
+            {selectedOutlet && (
+              <span className={cn(
+                'size-1.5 rounded-full flex-shrink-0',
+                selectedOutlet.status === 'operational' ? 'bg-success' :
+                selectedOutlet.status === 'warning' ? 'bg-warning' : 'bg-destructive'
+              )} />
+            )}
+            <span className="max-w-28 truncate">{selectedOutlet?.name ?? 'All Outlets'}</span>
+            <ChevronDown className="size-3 text-muted-foreground" />
+          </button>
+          {outletOpen && (
+            <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg py-1 z-50">
+              <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Select Outlet</p>
+              {outlets.map((outlet) => (
+                <button
+                  key={outlet.id}
+                  onClick={() => { setSelectedOutlet(outlet); setOutletOpen(false) }}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors',
+                    selectedOutlet?.id === outlet.id && 'bg-accent'
+                  )}
+                >
+                  <span className={cn(
+                    'size-1.5 rounded-full flex-shrink-0',
+                    outlet.status === 'operational' ? 'bg-success' :
+                    outlet.status === 'warning' ? 'bg-warning' : 'bg-destructive'
+                  )} />
+                  <span>{outlet.name}</span>
+                  <span className="ml-auto text-muted-foreground font-mono">{outlet.code}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Realtime indicator */}
       <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-success font-medium">
@@ -159,15 +174,15 @@ export function TopNav({ currentPage }: TopNavProps) {
           className="flex items-center gap-1.5 hover:bg-accent rounded-md px-1.5 py-1 transition-colors"
         >
           <div className="size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
-            MA
+            {userInitials}
           </div>
           <ChevronDown className="size-3 text-muted-foreground hidden sm:block" />
         </button>
         {profileOpen && (
-          <div className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-border bg-popover shadow-lg py-1 z-50">
+          <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-popover shadow-lg py-1 z-50">
             <div className="px-3 py-2 border-b border-border">
-              <p className="text-xs font-semibold">Mohd Azri</p>
-              <p className="text-[11px] text-muted-foreground">Operations Manager</p>
+              <p className="text-xs font-semibold truncate">{currentUser?.name ?? '—'}</p>
+              <p className="text-[11px] text-muted-foreground capitalize">{currentUser?.role ?? ''}</p>
             </div>
             <button className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
               <User className="size-3.5" /> Profile
@@ -175,7 +190,10 @@ export function TopNav({ currentPage }: TopNavProps) {
             <button className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
               <Settings className="size-3.5" /> Settings
             </button>
-            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-destructive transition-colors">
+            <button
+              onClick={() => { setProfileOpen(false); logout() }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-destructive transition-colors"
+            >
               <LogOut className="size-3.5" /> Sign Out
             </button>
           </div>
