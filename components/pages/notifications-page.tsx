@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { Bell, CheckCheck, Trash2 } from 'lucide-react'
+import { useEffect } from 'react'
+import { Bell, CheckCheck, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
-import { AuditLog } from '@/lib/types'
+import { AppNotification, NotificationType } from '@/lib/types'
 
-type NotifType = 'critical' | 'warning' | 'info' | 'success'
+type NotifConfig = { dot: string; bg: string; label: string }
 
-const typeConfig: Record<NotifType, { dot: string; bg: string; label: string }> = {
+const TYPE_CONFIG: Record<NotificationType, NotifConfig> = {
   critical: { dot: 'bg-destructive', bg: 'bg-destructive/5 border-destructive/20', label: 'Critical' },
   warning:  { dot: 'bg-warning',     bg: 'bg-warning/5 border-warning/20',         label: 'Warning'  },
   info:     { dot: 'bg-primary',     bg: 'bg-primary/5 border-primary/10',         label: 'Info'     },
@@ -28,180 +28,110 @@ function formatTime(iso: string): string {
   }
 }
 
-function deriveNotification(log: AuditLog): { id: string; title: string; message: string; time: string; type: NotifType } {
-  const t = log.table_name
-  const a = log.action
-  const nv = log.new_value ?? {}
-  let type: NotifType = 'info'
-  let title = ''
-  let message = ''
-
-  if (t === 'issues') {
-    if (a === 'INSERT') {
-      title = 'Issue Created'
-      message = `${nv.number ?? ''} · ${nv.title ?? ''}`
-      type = nv.priority === 'critical' || nv.priority === 'high' ? 'warning' : 'info'
-    } else {
-      const s = String(nv.status ?? '')
-      title = 'Issue Updated'
-      message = `Status → "${s}"${log.performed_by ? ` · by ${log.performed_by}` : ''}`
-      type = s === 'resolved' || s === 'closed' ? 'success'
-           : s === 'waiting' ? 'warning' : 'info'
-    }
-  } else if (t === 'approval_requests') {
-    if (a === 'INSERT') {
-      title = 'Approval Required'
-      message = `${nv.number ?? ''} · ${nv.title ?? ''}`
-      type = 'warning'
-    } else {
-      const decision = String(nv.status ?? '')
-      title = decision === 'approved' ? 'Approval Granted'
-            : decision === 'rejected' ? 'Approval Rejected' : 'Approval Updated'
-      message = `${nv.title ?? ''}${log.performed_by ? ` · by ${log.performed_by}` : ''}`
-      type = decision === 'approved' ? 'success' : decision === 'rejected' ? 'critical' : 'info'
-    }
-  } else if (t === 'tasks') {
-    title = a === 'INSERT' ? 'Task Created' : 'Task Updated'
-    message = `${nv.title ?? 'Task'}${log.performed_by ? ` · ${log.performed_by}` : ''}`
-    type = 'info'
-  } else {
-    title = `${t.replace(/_/g, ' ')} ${a === 'INSERT' ? 'created' : a === 'UPDATE' ? 'updated' : 'deleted'}`
-    message = log.performed_by ? `By ${log.performed_by}` : ''
-    type = 'info'
-  }
-
-  return { id: log.id, title, message, time: formatTime(log.created_at), type }
+function NotifCard({ n, onRead }: { n: AppNotification; onRead: (id: string) => void }) {
+  const cfg = TYPE_CONFIG[n.type as NotificationType] ?? TYPE_CONFIG.info
+  const isUnread = !n.read_at
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-3 p-3 rounded-lg border transition-colors',
+        cfg.bg,
+        isUnread ? 'opacity-100' : 'opacity-60'
+      )}
+    >
+      <span className={cn('mt-1.5 size-2 rounded-full flex-shrink-0', cfg.dot, !isUnread && 'opacity-30')} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <p className={cn('text-sm font-semibold leading-snug', isUnread ? 'text-foreground' : 'text-muted-foreground')}>
+            {n.title}
+          </p>
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0">{formatTime(n.created_at)}</span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{n.message}</p>
+      </div>
+      {isUnread && (
+        <button
+          onClick={() => onRead(n.id)}
+          className="flex-shrink-0 mt-0.5 size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          title="Mark as read"
+        >
+          <CheckCheck className="size-3.5" />
+        </button>
+      )}
+    </div>
+  )
 }
 
 export function NotificationsPage() {
-  const { auditLogs, issues } = useIssueStore()
-  const [filter, setFilter] = useState<'all' | NotifType>('all')
-  const [readIds, setReadIds] = useState<Set<string>>(new Set())
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  const {
+    notifications,
+    unreadCount,
+    notificationsLoading,
+    loadNotifications,
+    markNotificationRead,
+    markAllNotificationsRead,
+  } = useIssueStore()
 
-  const allNotifs = auditLogs
-    .filter(l => !dismissedIds.has(l.id))
-    .map(deriveNotification)
+  useEffect(() => {
+    loadNotifications()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filtered = filter === 'all' ? allNotifs : allNotifs.filter(n => n.type === filter)
-  const unreadCount = allNotifs.filter(n => !readIds.has(n.id)).length
-  const slaBreached = issues.filter(i => i.slaBreach && i.status !== 'resolved' && i.status !== 'closed')
-
-  const markAllRead = () => setReadIds(new Set(allNotifs.map(n => n.id)))
-  const dismiss = (id: string) => setDismissedIds(prev => new Set([...prev, id]))
+  const unread = notifications.filter(n => !n.read_at)
+  const read   = notifications.filter(n =>  n.read_at)
 
   return (
-    <div className="p-5 space-y-5 max-w-3xl">
+    <div className="p-6 space-y-6 max-w-2xl">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-semibold">Notification Center</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">{unreadCount} unread notifications</p>
+        <div className="flex items-center gap-3">
+          <Bell className="size-6 text-foreground" />
+          <div>
+            <h1 className="text-2xl font-bold">Notifications</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+            </p>
+          </div>
         </div>
-        <button
-          onClick={markAllRead}
-          className="flex items-center gap-1.5 px-3 h-7 rounded-md border border-border text-xs text-muted-foreground hover:bg-accent transition-colors"
-        >
-          <CheckCheck className="size-3.5" /> Mark all read
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {(['all', 'critical', 'warning', 'info', 'success'] as const).map((f) => (
+        {unreadCount > 0 && (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={cn(
-              'px-3 h-7 rounded-full text-xs font-medium transition-colors capitalize',
-              filter === f
-                ? 'bg-primary text-primary-foreground'
-                : 'border border-border text-muted-foreground hover:bg-accent'
-            )}
+            onClick={markAllNotificationsRead}
+            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
           >
-            {f === 'all' ? 'All' : typeConfig[f].label}
+            <CheckCheck className="size-3.5" /> Mark all read
           </button>
-        ))}
-      </div>
-
-      {/* SLA Breach Alert */}
-      {slaBreached.length > 0 && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-          <div className="flex items-start gap-3">
-            <div className="size-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center flex-shrink-0">
-              <Bell className="size-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-destructive">SLA Breach — Immediate Action Required</h3>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                <strong className="text-destructive">{slaBreached.length} issue{slaBreached.length > 1 ? 's' : ''}</strong> breaching SLA:{' '}
-                {slaBreached.slice(0, 3).map(i => i.number).join(', ')}
-                {slaBreached.length > 3 ? ` +${slaBreached.length - 3} more` : ''}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Notification list */}
-      <div className="space-y-2">
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Bell className="size-8 text-muted-foreground mb-3" />
-            <p className="text-sm font-medium">
-              {auditLogs.length === 0 ? 'No activity yet' : 'No notifications'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {auditLogs.length === 0
-                ? 'Notifications will appear here as your team creates and updates issues.'
-                : "You're all caught up!"}
-            </p>
-          </div>
-        ) : (
-          filtered.map((notif) => {
-            const config = typeConfig[notif.type]
-            const isRead = readIds.has(notif.id)
-            return (
-              <div
-                key={notif.id}
-                className={cn(
-                  'flex items-start gap-3 p-4 rounded-xl border transition-colors hover:shadow-sm',
-                  !isRead ? config.bg : 'border-border bg-card'
-                )}
-              >
-                <div className={cn('size-2 rounded-full mt-1 flex-shrink-0', config.dot)} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className={cn('text-sm font-semibold', !isRead ? 'text-foreground' : 'text-muted-foreground')}>
-                      {notif.title}
-                    </p>
-                    <span className="text-[11px] text-muted-foreground flex-shrink-0">{notif.time}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed mt-1">{notif.message}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={cn(
-                      'text-[10px] px-1.5 py-0.5 rounded font-semibold',
-                      notif.type === 'critical' ? 'bg-destructive/15 text-destructive' :
-                      notif.type === 'warning'  ? 'bg-warning/15 text-warning' :
-                      notif.type === 'success'  ? 'bg-success/15 text-success' :
-                                                  'bg-primary/15 text-primary'
-                    )}>
-                      {config.label}
-                    </span>
-                    {!isRead && <span className="size-1.5 rounded-full bg-primary" />}
-                  </div>
-                </div>
-                <button
-                  onClick={() => { setReadIds(prev => new Set([...prev, notif.id])); dismiss(notif.id) }}
-                  className="size-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
-                  aria-label="Dismiss"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </div>
-            )
-          })
         )}
       </div>
+
+      {notificationsLoading && notifications.length === 0 ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : notifications.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <Bell className="size-10 text-muted-foreground mb-4" />
+          <p className="text-sm font-medium">No notifications yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Notifications appear here when Issues are created or Approvals are decided.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {unread.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unread</p>
+              {unread.map(n => (
+                <NotifCard key={n.id} n={n} onRead={markNotificationRead} />
+              ))}
+            </div>
+          )}
+          {read.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Earlier</p>
+              {read.map(n => (
+                <NotifCard key={n.id} n={n} onRead={markNotificationRead} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

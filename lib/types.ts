@@ -195,6 +195,23 @@ export interface AuditLog {
 }
 
 // =====================================================================
+// Notifications
+// =====================================================================
+
+export type NotificationType = 'info' | 'warning' | 'critical' | 'success'
+
+export interface AppNotification {
+  id: string
+  title: string
+  message: string
+  type: NotificationType
+  entity_type: string | null
+  entity_id: string | null
+  read_at: string | null
+  created_at: string
+}
+
+// =====================================================================
 // Auth — User session
 // =====================================================================
 
@@ -287,6 +304,137 @@ export interface CreateWorkOrderInput {
   priority?: Priority
   assignee?: string
   scheduledDate?: string
+}
+
+// =====================================================================
+// Procurement — Vendors
+// =====================================================================
+
+export interface Vendor {
+  id: string
+  name: string
+  category: string
+  contact_name: string | null
+  contact_phone: string | null
+  contact_email: string | null
+  address: string | null
+  outlet: string | null
+  is_active: boolean
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateVendorInput {
+  name: string
+  category?: string
+  contact_name?: string
+  contact_phone?: string
+  contact_email?: string
+  address?: string
+  outlet?: string
+  notes?: string
+}
+
+export interface UpdateVendorInput {
+  name?: string
+  category?: string
+  contact_name?: string
+  contact_phone?: string
+  contact_email?: string
+  address?: string
+  outlet?: string
+  is_active?: boolean
+  notes?: string
+}
+
+// =====================================================================
+// Training — Programs
+// =====================================================================
+
+export type TrainingProgramStatus = 'scheduled' | 'ongoing' | 'completed' | 'cancelled'
+
+export interface TrainingProgram {
+  id: string
+  title: string
+  description: string | null
+  target_role: string
+  outlet: string | null
+  trainer: string | null
+  scheduled_date: string | null
+  duration_hours: number | null
+  status: TrainingProgramStatus
+  max_participants: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateTrainingProgramInput {
+  title: string
+  description?: string
+  target_role?: string
+  outlet?: string
+  trainer?: string
+  scheduled_date?: string
+  duration_hours?: number
+  max_participants?: number
+}
+
+export interface UpdateTrainingProgramInput {
+  title?: string
+  description?: string
+  target_role?: string
+  outlet?: string
+  trainer?: string
+  scheduled_date?: string
+  duration_hours?: number
+  status?: TrainingProgramStatus
+  max_participants?: number
+}
+
+// =====================================================================
+// Marketing — Campaigns
+// =====================================================================
+
+export type CampaignStatus = 'draft' | 'active' | 'completed' | 'cancelled'
+export type CampaignType = 'promotion' | 'event' | 'social-media' | 'email' | 'other'
+
+export interface Campaign {
+  id: string
+  title: string
+  type: CampaignType
+  description: string | null
+  outlet: string | null
+  budget: string | null
+  start_date: string | null
+  end_date: string | null
+  status: CampaignStatus
+  pic: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateCampaignInput {
+  title: string
+  type?: CampaignType
+  description?: string
+  outlet?: string
+  budget?: string
+  start_date?: string
+  end_date?: string
+  pic?: string
+}
+
+export interface UpdateCampaignInput {
+  title?: string
+  type?: CampaignType
+  description?: string
+  outlet?: string
+  budget?: string
+  start_date?: string
+  end_date?: string
+  status?: CampaignStatus
+  pic?: string
 }
 
 // Input shape for the Create Issue form. Everything the user fills in,

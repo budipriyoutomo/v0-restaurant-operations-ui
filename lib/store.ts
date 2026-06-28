@@ -10,19 +10,29 @@
 import { create } from 'zustand'
 import { api, authToken } from './api-client'
 import {
+  AppNotification,
   ApprovalRequest,
   Asset,
   AuditLog,
+  Campaign,
   CreateAssetInput,
+  CreateCampaignInput,
   CreateIssueInput,
+  CreateTrainingProgramInput,
+  CreateVendorInput,
   CreateWorkOrderInput,
   Issue,
   MasterCategory,
   Outlet,
   PIC,
   Task,
+  TrainingProgram,
   UpdateAssetInput,
+  UpdateCampaignInput,
+  UpdateTrainingProgramInput,
+  UpdateVendorInput,
   User,
+  Vendor,
   WorkOrder,
   WorkOrderStatus,
   CreateOutletInput,
@@ -53,6 +63,14 @@ interface IssueCoreState {
   isLoading: boolean
   error: string | null
 
+  // Notifications
+  notifications: AppNotification[]
+  unreadCount: number
+  notificationsLoading: boolean
+  loadNotifications: () => Promise<void>
+  markNotificationRead: (id: string) => Promise<void>
+  markAllNotificationsRead: () => Promise<void>
+
   // Master data
   outlets: Outlet[]
   categories: MasterCategory[]
@@ -65,6 +83,8 @@ interface IssueCoreState {
   usersLoading: boolean
   loadUsers: () => Promise<void>
   inviteUser: (email: string, name: string, role: string, password: string) => Promise<User>
+  updateUser: (id: string, patch: { name?: string; role?: string; is_active?: boolean }) => Promise<User>
+  deleteUser: (id: string) => Promise<void>
 
   // Issue core actions
   loadAll: () => Promise<void>
@@ -86,6 +106,30 @@ interface IssueCoreState {
   createWorkOrder: (input: CreateWorkOrderInput) => Promise<WorkOrder>
   updateWorkOrderStatus: (woId: string, status: WorkOrderStatus) => void
   deleteWorkOrder: (id: string) => Promise<void>
+
+  // Vendors (Procurement)
+  vendors: Vendor[]
+  vendorsLoading: boolean
+  loadVendors: () => Promise<void>
+  createVendor: (input: CreateVendorInput) => Promise<Vendor>
+  updateVendor: (id: string, input: UpdateVendorInput) => Promise<Vendor>
+  deleteVendor: (id: string) => Promise<void>
+
+  // Training Programs
+  trainingPrograms: TrainingProgram[]
+  trainingLoading: boolean
+  loadTrainingPrograms: () => Promise<void>
+  createTrainingProgram: (input: CreateTrainingProgramInput) => Promise<TrainingProgram>
+  updateTrainingProgram: (id: string, input: UpdateTrainingProgramInput) => Promise<TrainingProgram>
+  deleteTrainingProgram: (id: string) => Promise<void>
+
+  // Campaigns (Marketing)
+  campaigns: Campaign[]
+  campaignsLoading: boolean
+  loadCampaigns: () => Promise<void>
+  createCampaign: (input: CreateCampaignInput) => Promise<Campaign>
+  updateCampaign: (id: string, input: UpdateCampaignInput) => Promise<Campaign>
+  deleteCampaign: (id: string) => Promise<void>
 
   // Master data actions
   loadMasterData: () => Promise<void>
@@ -158,6 +202,17 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
   allUsers:     [],
   usersLoading: false,
 
+  notifications:        [],
+  unreadCount:          0,
+  notificationsLoading: false,
+
+  vendors:         [],
+  vendorsLoading:  false,
+  trainingPrograms:   [],
+  trainingLoading:    false,
+  campaigns:          [],
+  campaignsLoading:   false,
+
   // -------------------------------------------------------------------------
   // loadAll — initial hydration from the API (issue core + master data)
   // -------------------------------------------------------------------------
@@ -177,6 +232,10 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     get().loadAuditLogs()
     get().loadUsers()
     get().loadCMMS()
+    get().loadNotifications()
+    get().loadVendors()
+    get().loadTrainingPrograms()
+    get().loadCampaigns()
   },
 
   // -------------------------------------------------------------------------
@@ -189,6 +248,39 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     } catch {
       // silent — notifications non-critical
     }
+  },
+
+  // -------------------------------------------------------------------------
+  // loadNotifications — GET /api/notifications (50 newest)
+  // -------------------------------------------------------------------------
+  loadNotifications: async () => {
+    set({ notificationsLoading: true })
+    try {
+      const [notifications, { count }] = await Promise.all([
+        api.get<AppNotification[]>('/api/notifications?limit=50'),
+        api.get<{ count: number }>('/api/notifications/unread-count'),
+      ])
+      set({ notifications, unreadCount: count, notificationsLoading: false })
+    } catch {
+      set({ notificationsLoading: false })
+    }
+  },
+
+  markNotificationRead: async (id) => {
+    const updated = await api.patch<AppNotification>(`/api/notifications/${id}/read`, {})
+    set((state) => ({
+      notifications: state.notifications.map(n => n.id === id ? updated : n),
+      unreadCount: Math.max(0, state.unreadCount - 1),
+    }))
+  },
+
+  markAllNotificationsRead: async () => {
+    await api.post('/api/notifications/read-all', {})
+    const now = new Date().toISOString()
+    set((state) => ({
+      notifications: state.notifications.map(n => n.read_at ? n : { ...n, read_at: now }),
+      unreadCount: 0,
+    }))
   },
 
   // -------------------------------------------------------------------------
@@ -211,6 +303,100 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     const user = await api.post<User>('/api/auth/register', { email, name, role, password })
     set((state) => ({ allUsers: [...state.allUsers, user].sort((a, b) => a.name.localeCompare(b.name)) }))
     return user
+  },
+
+  // -------------------------------------------------------------------------
+  // updateUser — PATCH /api/auth/users/{id}
+  // -------------------------------------------------------------------------
+  updateUser: async (id, patch) => {
+    const user = await api.patch<User>(`/api/auth/users/${id}`, patch)
+    set((state) => ({
+      allUsers: state.allUsers.map(u => u.id === id ? user : u).sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    return user
+  },
+
+  // -------------------------------------------------------------------------
+  // deleteUser — DELETE /api/auth/users/{id}  (soft-delete, sets is_active=false)
+  // -------------------------------------------------------------------------
+  deleteUser: async (id) => {
+    await api.delete(`/api/auth/users/${id}`)
+    set((state) => ({ allUsers: state.allUsers.filter(u => u.id !== id) }))
+  },
+
+  // -------------------------------------------------------------------------
+  // Vendors CRUD
+  // -------------------------------------------------------------------------
+  loadVendors: async () => {
+    set({ vendorsLoading: true })
+    try {
+      const vendors = await api.get<Vendor[]>('/api/vendors?active_only=false')
+      set({ vendors, vendorsLoading: false })
+    } catch { set({ vendorsLoading: false }) }
+  },
+  createVendor: async (input) => {
+    const vendor = await api.post<Vendor>('/api/vendors', input)
+    set((state) => ({ vendors: [vendor, ...state.vendors] }))
+    return vendor
+  },
+  updateVendor: async (id, input) => {
+    const vendor = await api.patch<Vendor>(`/api/vendors/${id}`, input)
+    set((state) => ({ vendors: state.vendors.map(v => v.id === id ? vendor : v) }))
+    return vendor
+  },
+  deleteVendor: async (id) => {
+    await api.delete(`/api/vendors/${id}`)
+    set((state) => ({ vendors: state.vendors.filter(v => v.id !== id) }))
+  },
+
+  // -------------------------------------------------------------------------
+  // Training Programs CRUD
+  // -------------------------------------------------------------------------
+  loadTrainingPrograms: async () => {
+    set({ trainingLoading: true })
+    try {
+      const trainingPrograms = await api.get<TrainingProgram[]>('/api/training-programs')
+      set({ trainingPrograms, trainingLoading: false })
+    } catch { set({ trainingLoading: false }) }
+  },
+  createTrainingProgram: async (input) => {
+    const program = await api.post<TrainingProgram>('/api/training-programs', input)
+    set((state) => ({ trainingPrograms: [program, ...state.trainingPrograms] }))
+    return program
+  },
+  updateTrainingProgram: async (id, input) => {
+    const program = await api.patch<TrainingProgram>(`/api/training-programs/${id}`, input)
+    set((state) => ({ trainingPrograms: state.trainingPrograms.map(p => p.id === id ? program : p) }))
+    return program
+  },
+  deleteTrainingProgram: async (id) => {
+    await api.delete(`/api/training-programs/${id}`)
+    set((state) => ({ trainingPrograms: state.trainingPrograms.filter(p => p.id !== id) }))
+  },
+
+  // -------------------------------------------------------------------------
+  // Campaigns CRUD
+  // -------------------------------------------------------------------------
+  loadCampaigns: async () => {
+    set({ campaignsLoading: true })
+    try {
+      const campaigns = await api.get<Campaign[]>('/api/campaigns')
+      set({ campaigns, campaignsLoading: false })
+    } catch { set({ campaignsLoading: false }) }
+  },
+  createCampaign: async (input) => {
+    const campaign = await api.post<Campaign>('/api/campaigns', input)
+    set((state) => ({ campaigns: [campaign, ...state.campaigns] }))
+    return campaign
+  },
+  updateCampaign: async (id, input) => {
+    const campaign = await api.patch<Campaign>(`/api/campaigns/${id}`, input)
+    set((state) => ({ campaigns: state.campaigns.map(c => c.id === id ? campaign : c) }))
+    return campaign
+  },
+  deleteCampaign: async (id) => {
+    await api.delete(`/api/campaigns/${id}`)
+    set((state) => ({ campaigns: state.campaigns.filter(c => c.id !== id) }))
   },
 
   // -------------------------------------------------------------------------

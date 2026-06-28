@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Sun, Moon, Bell, Shield, RefreshCw, Check } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Sun, Moon, Bell, Shield, RefreshCw, Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useIssueStore } from '@/lib/store'
+import { api } from '@/lib/api-client'
 
 interface AppPreferences {
   darkMode: boolean
@@ -13,200 +13,183 @@ interface AppPreferences {
   compactSidebar: boolean
 }
 
-const PREFS_KEY = 'restaurantops_prefs'
-
-function loadPrefs(): AppPreferences {
-  try {
-    const raw = localStorage.getItem(PREFS_KEY)
-    if (raw) return { ...defaultPrefs(), ...JSON.parse(raw) }
-  } catch { /* ignore */ }
-  return defaultPrefs()
+const DEFAULT_PREFS: AppPreferences = {
+  darkMode:          false,
+  slaAlerts:         true,
+  approvalReminders: true,
+  autoRefresh:       false,
+  compactSidebar:    false,
 }
 
-function defaultPrefs(): AppPreferences {
-  return {
-    darkMode:          document.documentElement.classList.contains('dark'),
-    slaAlerts:         true,
-    approvalReminders: true,
-    autoRefresh:       false,
-    compactSidebar:    false,
+function applyDarkMode(dark: boolean) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.toggle('dark', dark)
   }
-}
-
-function savePrefs(prefs: AppPreferences) {
-  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
-}
-
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!value)}
-      className={cn(
-        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0',
-        value ? 'bg-primary' : 'bg-muted'
-      )}
-    >
-      <span className={cn(
-        'inline-block size-4 rounded-full bg-white shadow transition-transform',
-        value ? 'translate-x-4' : 'translate-x-0.5'
-      )} />
-    </button>
-  )
 }
 
 export function SettingsPage() {
-  const { currentUser, loadAll, isLoading } = useIssueStore()
-  const [prefs, setPrefs] = useState<AppPreferences>(defaultPrefs)
+  const [prefs, setPrefs] = useState<AppPreferences>(DEFAULT_PREFS)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  // Load preferences from API on mount
   useEffect(() => {
-    setPrefs(loadPrefs())
+    api.get<Partial<AppPreferences>>('/api/auth/me/preferences')
+      .then(remote => {
+        const merged = { ...DEFAULT_PREFS, ...remote }
+        setPrefs(merged)
+        applyDarkMode(merged.darkMode)
+      })
+      .catch(() => {
+        // fall back to current DOM state
+        setPrefs(p => ({
+          ...p,
+          darkMode: typeof document !== 'undefined'
+            ? document.documentElement.classList.contains('dark')
+            : false,
+        }))
+      })
+      .finally(() => setLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const save = useCallback(async (next: AppPreferences) => {
+    setSaving(true)
+    setSaved(false)
+    try {
+      await api.patch('/api/auth/me/preferences', { preferences: next })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch {
+      // non-critical — prefs are applied locally regardless
+    } finally {
+      setSaving(false)
+    }
   }, [])
 
-  const update = (patch: Partial<AppPreferences>) => {
-    const next = { ...prefs, ...patch }
+  const toggle = (key: keyof AppPreferences) => {
+    const next = { ...prefs, [key]: !prefs[key] }
     setPrefs(next)
-    savePrefs(next)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-
-    if ('darkMode' in patch) {
-      document.documentElement.classList.toggle('dark', patch.darkMode)
-    }
+    if (key === 'darkMode') applyDarkMode(next.darkMode)
+    save(next)
   }
 
-  const ROLE_LABELS: Record<string, string> = {
-    admin: 'Administrator', manager: 'Manager', staff: 'Staff',
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl">
+    <div className="p-6 space-y-6 max-w-xl">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1">Application preferences and account details</p>
+          <p className="text-sm text-muted-foreground mt-1">Application preferences — saved to your account</p>
         </div>
-        {saved && (
-          <div className="flex items-center gap-1.5 text-success text-xs font-medium">
+        {saving ? (
+          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        ) : saved ? (
+          <span className="flex items-center gap-1 text-xs text-success font-medium">
             <Check className="size-3.5" /> Saved
-          </div>
-        )}
+          </span>
+        ) : null}
       </div>
 
-      {/* Profile */}
-      <Section title="Your Profile" icon={<Shield className="size-4" />}>
-        <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border">
-          <div className="size-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-lg font-bold flex-shrink-0">
-            {currentUser?.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? '?'}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate">{currentUser?.name ?? '—'}</p>
-            <p className="text-sm text-muted-foreground truncate">{currentUser?.email ?? '—'}</p>
-            <p className="text-xs text-muted-foreground mt-0.5 capitalize">
-              {ROLE_LABELS[currentUser?.role ?? ''] ?? currentUser?.role ?? '—'}
-            </p>
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground px-1">
-          Contact your administrator to change your name, email, or role.
-        </p>
-      </Section>
-
-      {/* Appearance */}
-      <Section title="Appearance" icon={<Sun className="size-4" />}>
-        <SettingRow
+      <SettingGroup label="Appearance">
+        <ToggleRow
+          icon={prefs.darkMode ? <Moon className="size-4" /> : <Sun className="size-4" />}
           label="Dark Mode"
-          description="Switch to a dark color scheme"
-          control={<Toggle value={prefs.darkMode} onChange={v => update({ darkMode: v })} />}
+          description="Switch between light and dark theme"
+          checked={prefs.darkMode}
+          onChange={() => toggle('darkMode')}
         />
-        <SettingRow
-          label="Compact Sidebar"
-          description="Collapse sidebar by default on load"
-          control={<Toggle value={prefs.compactSidebar} onChange={v => update({ compactSidebar: v })} />}
-        />
-      </Section>
+      </SettingGroup>
 
-      {/* Notifications */}
-      <Section title="Notifications" icon={<Bell className="size-4" />}>
-        <SettingRow
+      <SettingGroup label="Notifications">
+        <ToggleRow
+          icon={<Bell className="size-4" />}
           label="SLA Breach Alerts"
-          description="Show alert banner when issues breach SLA"
-          control={<Toggle value={prefs.slaAlerts} onChange={v => update({ slaAlerts: v })} />}
+          description="Highlight overdue Issues with visual indicators"
+          checked={prefs.slaAlerts}
+          onChange={() => toggle('slaAlerts')}
         />
-        <SettingRow
+        <ToggleRow
+          icon={<Bell className="size-4" />}
           label="Approval Reminders"
-          description="Highlight pending approvals in sidebar badge"
-          control={<Toggle value={prefs.approvalReminders} onChange={v => update({ approvalReminders: v })} />}
+          description="Show pending approval count in the sidebar badge"
+          checked={prefs.approvalReminders}
+          onChange={() => toggle('approvalReminders')}
         />
-      </Section>
+      </SettingGroup>
 
-      {/* Data */}
-      <Section title="Data & Sync" icon={<RefreshCw className="size-4" />}>
-        <SettingRow
-          label="Auto-refresh"
-          description="Reload data every 5 minutes in background (not yet implemented)"
-          control={<Toggle value={prefs.autoRefresh} onChange={v => update({ autoRefresh: v })} />}
+      <SettingGroup label="System">
+        <ToggleRow
+          icon={<RefreshCw className="size-4" />}
+          label="Auto-Refresh"
+          description="Automatically reload data every 5 minutes"
+          checked={prefs.autoRefresh}
+          onChange={() => toggle('autoRefresh')}
         />
-        <div className="px-1 pt-2">
-          <button
-            onClick={() => loadAll()}
-            disabled={isLoading}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-md border border-border text-sm font-medium transition-colors',
-              isLoading ? 'opacity-60 cursor-not-allowed' : 'hover:bg-accent'
-            )}
-          >
-            <RefreshCw className={cn('size-4', isLoading && 'animate-spin')} />
-            Refresh All Data Now
-          </button>
-        </div>
-      </Section>
-
-      {/* About */}
-      <Section title="About" icon={<Shield className="size-4" />}>
-        <div className="space-y-2 text-xs text-muted-foreground px-1">
-          <div className="flex justify-between">
-            <span>Application</span>
-            <span className="font-medium text-foreground">RestaurantOps</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Stack</span>
-            <span className="font-medium text-foreground">Next.js 16 + FastAPI + PostgreSQL</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Environment</span>
-            <span className="font-medium text-foreground">{typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'Development' : 'Production'}</span>
-          </div>
-        </div>
-      </Section>
+        <ToggleRow
+          icon={<Shield className="size-4" />}
+          label="Compact Sidebar"
+          description="Start with the sidebar collapsed by default"
+          checked={prefs.compactSidebar}
+          onChange={() => toggle('compactSidebar')}
+        />
+      </SettingGroup>
     </div>
   )
 }
 
-function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function SettingGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border bg-muted/20">
-        <span className="text-muted-foreground">{icon}</span>
-        <h2 className="text-sm font-semibold">{title}</h2>
+    <div className="rounded-xl border border-border overflow-hidden">
+      <div className="px-4 py-2.5 bg-muted/30 border-b border-border">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
       </div>
-      <div className="p-4 space-y-3">{children}</div>
+      <div className="divide-y divide-border">{children}</div>
     </div>
   )
 }
 
-function SettingRow({ label, description, control }: {
+function ToggleRow({
+  icon, label, description, checked, onChange,
+}: {
+  icon: React.ReactNode
   label: string
   description: string
-  control: React.ReactNode
+  checked: boolean
+  onChange: () => void
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 px-1 py-1">
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+    <div className="flex items-center justify-between px-4 py-3.5 gap-4">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 text-muted-foreground">{icon}</span>
+        <div>
+          <p className="text-sm font-medium">{label}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        </div>
       </div>
-      {control}
+      <button
+        role="switch"
+        aria-checked={checked}
+        onClick={onChange}
+        className={cn(
+          'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+          checked ? 'bg-primary' : 'bg-muted'
+        )}
+      >
+        <span
+          className={cn(
+            'pointer-events-none inline-block size-4 rounded-full bg-white shadow-sm transition-transform',
+            checked ? 'translate-x-4' : 'translate-x-0'
+          )}
+        />
+      </button>
     </div>
   )
 }

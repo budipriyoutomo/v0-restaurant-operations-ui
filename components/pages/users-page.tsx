@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Users, UserPlus, Shield, Eye, EyeOff, Loader2, X } from 'lucide-react'
+import { Users, UserPlus, Shield, Eye, EyeOff, Loader2, X, Trash2, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { User } from '@/lib/types'
 
 const ROLE_CONFIG: Record<string, { label: string; badge: string }> = {
   admin:   { label: 'Admin',   badge: 'bg-red-100 text-red-700' },
@@ -19,19 +20,190 @@ function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
+// ---------------------------------------------------------------------------
+// User card
+// ---------------------------------------------------------------------------
+function UserCard({ user, isCurrentUser }: { user: User; isCurrentUser: boolean }) {
+  const { updateUser, deleteUser } = useIssueStore()
+  const [roleLoading, setRoleLoading]   = useState(false)
+  const [toggleLoading, setToggleLoading] = useState(false)
+  const [showDelete, setShowDelete]     = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const role = getRole(user.role)
+
+  const handleRoleChange = async (newRole: string) => {
+    if (newRole === user.role) return
+    setRoleLoading(true)
+    setError(null)
+    try {
+      await updateUser(user.id, { role: newRole })
+    } catch (e) {
+      setError(String(e).replace(/Error: API \d+ [^:]+: /, ''))
+    } finally {
+      setRoleLoading(false)
+    }
+  }
+
+  const handleToggleActive = async () => {
+    setToggleLoading(true)
+    setError(null)
+    try {
+      await updateUser(user.id, { is_active: !user.is_active })
+    } catch (e) {
+      setError(String(e).replace(/Error: API \d+ [^:]+: /, ''))
+    } finally {
+      setToggleLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setDeleteLoading(true)
+    try {
+      await deleteUser(user.id)
+    } catch (e) {
+      setError(String(e).replace(/Error: API \d+ [^:]+: /, ''))
+      setDeleteLoading(false)
+      setShowDelete(false)
+    }
+  }
+
+  return (
+    <div className={cn(
+      'p-4 rounded-xl border bg-card shadow-sm flex flex-col gap-3',
+      isCurrentUser ? 'border-primary/40 ring-1 ring-primary/20' : 'border-border',
+      !user.is_active && 'opacity-60'
+    )}>
+      {/* Header row */}
+      <div className="flex items-start gap-3">
+        <div className={cn(
+          'size-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0',
+          user.role === 'admin'   ? 'bg-red-100 text-red-700' :
+          user.role === 'manager' ? 'bg-purple-100 text-purple-700' :
+                                   'bg-blue-100 text-blue-700'
+        )}>
+          {getInitials(user.name)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold truncate">{user.name}</p>
+            {isCurrentUser && (
+              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">You</span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground truncate mt-0.5">{user.email}</p>
+          <span className={cn(
+            'inline-block text-[10px] px-1.5 py-0.5 rounded font-semibold mt-1.5',
+            user.is_active ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
+          )}>
+            {user.is_active ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+        {user.role === 'admin' && (
+          <Shield className="size-4 text-red-500 flex-shrink-0 mt-0.5" />
+        )}
+      </div>
+
+      {error && (
+        <p className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded">{error}</p>
+      )}
+
+      {/* Actions row — hidden for current user */}
+      {!isCurrentUser && (
+        <div className="flex items-center gap-2 pt-1 border-t border-border">
+          {/* Role selector */}
+          <div className="relative flex-1">
+            <select
+              value={user.role}
+              disabled={roleLoading}
+              onChange={e => handleRoleChange(e.target.value)}
+              className={cn(
+                'w-full appearance-none pl-2 pr-6 py-1 text-xs rounded border border-border bg-muted/20',
+                'focus:outline-none focus:ring-1 focus:ring-primary/50',
+                roleLoading && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              <option value="staff">Staff</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+            </select>
+            {roleLoading
+              ? <Loader2 className="absolute right-1.5 top-1/2 -translate-y-1/2 size-3 animate-spin text-muted-foreground" />
+              : <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground pointer-events-none" />
+            }
+          </div>
+
+          {/* Activate / Deactivate toggle */}
+          <button
+            onClick={handleToggleActive}
+            disabled={toggleLoading}
+            className={cn(
+              'px-2 py-1 text-[11px] font-semibold rounded border transition-colors flex-shrink-0',
+              user.is_active
+                ? 'border-warning/40 text-warning hover:bg-warning/10'
+                : 'border-success/40 text-success hover:bg-success/10',
+              toggleLoading && 'opacity-50 cursor-not-allowed'
+            )}
+          >
+            {toggleLoading ? <Loader2 className="size-3 animate-spin" /> : user.is_active ? 'Deactivate' : 'Activate'}
+          </button>
+
+          {/* Delete */}
+          <button
+            onClick={() => setShowDelete(true)}
+            className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Delete confirm */}
+      {showDelete && (
+        <div className="border-t border-border pt-2 space-y-2">
+          <p className="text-xs text-muted-foreground">Remove <strong>{user.name}</strong> from the system?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowDelete(false)}
+              className="flex-1 py-1 text-xs rounded border border-border text-muted-foreground hover:bg-accent transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleteLoading}
+              className="flex-1 py-1 text-xs rounded bg-destructive text-destructive-foreground font-semibold flex items-center justify-center gap-1 hover:bg-destructive/90 transition-colors"
+            >
+              {deleteLoading ? <Loader2 className="size-3 animate-spin" /> : 'Remove'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
 export function UsersPage() {
   const { allUsers, usersLoading, inviteUser, currentUser } = useIssueStore()
   const [showInvite, setShowInvite] = useState(false)
   const [filterRole, setFilterRole] = useState<string | null>(null)
+  const [showInactive, setShowInactive] = useState(false)
 
-  const filtered = filterRole ? allUsers.filter(u => u.role === filterRole) : allUsers
+  const visibleUsers = allUsers.filter(u => showInactive ? true : u.is_active)
+  const filtered = filterRole ? visibleUsers.filter(u => u.role === filterRole) : visibleUsers
 
   const stats = {
-    total:   allUsers.length,
-    active:  allUsers.filter(u => u.is_active).length,
-    admins:  allUsers.filter(u => u.role === 'admin').length,
-    managers:allUsers.filter(u => u.role === 'manager').length,
+    total:    allUsers.length,
+    active:   allUsers.filter(u => u.is_active).length,
+    admins:   allUsers.filter(u => u.role === 'admin').length,
+    managers: allUsers.filter(u => u.role === 'manager').length,
   }
+
+  const isAdmin = currentUser?.role === 'admin'
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
@@ -41,12 +213,14 @@ export function UsersPage() {
           <h1 className="text-3xl font-bold">Users & Roles</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage team access and permissions</p>
         </div>
-        <button
-          onClick={() => setShowInvite(true)}
-          className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-        >
-          <UserPlus className="size-4" /> Invite User
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setShowInvite(true)}
+            className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+          >
+            <UserPlus className="size-4" /> Invite User
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -64,9 +238,9 @@ export function UsersPage() {
         ))}
       </div>
 
-      {/* Role filter */}
+      {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-medium text-muted-foreground">Filter:</span>
+        <span className="text-xs font-medium text-muted-foreground">Role:</span>
         {(['all', 'admin', 'manager', 'staff'] as const).map(r => (
           <button
             key={r}
@@ -81,6 +255,17 @@ export function UsersPage() {
             {r === 'all' ? 'All' : getRole(r).label}
           </button>
         ))}
+        <button
+          onClick={() => setShowInactive(v => !v)}
+          className={cn(
+            'ml-2 px-3 h-7 rounded-full text-xs font-medium transition-colors border',
+            showInactive
+              ? 'bg-muted text-foreground border-border'
+              : 'border-dashed border-border text-muted-foreground hover:bg-accent'
+          )}
+        >
+          {showInactive ? 'Hide Inactive' : 'Show Inactive'}
+        </button>
       </div>
 
       {/* User list */}
@@ -98,53 +283,13 @@ export function UsersPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(user => {
-            const role = getRole(user.role)
-            const isCurrentUser = user.id === currentUser?.id
-            return (
-              <div
-                key={user.id}
-                className={cn(
-                  'p-4 rounded-xl border bg-card shadow-sm',
-                  isCurrentUser ? 'border-primary/40 ring-1 ring-primary/20' : 'border-border'
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={cn(
-                    'size-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0',
-                    user.role === 'admin'   ? 'bg-red-100 text-red-700' :
-                    user.role === 'manager' ? 'bg-purple-100 text-purple-700' :
-                                             'bg-blue-100 text-blue-700'
-                  )}>
-                    {getInitials(user.name)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold truncate">{user.name}</p>
-                      {isCurrentUser && (
-                        <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">You</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{user.email}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className={cn('text-[10px] px-1.5 py-0.5 rounded font-semibold', role.badge)}>
-                        {role.label}
-                      </span>
-                      <span className={cn(
-                        'text-[10px] px-1.5 py-0.5 rounded font-semibold',
-                        user.is_active ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
-                      )}>
-                        {user.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  </div>
-                  {user.role === 'admin' && (
-                    <Shield className="size-4 text-red-500 flex-shrink-0 mt-0.5" />
-                  )}
-                </div>
-              </div>
-            )
-          })}
+          {filtered.map(user => (
+            <UserCard
+              key={user.id}
+              user={user}
+              isCurrentUser={user.id === currentUser?.id}
+            />
+          ))}
         </div>
       )}
 
@@ -156,6 +301,9 @@ export function UsersPage() {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Invite modal
+// ---------------------------------------------------------------------------
 function InviteModal({ onClose }: { onClose: () => void }) {
   const { inviteUser } = useIssueStore()
   const [form, setForm] = useState({ name: '', email: '', role: 'staff', password: '' })
