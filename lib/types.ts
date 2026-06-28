@@ -198,11 +198,13 @@ export interface AuditLog {
 // Auth — User session
 // =====================================================================
 
+export type UserRole = 'staff' | 'manager' | 'admin'
+
 export interface User {
   id: string
   email: string
   name: string
-  role: string
+  role: UserRole
   is_active: boolean
 }
 

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Package, Plus, Clock, CheckCircle2, XCircle, Wrench, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { usePermissions } from '@/lib/permissions'
 import { Asset, AssetStatus, WorkOrder } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
@@ -132,6 +133,7 @@ function AssetCard({ asset, workOrders }: { asset: Asset; workOrders: WorkOrder[
 // ---------------------------------------------------------------------------
 export function AssetsPage() {
   const { issues, approvals, outlets, pics, createIssue, assets, workOrders, cmmsLoading, createAsset } = useIssueStore()
+  const { can } = usePermissions()
   const [showCreate, setShowCreate] = useState(false)
   const [showAddAsset, setShowAddAsset] = useState(false)
   const [tab, setTab] = useState<Tab>('requests')
@@ -182,12 +184,14 @@ export function AssetsPage() {
           <p className="text-sm text-muted-foreground mt-1">Asset purchase requests, lifecycle tracking, and approval workflows</p>
         </div>
         {tab === 'physical-assets' ? (
-          <button
-            onClick={() => setShowAddAsset(true)}
-            className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="size-4" /> Add Asset
-          </button>
+          can.manageAssets && (
+            <button
+              onClick={() => setShowAddAsset(true)}
+              className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="size-4" /> Add Asset
+            </button>
+          )
         ) : (
           <button
             onClick={() => setShowCreate(true)}

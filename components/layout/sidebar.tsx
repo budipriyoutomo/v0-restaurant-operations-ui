@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { usePermissions } from '@/lib/permissions'
 import {
   LayoutDashboard,
   AlertCircle,
@@ -84,6 +85,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges }: SidebarProps) {
+  const { canViewPage } = usePermissions()
+
   return (
     <aside
       className={cn(
@@ -115,7 +118,7 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges }
                   {group.label}
                 </p>
               )}
-              {groupItems.map((item) => {
+              {groupItems.filter((item) => canViewPage(item.id)).map((item) => {
                 const Icon = item.icon
                 const active = currentPage === item.id
                 const count = item.badgeKey ? (badges?.[item.badgeKey] ?? 0) : 0

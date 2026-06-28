@@ -5,6 +5,7 @@ import { Search, Filter, CheckCircle2, XCircle, Clock, ShoppingCart, Megaphone, 
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { usePermissions } from '@/lib/permissions'
 import { ApprovalRequest, ApprovalType } from '@/lib/types'
 
 const typeIcons: Record<ApprovalType, React.ReactNode> = {
@@ -23,6 +24,7 @@ const typeLabels: Record<ApprovalType, string> = {
 
 export function ApprovalCenterPage() {
   const { approvals, decideApproval } = useIssueStore()
+  const { can } = usePermissions()
   const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<ApprovalType | null>(null)
@@ -235,28 +237,34 @@ export function ApprovalCenterPage() {
               {selectedApproval.status === 'pending' ? (
                 <>
                   <div className="p-4 rounded-md bg-blue-100/50 border border-blue-200 space-y-1">
-                    <p className="text-sm font-semibold text-blue-700">Pending Your Approval</p>
-                    <p className="text-xs text-blue-700">Review the details and take action to approve or reject. The linked Issue will be updated automatically.</p>
+                    <p className="text-sm font-semibold text-blue-700">Pending Approval</p>
+                    <p className="text-xs text-blue-700">
+                      {can.approve
+                        ? 'Review the details and take action to approve or reject. The linked Issue will be updated automatically.'
+                        : 'Awaiting approval from a manager or admin.'}
+                    </p>
                   </div>
 
-                  <div className="flex flex-col gap-2 pt-6 border-t border-border">
-                    <button
-                      onClick={() => handleDecision('approved')}
-                      disabled={isDeciding}
-                      className="w-full px-4 py-2.5 rounded-md bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {isDeciding ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleDecision('rejected')}
-                      disabled={isDeciding}
-                      className="w-full px-4 py-2.5 rounded-md bg-red-100 text-red-700 text-sm font-semibold hover:bg-red-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {isDeciding ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
-                      Reject
-                    </button>
-                  </div>
+                  {can.approve && (
+                    <div className="flex flex-col gap-2 pt-6 border-t border-border">
+                      <button
+                        onClick={() => handleDecision('approved')}
+                        disabled={isDeciding}
+                        className="w-full px-4 py-2.5 rounded-md bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {isDeciding ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleDecision('rejected')}
+                        disabled={isDeciding}
+                        className="w-full px-4 py-2.5 rounded-md bg-red-100 text-red-700 text-sm font-semibold hover:bg-red-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {isDeciding ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
+                        Reject
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className={cn(

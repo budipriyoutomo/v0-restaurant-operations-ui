@@ -5,6 +5,7 @@ import { AppShell } from '@/components/layout/app-shell'
 import { useIssueStore } from '@/lib/store'
 import { api, authToken } from '@/lib/api-client'
 import { User } from '@/lib/types'
+import { usePermissions } from '@/lib/permissions'
 
 // ── In-scope pages (fully functional) ────────────────────────────────────────
 import { ExecutiveDashboardPage } from '@/components/pages/executive-dashboard-page'
@@ -37,6 +38,7 @@ export default function Page() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [sessionChecked, setSessionChecked] = useState(false)
   const { currentUser, authLoading, loadAll, isLoading, error } = useIssueStore()
+  const { canViewPage } = usePermissions()
 
   // On first mount: try to restore a previous session from localStorage token.
   // If the token is valid, /api/auth/me succeeds and currentUser is populated.
@@ -79,6 +81,17 @@ export default function Page() {
   }
 
   const renderPage = () => {
+    if (!canViewPage(currentPage)) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-8">
+          <p className="text-2xl font-semibold text-foreground">Access Denied</p>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            You don&apos;t have permission to view this page. Contact your administrator if you need access.
+          </p>
+        </div>
+      )
+    }
+
     switch (currentPage) {
       // ── Active modules ──────────────────────────────────────────────────
       case 'dashboard':   return <ExecutiveDashboardPage />
