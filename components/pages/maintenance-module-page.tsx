@@ -1,27 +1,35 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Filter, AlertCircle, Wrench, Calendar, User, Plus } from 'lucide-react'
+import { Search, AlertCircle, Wrench, Calendar, User, Plus, GripVertical, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
-import { Issue, IssueStatus } from '@/lib/types'
+import { Issue, IssueStatus, Priority } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateWorkOrderDialog } from '@/components/dialogs/create-work-order-dialog'
 
-const columns: { id: IssueStatus; label: string; color: string }[] = [
-  { id: 'open',        label: 'Open',        color: 'border-blue-200 bg-blue-50'     },
-  { id: 'assigned',    label: 'Assigned',    color: 'border-purple-200 bg-purple-50' },
-  { id: 'in-progress', label: 'In Progress', color: 'border-amber-200 bg-amber-50'  },
-  { id: 'waiting',     label: 'Waiting',     color: 'border-cyan-200 bg-cyan-50'    },
-  { id: 'resolved',    label: 'Resolved',    color: 'border-green-200 bg-green-50'  },
-]
+// Theme-aware status presentation — matches the Task Center kanban.
+const STATUS_META: Record<IssueStatus, { label: string; dot: string; accent: string; ring: string }> = {
+  open:          { label: 'Open',        dot: 'bg-blue-500',    accent: 'border-t-blue-500',    ring: 'ring-blue-500/40' },
+  assigned:      { label: 'Assigned',    dot: 'bg-violet-500',  accent: 'border-t-violet-500',  ring: 'ring-violet-500/40' },
+  'in-progress': { label: 'In Progress', dot: 'bg-amber-500',   accent: 'border-t-amber-500',   ring: 'ring-amber-500/40' },
+  waiting:       { label: 'Waiting',     dot: 'bg-cyan-500',    accent: 'border-t-cyan-500',    ring: 'ring-cyan-500/40' },
+  resolved:      { label: 'Resolved',    dot: 'bg-emerald-500', accent: 'border-t-emerald-500', ring: 'ring-emerald-500/40' },
+  closed:        { label: 'Closed',       dot: 'bg-slate-400',   accent: 'border-t-slate-400',   ring: 'ring-slate-400/40' },
+}
+
+// Maintenance board shows the active pipeline only — 'closed' issues drop off the board.
+const COLUMN_ORDER: IssueStatus[] = ['open', 'assigned', 'in-progress', 'waiting', 'resolved']
+const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low']
 
 export function MaintenanceModulePage() {
   const { issues, updateIssueStatus, workOrders, assets, pics, createWorkOrder } = useIssueStore()
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterPriority, setFilterPriority] = useState<string | null>(null)
+  const [filterPriority, setFilterPriority] = useState<Priority | null>(null)
   const [showCreateWO, setShowCreateWO] = useState(false)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dragOverCol, setDragOverCol] = useState<IssueStatus | null>(null)
 
   const maintenanceIssues = issues.filter((i) => i.category === 'Maintenance')
 
@@ -35,10 +43,10 @@ export function MaintenanceModulePage() {
     return matchesSearch && matchesPriority
   })
 
-  const byStatus = columns.map((col) => ({
-    ...col,
-    items: filtered.filter((i) => i.status === col.id),
-    count: filtered.filter((i) => i.status === col.id).length,
+  const byStatus = COLUMN_ORDER.map((id) => ({
+    id,
+    ...STATUS_META[id],
+    items: filtered.filter((i) => i.status === id),
   }))
 
   const stats = {
@@ -51,6 +59,20 @@ export function MaintenanceModulePage() {
   const linkedWOs = selectedIssue
     ? workOrders.filter((wo) => wo.issueId === selectedIssue.id)
     : []
+
+  const hasFilters = !!searchQuery || !!filterPriority
+
+  function handleDrop(status: IssueStatus) {
+    if (draggingId) {
+      const issue = maintenanceIssues.find((i) => i.id === draggingId)
+      if (issue && issue.status !== status) {
+        updateIssueStatus(draggingId, status)
+        setSelectedIssue((prev) => prev && prev.id === draggingId ? { ...prev, status } : prev)
+      }
+    }
+    setDraggingId(null)
+    setDragOverCol(null)
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -81,7 +103,7 @@ export function MaintenanceModulePage() {
       </div>
 
       {/* Search + Filters */}
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
@@ -89,31 +111,35 @@ export function MaintenanceModulePage() {
             placeholder="Search by number, title, outlet..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-md border border-border hover:bg-muted/50 transition-colors font-medium text-sm">
-          <Filter className="size-4" />
-          Filter
-        </button>
-      </div>
 
-      <div className="flex gap-1 items-center flex-wrap">
-        <span className="text-xs font-medium text-muted-foreground mr-2">Priority:</span>
-        {(['critical', 'high', 'medium', 'low'] as const).map((p) => (
-          <button
-            key={p}
-            onClick={() => setFilterPriority(filterPriority === p ? null : p)}
-            className={cn(
-              'px-2.5 py-1 rounded-full text-xs font-semibold transition-colors capitalize',
-              filterPriority === p
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-            )}
-          >
-            {p}
-          </button>
-        ))}
+        <div className="flex gap-1.5 items-center flex-wrap">
+          <span className="text-xs font-medium text-muted-foreground mr-1">Priority:</span>
+          {PRIORITIES.map((p) => (
+            <button
+              key={p}
+              onClick={() => setFilterPriority(filterPriority === p ? null : p)}
+              className={cn(
+                'px-2.5 py-1 rounded-full text-xs font-semibold transition-colors capitalize',
+                filterPriority === p
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+              )}
+            >
+              {p}
+            </button>
+          ))}
+          {hasFilters && (
+            <button
+              onClick={() => { setSearchQuery(''); setFilterPriority(null) }}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <X className="size-3" /> Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Empty state */}
@@ -129,34 +155,61 @@ export function MaintenanceModulePage() {
 
       {/* Kanban */}
       {maintenanceIssues.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 overflow-x-auto pb-4">
-          {byStatus.map((col) => (
-            <div key={col.id} className="flex flex-col min-w-64">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
-                <h3 className="font-semibold text-sm">{col.label}</h3>
-                <span className="bg-muted text-muted-foreground text-xs font-bold px-2 py-1 rounded-full">
-                  {col.count}
-                </span>
-              </div>
-              <div className={cn('flex-1 space-y-2 p-3 rounded-lg border-2 min-h-64', col.color)}>
-                {col.items.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-xs text-muted-foreground">No issues</p>
+        <div className="overflow-x-auto pb-2">
+          <div className="flex gap-4">
+            {byStatus.map((col) => {
+              const isDropTarget = dragOverCol === col.id
+              return (
+                <div
+                  key={col.id}
+                  onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id) }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverCol(null)
+                  }}
+                  onDrop={() => handleDrop(col.id)}
+                  className={cn(
+                    'flex flex-col w-[16rem] shrink-0 rounded-xl border border-t-4 bg-muted/30 transition-colors',
+                    col.accent,
+                    isDropTarget && cn('ring-2 bg-muted/60', col.ring),
+                  )}
+                >
+                  <div className="flex items-center justify-between px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className={cn('size-2 rounded-full', col.dot)} />
+                      <h3 className="font-semibold text-sm">{col.label}</h3>
+                    </div>
+                    <span className="bg-background text-muted-foreground text-xs font-bold px-2 py-0.5 rounded-full border border-border">
+                      {col.items.length}
+                    </span>
                   </div>
-                ) : (
-                  col.items.map((issue) => (
-                    <IssueCard
-                      key={issue.id}
-                      issue={issue}
-                      woCount={workOrders.filter((wo) => wo.issueId === issue.id).length}
-                      isSelected={selectedIssue?.id === issue.id}
-                      onSelect={() => setSelectedIssue(issue)}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          ))}
+
+                  <div className="flex-1 min-h-24 space-y-2 px-2 pb-2">
+                    {col.items.length === 0 ? (
+                      <div className={cn(
+                        'flex items-center justify-center h-24 rounded-lg border border-dashed border-border text-xs text-muted-foreground transition-colors',
+                        isDropTarget && 'border-primary/50 text-foreground',
+                      )}>
+                        {isDropTarget ? 'Drop here' : 'No issues'}
+                      </div>
+                    ) : (
+                      col.items.map((issue) => (
+                        <IssueCard
+                          key={issue.id}
+                          issue={issue}
+                          woCount={workOrders.filter((wo) => wo.issueId === issue.id).length}
+                          isSelected={selectedIssue?.id === issue.id}
+                          dragging={draggingId === issue.id}
+                          onSelect={() => setSelectedIssue(issue)}
+                          onDragStart={() => setDraggingId(issue.id)}
+                          onDragEnd={() => { setDraggingId(null); setDragOverCol(null) }}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -189,10 +242,10 @@ export function MaintenanceModulePage() {
                     updateIssueStatus(selectedIssue.id, s)
                     setSelectedIssue((prev) => prev ? { ...prev, status: s } : null)
                   }}
-                  className="text-xs border border-border rounded px-2 py-1 bg-background"
+                  className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
-                  {columns.map((c) => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
+                  {COLUMN_ORDER.map((id) => (
+                    <option key={id} value={id}>{STATUS_META[id].label}</option>
                   ))}
                 </select>
               </div>
@@ -225,10 +278,10 @@ export function MaintenanceModulePage() {
             </div>
 
             {/* Issue reference */}
-            <div className="p-3 rounded-md bg-blue-50 border border-blue-200 text-xs">
-              <p className="text-blue-700 font-medium">Issue</p>
-              <p className="text-blue-700 font-mono font-bold mt-0.5">{selectedIssue.number}</p>
-              <p className="text-blue-600 mt-0.5">{selectedIssue.outlet}</p>
+            <div className="p-3 rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs">
+              <p className="text-blue-700 dark:text-blue-300 font-medium">Issue</p>
+              <p className="text-blue-700 dark:text-blue-300 font-mono font-bold mt-0.5">{selectedIssue.number}</p>
+              <p className="text-blue-600 dark:text-blue-400 mt-0.5">{selectedIssue.outlet}</p>
             </div>
 
             {/* ----------------------------------------------------------------
@@ -310,41 +363,63 @@ function IssueCard({
   issue,
   woCount,
   isSelected,
+  dragging,
   onSelect,
+  onDragStart,
+  onDragEnd,
 }: {
   issue: Issue
   woCount: number
   isSelected: boolean
+  dragging: boolean
   onSelect: () => void
+  onDragStart: () => void
+  onDragEnd: () => void
 }) {
   return (
     <div
+      draggable
       onClick={onSelect}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       className={cn(
-        'p-3 rounded-md border cursor-pointer transition-all',
-        isSelected ? 'bg-white border-primary shadow-md' : 'bg-white border-border hover:shadow-sm'
+        'group rounded-lg border bg-card p-3 cursor-grab active:cursor-grabbing transition-all hover:shadow-md',
+        isSelected ? 'border-primary ring-1 ring-primary shadow-md' : 'border-border hover:border-primary/40',
+        dragging && 'opacity-50 ring-2 ring-primary rotate-1',
       )}
     >
       <div className="flex items-start gap-2 mb-2">
         <Wrench className={cn(
           'size-4 mt-0.5 flex-shrink-0',
-          issue.priority === 'critical' ? 'text-red-600' : 'text-blue-600'
+          issue.priority === 'critical' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'
         )} />
-        <h4 className="font-medium text-xs line-clamp-2 flex-1">{issue.title}</h4>
+        <h4 className="font-medium text-sm leading-snug line-clamp-2 flex-1">{issue.title}</h4>
+        <GripVertical className="size-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
       </div>
-      <div className="space-y-1 text-[10px]">
-        <div className="flex items-center justify-between">
-          <span className="font-mono text-primary font-semibold">{issue.number}</span>
+      <div className="space-y-1.5 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-[10px] text-primary font-semibold">{issue.number}</span>
           <PriorityBadge priority={issue.priority} />
         </div>
-        <div className="text-muted-foreground truncate">{issue.assignee || 'Unassigned'}</div>
-        <div className="text-muted-foreground truncate">{issue.outlet}</div>
-        {woCount > 0 && (
-          <div className="flex items-center gap-1 text-muted-foreground pt-0.5">
-            <Wrench className="size-2.5" />
-            <span>{woCount} WO{woCount !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <User className="size-3 flex-shrink-0" />
+          <span className="truncate">{issue.assignee || 'Unassigned'}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2 text-muted-foreground">
+          <span className="truncate">{issue.outlet}</span>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {issue.slaBreach && issue.status !== 'resolved' && (
+              <span className="flex items-center gap-0.5 text-red-600 dark:text-red-400 font-medium">
+                <AlertCircle className="size-3" /> SLA
+              </span>
+            )}
+            {woCount > 0 && (
+              <span className="flex items-center gap-0.5">
+                <Wrench className="size-3" />{woCount}
+              </span>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   )

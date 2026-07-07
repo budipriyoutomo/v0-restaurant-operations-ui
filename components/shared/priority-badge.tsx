@@ -3,8 +3,8 @@ import { cn } from '@/lib/utils'
 type Priority = 'critical' | 'high' | 'medium' | 'low'
 type Status =
   | 'open' | 'assigned' | 'in-progress' | 'in_progress' | 'waiting' | 'resolved' | 'closed'
-  | 'escalated' | 'scheduled' | 'completed' | 'overdue' | 'pending' | 'approved' | 'rejected'
-  | 'cancelled'
+  | 'escalated' | 'scheduled' | 'on-hold' | 'completed' | 'overdue' | 'pending' | 'approved'
+  | 'rejected' | 'cancelled'
 
 export function PriorityBadge({ priority }: { priority: Priority }) {
   return (
@@ -38,6 +38,7 @@ export function StatusBadge({ status }: { status: Status }) {
     closed:      { label: 'Closed',      className: 'bg-muted text-muted-foreground' },
     escalated:   { label: 'Escalated',   className: 'bg-destructive/15 text-destructive' },
     scheduled:   { label: 'Scheduled',   className: 'bg-primary/15 text-primary' },
+    'on-hold':   { label: 'On Hold',     className: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400' },
     completed:   { label: 'Completed',   className: 'bg-success/15 text-success' },
     overdue:     { label: 'Overdue',     className: 'bg-destructive/15 text-destructive' },
     pending:     { label: 'Pending',     className: 'bg-warning/15 text-warning' },

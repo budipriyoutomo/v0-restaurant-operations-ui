@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Filter, CheckCircle2, XCircle, Clock, ShoppingCart, Megaphone, BookOpen, Package, X, Loader2 } from 'lucide-react'
+import { Search, Filter, CheckCircle2, XCircle, Clock, ShoppingCart, Megaphone, BookOpen, Package, Wrench, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
@@ -13,6 +13,7 @@ const typeIcons: Record<ApprovalType, React.ReactNode> = {
   marketing: <Megaphone className="size-5" />,
   training: <BookOpen className="size-5" />,
   'asset-purchase': <Package className="size-5" />,
+  maintenance: <Wrench className="size-5" />,
 }
 
 const typeLabels: Record<ApprovalType, string> = {
@@ -20,16 +21,18 @@ const typeLabels: Record<ApprovalType, string> = {
   marketing: 'Marketing',
   training: 'Training',
   'asset-purchase': 'Asset Purchase',
+  maintenance: 'Maintenance',
 }
 
 export function ApprovalCenterPage() {
-  const { approvals, decideApproval } = useIssueStore()
+  const { approvals, decideApproval, currentUser } = useIssueStore()
   const { can } = usePermissions()
   const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<ApprovalType | null>(null)
   const [filterStatus, setFilterStatus] = useState<string | null>('pending')
   const [isDeciding, setIsDeciding] = useState(false)
+  const [decisionComment, setDecisionComment] = useState('')
 
   const filteredApprovals = approvals.filter((approval) => {
     const matchesSearch = approval.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -50,11 +53,25 @@ export function ApprovalCenterPage() {
     if (!selectedApproval || isDeciding) return
     setIsDeciding(true)
     try {
-      decideApproval(selectedApproval.id, decision)
-      toast.success(decision === 'approved' ? 'Request approved.' : 'Request rejected.')
-      setSelectedApproval(null)
-    } catch {
-      toast.error('Failed to process decision. Please try again.')
+      await decideApproval(selectedApproval.id, decision, decisionComment || undefined)
+      // Refresh selectedApproval from updated store
+      const refreshed = useIssueStore.getState().approvals.find(a => a.id === selectedApproval.id)
+      if (refreshed && refreshed.status === 'pending') {
+        // More steps remain — keep panel open with updated approval
+        setSelectedApproval(refreshed)
+      } else {
+        setSelectedApproval(null)
+      }
+      setDecisionComment('')
+      const isLastStep = refreshed?.status !== 'pending'
+      toast.success(
+        isLastStep
+          ? (decision === 'approved' ? 'Request fully approved.' : 'Request rejected.')
+          : `Step ${selectedApproval.currentStepOrder} approved. Next step pending.`,
+      )
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e)
+      toast.error(message.includes('403') ? 'Not authorised to decide this step.' : 'Failed to process decision.')
     } finally {
       setIsDeciding(false)
     }
@@ -100,7 +117,7 @@ export function ApprovalCenterPage() {
 
         <div className="flex flex-wrap gap-2">
           <span className="text-xs font-medium text-muted-foreground py-1">Type:</span>
-          {(['procurement', 'marketing', 'training', 'asset-purchase'] as ApprovalType[]).map((type) => (
+          {(['procurement', 'marketing', 'training', 'asset-purchase', 'maintenance'] as ApprovalType[]).map((type) => (
             <button
               key={type}
               onClick={() => setFilterType(filterType === type ? null : type)}
@@ -219,7 +236,9 @@ export function ApprovalCenterPage() {
               {selectedApproval.amount && (
                 <div className="space-y-2 pb-6 border-b border-border">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</p>
-                  <p className="text-xl font-bold text-foreground">{selectedApproval.amount}</p>
+                  <p className="text-xl font-bold text-foreground">
+                    {Number(selectedApproval.amount).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })}
+                  </p>
                 </div>
               )}
 
@@ -234,48 +253,145 @@ export function ApprovalCenterPage() {
                 </div>
               </div>
 
-              {selectedApproval.status === 'pending' ? (
-                <>
-                  <div className="p-4 rounded-md bg-blue-100/50 border border-blue-200 space-y-1">
-                    <p className="text-sm font-semibold text-blue-700">Pending Approval</p>
-                    <p className="text-xs text-blue-700">
-                      {can.approve
-                        ? 'Review the details and take action to approve or reject. The linked Issue will be updated automatically.'
-                        : 'Awaiting approval from a manager or admin.'}
-                    </p>
+              {/* Step timeline — only shown for multi-step approvals */}
+              {selectedApproval.steps.length > 0 && (
+                <div className="space-y-3 pb-6 border-b border-border">
+                  <p className="text-sm font-semibold">Approval Steps</p>
+                  <div className="space-y-2">
+                    {selectedApproval.steps.map((step, idx) => {
+                      const isActive = selectedApproval.status === 'pending' && step.stepOrder === selectedApproval.currentStepOrder
+                      return (
+                        <div key={step.id} className="flex items-start gap-3">
+                          {/* Step connector line */}
+                          <div className="flex flex-col items-center flex-shrink-0">
+                            <div className={cn(
+                              'size-6 rounded-full flex items-center justify-center text-[10px] font-bold ring-2',
+                              step.status === 'approved' ? 'bg-green-500 text-white ring-green-200' :
+                              step.status === 'rejected' ? 'bg-red-500 text-white ring-red-200' :
+                              isActive ? 'bg-amber-400 text-white ring-amber-200 animate-pulse' :
+                              'bg-muted text-muted-foreground ring-border',
+                            )}>
+                              {step.status === 'approved' ? <CheckCircle2 className="size-3" /> :
+                               step.status === 'rejected' ? <XCircle className="size-3" /> :
+                               step.stepOrder}
+                            </div>
+                            {idx < selectedApproval.steps.length - 1 && (
+                              <div className={cn(
+                                'w-px h-6 mt-1',
+                                step.status === 'approved' ? 'bg-green-300' : 'bg-border',
+                              )} />
+                            )}
+                          </div>
+                          <div className="flex-1 pt-0.5 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold capitalize">{step.approverRole}</p>
+                              <span className={cn(
+                                'text-[10px] font-semibold px-1.5 py-0.5 rounded capitalize flex-shrink-0',
+                                step.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                step.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                isActive ? 'bg-amber-100 text-amber-700' :
+                                'bg-muted text-muted-foreground',
+                              )}>
+                                {isActive ? 'Active' : step.status}
+                              </span>
+                            </div>
+                            {step.decidedAt && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {step.decidedBy ?? 'Unknown'} · {new Date(step.decidedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                            {step.comment && (
+                              <p className="text-[10px] text-muted-foreground italic mt-0.5 truncate">"{step.comment}"</p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-
-                  {can.approve && (
-                    <div className="flex flex-col gap-2 pt-6 border-t border-border">
-                      <button
-                        onClick={() => handleDecision('approved')}
-                        disabled={isDeciding}
-                        className="w-full px-4 py-2.5 rounded-md bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {isDeciding ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleDecision('rejected')}
-                        disabled={isDeciding}
-                        className="w-full px-4 py-2.5 rounded-md bg-red-100 text-red-700 text-sm font-semibold hover:bg-red-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {isDeciding ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className={cn(
-                  'p-4 rounded-md border space-y-1',
-                  selectedApproval.status === 'approved' ? 'bg-green-100/50 border-green-200' : 'bg-red-100/50 border-red-200'
-                )}>
-                  <p className={cn('text-sm font-semibold', selectedApproval.status === 'approved' ? 'text-green-700' : 'text-red-700')}>
-                    This request has been {selectedApproval.status}.
-                  </p>
                 </div>
               )}
+
+              {/* Decision area */}
+              {(() => {
+                if (selectedApproval.status !== 'pending') {
+                  return (
+                    <div className={cn(
+                      'p-4 rounded-md border space-y-1',
+                      selectedApproval.status === 'approved' ? 'bg-green-100/50 border-green-200' : 'bg-red-100/50 border-red-200'
+                    )}>
+                      <p className={cn('text-sm font-semibold', selectedApproval.status === 'approved' ? 'text-green-700' : 'text-red-700')}>
+                        This request has been {selectedApproval.status}.
+                      </p>
+                    </div>
+                  )
+                }
+
+                // For multi-step: only the user whose role matches the active step can decide
+                const activeStep = selectedApproval.steps.length > 0
+                  ? selectedApproval.steps.find(s => s.stepOrder === selectedApproval.currentStepOrder)
+                  : null
+                const userRole = currentUser?.role
+                const canDecideStep = can.approve && (
+                  activeStep == null || activeStep.approverRole === userRole
+                )
+
+                return (
+                  <>
+                    <div className={cn(
+                      'p-4 rounded-md border space-y-1',
+                      canDecideStep ? 'bg-blue-100/50 border-blue-200' : 'bg-muted/30 border-border',
+                    )}>
+                      <p className={cn('text-sm font-semibold', canDecideStep ? 'text-blue-700' : 'text-muted-foreground')}>
+                        {canDecideStep
+                          ? activeStep ? `Your turn — Step ${activeStep.stepOrder} (${activeStep.approverRole})` : 'Pending your decision'
+                          : activeStep ? `Waiting for ${activeStep.approverRole} approval` : 'Awaiting approval'}
+                      </p>
+                      {!canDecideStep && (
+                        <p className="text-xs text-muted-foreground">
+                          Only a <strong>{activeStep?.approverRole ?? 'manager/admin'}</strong> can decide this step.
+                        </p>
+                      )}
+                    </div>
+
+                    {canDecideStep && (
+                      <div className="space-y-3 pt-4 border-t border-border">
+                        <div>
+                          <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
+                            Comment <span className="font-normal">(optional)</span>
+                          </label>
+                          <textarea
+                            value={decisionComment}
+                            onChange={(e) => setDecisionComment(e.target.value)}
+                            rows={2}
+                            placeholder="Add a note for this decision..."
+                            className="w-full px-3 py-2 text-xs rounded-md border border-border bg-muted/20 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            onClick={() => handleDecision('approved')}
+                            disabled={isDeciding}
+                            className="w-full px-4 py-2.5 rounded-md bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {isDeciding ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                            {activeStep && activeStep.stepOrder < selectedApproval.steps.length
+                              ? `Approve Step ${activeStep.stepOrder}`
+                              : 'Approve'}
+                          </button>
+                          <button
+                            onClick={() => handleDecision('rejected')}
+                            disabled={isDeciding}
+                            className="w-full px-4 py-2.5 rounded-md bg-red-100 text-red-700 text-sm font-semibold hover:bg-red-200 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {isDeciding ? <Loader2 className="size-4 animate-spin" /> : <XCircle className="size-4" />}
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           </div>
         </>

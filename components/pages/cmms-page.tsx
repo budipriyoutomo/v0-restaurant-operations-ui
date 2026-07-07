@@ -1,14 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { QrCode, Calendar, Wrench, Package, Clock, AlertCircle, Plus } from 'lucide-react'
+import { QrCode, Calendar, Wrench, Package, Clock, AlertCircle, Plus, X, CheckSquare, Square, DollarSign, PlayCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { toast } from 'sonner'
 import { StatCard } from '@/components/shared/stat-card'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateAssetDialog } from '@/components/dialogs/create-asset-dialog'
 import { CreateWorkOrderDialog } from '@/components/dialogs/create-work-order-dialog'
+import { PMSchedulePanel } from '@/components/cmms/pm-schedule-panel'
+import { CMMSAnalyticsPanel } from '@/components/cmms/cmms-analytics-panel'
+import { PartsInventoryPanel } from '@/components/cmms/parts-inventory-panel'
 import { useIssueStore } from '@/lib/store'
-import { Asset, AssetStatus } from '@/lib/types'
+import { api } from '@/lib/api-client'
+import { Asset, AssetStatus, WorkOrder, WorkOrderDetail, WorkOrderStatus } from '@/lib/types'
+import { usePermissions } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -88,9 +94,273 @@ function PMCalendar({ assets }: { assets: Asset[] }) {
 }
 
 // ---------------------------------------------------------------------------
+// Work Order detail drawer — slides in from right when a WO row is clicked
+// ---------------------------------------------------------------------------
+function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () => void }) {
+  const { transitionWorkOrder, toggleChecklistItem, updateWorkOrderCost, approvals } = useIssueStore()
+  const { can } = usePermissions()
+  const [detail, setDetail] = useState<WorkOrderDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [transitioning, setTransitioning] = useState(false)
+  const [costForm, setCostForm] = useState({ laborHours: '', laborCost: '', partsCost: '' })
+  const [savingCost, setSavingCost] = useState(false)
+
+  // Fetch WO detail on mount
+  useState(() => {
+    api.get<WorkOrderDetail>(`/api/work-orders/${woId}`)
+      .then((d) => { setDetail(d); setCostForm({ laborHours: String(d.laborHours || ''), laborCost: String(d.laborCost || ''), partsCost: String(d.partsCost || '') }) })
+      .catch(() => toast.error('Failed to load work order details.'))
+      .finally(() => setLoading(false))
+  })
+
+  const linkedApproval = detail?.approvalId
+    ? approvals.find(a => a.id === detail.approvalId)
+    : null
+
+  const NEXT_STATUS: Partial<Record<WorkOrderStatus, WorkOrderStatus>> = {
+    scheduled: 'in-progress',
+    'on-hold': 'in-progress',
+    'in-progress': 'completed',
+  }
+
+  const handleTransition = async (targetStatus: WorkOrderStatus) => {
+    if (!detail || transitioning) return
+    setTransitioning(true)
+    try {
+      const updated = await transitionWorkOrder(detail.id, targetStatus)
+      setDetail(updated)
+      toast.success(`Work order ${targetStatus === 'in-progress' ? 'started' : targetStatus}.`)
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Transition failed.')
+    } finally {
+      setTransitioning(false)
+    }
+  }
+
+  const handleToggle = async (itemId: string, isDone: boolean) => {
+    if (!detail) return
+    try {
+      const updated = await toggleChecklistItem(detail.id, itemId, isDone)
+      setDetail(updated)
+    } catch {
+      toast.error('Failed to update checklist item.')
+    }
+  }
+
+  const handleSaveCost = async () => {
+    if (!detail || savingCost) return
+    setSavingCost(true)
+    try {
+      const updated = await updateWorkOrderCost(detail.id, {
+        laborHours: costForm.laborHours ? Number(costForm.laborHours) : undefined,
+        laborCost:  costForm.laborCost  ? Number(costForm.laborCost)  : undefined,
+        partsCost:  costForm.partsCost  ? Number(costForm.partsCost)  : undefined,
+      })
+      setDetail(updated)
+      toast.success('Cost updated.')
+    } catch {
+      toast.error('Failed to update cost.')
+    } finally {
+      setSavingCost(false)
+    }
+  }
+
+  const fmt = (n: number) => n.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
+  const nextStatus = detail ? NEXT_STATUS[detail.status as WorkOrderStatus] : undefined
+  const isDone = detail?.status === 'completed' || detail?.status === 'cancelled'
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+      <div className="fixed right-0 top-0 h-screen w-[420px] bg-background border-l border-border shadow-lg z-50 overflow-y-auto">
+        <div className="p-5 space-y-5">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0 mr-3">
+              {loading ? (
+                <div className="h-4 bg-muted rounded animate-pulse w-24 mb-2" />
+              ) : (
+                <p className="font-mono text-xs text-primary font-bold mb-1">{detail?.number}</p>
+              )}
+              <h2 className="font-bold text-base leading-snug">{detail?.title ?? '...'}</h2>
+            </div>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+              <X className="size-5" />
+            </button>
+          </div>
+
+          {loading && (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => <div key={i} className="h-4 bg-muted rounded animate-pulse" />)}
+            </div>
+          )}
+
+          {detail && (
+            <>
+              {/* Status + priority row */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <StatusBadge status={detail.status} />
+                <PriorityBadge priority={detail.priority} />
+                <span className="text-xs text-muted-foreground">{detail.type}</span>
+                {detail.requiresApproval && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold">
+                    Needs Approval
+                  </span>
+                )}
+              </div>
+
+              {/* Linked approval banner for on-hold WOs */}
+              {detail.status === 'on-hold' && linkedApproval && (
+                <div className="p-3 rounded-md bg-amber-50 border border-amber-200 space-y-1">
+                  <p className="text-xs font-semibold text-amber-700">Waiting for approval</p>
+                  <p className="text-xs text-amber-600">
+                    {linkedApproval.number} · Step {linkedApproval.currentStepOrder} of {linkedApproval.steps.length}
+                    {' '}— {linkedApproval.steps.find(s => s.stepOrder === linkedApproval.currentStepOrder)?.approverRole ?? 'approver'}
+                  </p>
+                </div>
+              )}
+
+              {/* Meta */}
+              <div className="grid grid-cols-2 gap-3 text-xs pb-4 border-b border-border">
+                <div><p className="text-muted-foreground">Asset</p><p className="font-semibold mt-0.5">{detail.assetName}</p></div>
+                <div><p className="text-muted-foreground">Outlet</p><p className="font-semibold mt-0.5">{detail.outlet}</p></div>
+                <div><p className="text-muted-foreground">Assignee</p><p className="font-semibold mt-0.5">{detail.assignee}</p></div>
+                {detail.scheduledDate && <div><p className="text-muted-foreground">Scheduled</p><p className="font-semibold mt-0.5 font-mono">{detail.scheduledDate}</p></div>}
+                {detail.downtimeStart && <div><p className="text-muted-foreground">Downtime start</p><p className="font-semibold mt-0.5 font-mono">{new Date(detail.downtimeStart).toLocaleString()}</p></div>}
+                {detail.downtimeEnd && <div><p className="text-muted-foreground">Downtime end</p><p className="font-semibold mt-0.5 font-mono">{new Date(detail.downtimeEnd).toLocaleString()}</p></div>}
+              </div>
+
+              {/* Cost summary */}
+              <div className="space-y-2 pb-4 border-b border-border">
+                <div className="flex items-center gap-1.5">
+                  <DollarSign className="size-3.5 text-muted-foreground" />
+                  <p className="text-xs font-semibold">Cost Breakdown</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  {[
+                    { label: 'Labor', value: detail.laborCost },
+                    { label: 'Parts', value: detail.partsCost },
+                    { label: 'Total', value: detail.totalCost },
+                  ].map(({ label, value }) => (
+                    <div key={label} className={cn('p-2 rounded-md bg-muted/30', label === 'Total' && 'bg-primary/5 border border-primary/20')}>
+                      <p className="text-muted-foreground">{label}</p>
+                      <p className={cn('font-bold mt-0.5', label === 'Total' && 'text-primary')}>{fmt(value)}</p>
+                    </div>
+                  ))}
+                </div>
+                {detail.estimatedCost && (
+                  <p className="text-[10px] text-muted-foreground">Estimated: {fmt(detail.estimatedCost)}</p>
+                )}
+
+                {/* Cost edit form — managers only, non-completed */}
+                {can.manageAssets && !isDone && (
+                  <details className="group">
+                    <summary className="text-[11px] text-primary cursor-pointer hover:underline list-none mt-1">
+                      Update cost…
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                      {[
+                        { key: 'laborHours', label: 'Labor Hours', placeholder: '2.5' },
+                        { key: 'laborCost',  label: 'Labor Cost (Rp)', placeholder: '250000' },
+                        { key: 'partsCost',  label: 'Parts Cost (Rp)', placeholder: '150000' },
+                      ].map(({ key, label, placeholder }) => (
+                        <div key={key}>
+                          <label className="block text-[10px] text-muted-foreground mb-1">{label}</label>
+                          <input
+                            type="number"
+                            placeholder={placeholder}
+                            value={costForm[key as keyof typeof costForm]}
+                            onChange={(e) => setCostForm(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="w-full px-2 py-1 text-xs rounded border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary/50"
+                          />
+                        </div>
+                      ))}
+                      <button
+                        onClick={handleSaveCost}
+                        disabled={savingCost}
+                        className="w-full py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-1"
+                      >
+                        {savingCost && <Loader2 className="size-3 animate-spin" />}
+                        Save Cost
+                      </button>
+                    </div>
+                  </details>
+                )}
+              </div>
+
+              {/* Checklist */}
+              {detail.checklistItems.length > 0 && (
+                <div className="space-y-2 pb-4 border-b border-border">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold">Checklist</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {detail.checklistItems.filter(i => i.isDone).length}/{detail.checklistItems.length} done
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    {detail.checklistItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => !isDone && handleToggle(item.id, !item.isDone)}
+                        disabled={isDone}
+                        className={cn(
+                          'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md border text-xs text-left transition-colors',
+                          item.isDone
+                            ? 'bg-success/5 border-success/30 text-muted-foreground'
+                            : 'bg-muted/20 border-border hover:bg-muted/40',
+                          isDone && 'cursor-default',
+                        )}
+                      >
+                        {item.isDone
+                          ? <CheckSquare className="size-3.5 text-success flex-shrink-0" />
+                          : <Square className="size-3.5 text-muted-foreground flex-shrink-0" />}
+                        <span className={cn('flex-1', item.isDone && 'line-through')}>{item.title}</span>
+                        {item.doneAt && (
+                          <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                            {new Date(item.doneAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Transition action — manager only */}
+              {can.manageAssets && !isDone && nextStatus && (
+                <button
+                  onClick={() => handleTransition(nextStatus)}
+                  disabled={transitioning || detail.status === 'on-hold'}
+                  className={cn(
+                    'w-full py-2.5 rounded-md text-sm font-semibold flex items-center justify-center gap-2 transition-colors',
+                    detail.status === 'on-hold'
+                      ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                      : nextStatus === 'completed'
+                        ? 'bg-success text-white hover:bg-success/90'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90',
+                    (transitioning) && 'opacity-60 cursor-not-allowed',
+                  )}
+                >
+                  {transitioning ? <Loader2 className="size-4 animate-spin" /> :
+                   nextStatus === 'in-progress' ? <PlayCircle className="size-4" /> :
+                   <CheckCircle2 className="size-4" />}
+                  {detail.status === 'on-hold'
+                    ? 'Waiting for Approval'
+                    : nextStatus === 'in-progress' ? 'Start Work Order' : 'Mark Completed'}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Expandable asset detail panel (inline)
 // ---------------------------------------------------------------------------
-function AssetDetailPanel({ asset, onClose }: { asset: Asset; onClose: () => void }) {
+function AssetDetailPanel({ asset, onClose, onSelectWO }: { asset: Asset; onClose: () => void; onSelectWO: (woId: string) => void }) {
   const { workOrders } = useIssueStore()
   const linkedWOs = workOrders.filter((wo) => wo.assetId === asset.id)
 
@@ -146,12 +416,16 @@ function AssetDetailPanel({ asset, onClose }: { asset: Asset; onClose: () => voi
         ) : (
           <div className="space-y-1.5">
             {linkedWOs.map((wo) => (
-              <div key={wo.id} className="flex items-center gap-3 px-3 py-2 rounded-md bg-muted/30 border border-border text-xs">
+              <button
+                key={wo.id}
+                onClick={() => onSelectWO(wo.id)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-md bg-muted/30 border border-border text-xs hover:bg-muted/60 transition-colors text-left"
+              >
                 <span className="font-mono text-muted-foreground w-28 flex-shrink-0">{wo.number}</span>
                 <span className="flex-1 font-medium truncate">{wo.title}</span>
                 <PriorityBadge priority={wo.priority} />
                 <StatusBadge status={wo.status} />
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -166,6 +440,7 @@ function AssetDetailPanel({ asset, onClose }: { asset: Asset; onClose: () => voi
 export function CMMSPage() {
   const { assets, workOrders, cmmsLoading, outlets, pics, createAsset, createWorkOrder } = useIssueStore()
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
+  const [selectedWOId, setSelectedWOId] = useState<string | null>(null)
   const [showAddAsset, setShowAddAsset] = useState(false)
   const [showAddWO, setShowAddWO] = useState(false)
 
@@ -315,6 +590,15 @@ export function CMMSPage() {
         <PMCalendar assets={assets} />
       </div>
 
+      {/* PM Schedules — create/manage recurring preventive maintenance */}
+      <PMSchedulePanel />
+
+      {/* Spare parts inventory (Tier 3) */}
+      <PartsInventoryPanel />
+
+      {/* CMMS Reliability & Cost Analytics (Tier 3) */}
+      <CMMSAnalyticsPanel />
+
       {/* Work Orders + Downtime chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -409,7 +693,16 @@ export function CMMSPage() {
 
       {/* Asset detail panel */}
       {selectedAsset && (
-        <AssetDetailPanel asset={selectedAsset} onClose={() => setSelectedAsset(null)} />
+        <AssetDetailPanel
+          asset={selectedAsset}
+          onClose={() => setSelectedAsset(null)}
+          onSelectWO={(woId) => { setSelectedAsset(null); setSelectedWOId(woId) }}
+        />
+      )}
+
+      {/* Work Order detail drawer */}
+      {selectedWOId && (
+        <WorkOrderDetailDrawer woId={selectedWOId} onClose={() => setSelectedWOId(null)} />
       )}
 
       <CreateAssetDialog

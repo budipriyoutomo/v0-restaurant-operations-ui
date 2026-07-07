@@ -1,6 +1,6 @@
 'use client'
 
-import { TrendingUp, TrendingDown, AlertCircle, CheckCircle2, Clock, Zap, ShoppingCart, Megaphone, BookOpen, Package } from 'lucide-react'
+import { TrendingUp, TrendingDown, AlertCircle, CheckCircle2, Clock, Zap, ShoppingCart, Megaphone, BookOpen, Package, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { ApprovalType } from '@/lib/types'
@@ -33,7 +33,7 @@ export function ExecutiveDashboardPage() {
 
   // Pending approvals by type
   const pendingByType: Record<ApprovalType, number> = {
-    procurement: 0, marketing: 0, training: 0, 'asset-purchase': 0,
+    procurement: 0, marketing: 0, training: 0, 'asset-purchase': 0, maintenance: 0,
   }
   pendingApprovals.forEach((a) => { pendingByType[a.type] = (pendingByType[a.type] ?? 0) + 1 })
 
@@ -42,6 +42,7 @@ export function ExecutiveDashboardPage() {
     { type: 'marketing',      label: 'Marketing',      icon: <Megaphone    className="size-4" /> },
     { type: 'training',       label: 'Training',       icon: <BookOpen     className="size-4" /> },
     { type: 'asset-purchase', label: 'Asset Purchase', icon: <Package      className="size-4" /> },
+    { type: 'maintenance',    label: 'Maintenance',    icon: <Wrench       className="size-4" /> },
   ]
 
   return (

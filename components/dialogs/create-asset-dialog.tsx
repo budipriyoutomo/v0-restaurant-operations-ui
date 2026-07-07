@@ -32,6 +32,7 @@ const defaultForm = {
   installDate: '',
   lastPM: '',
   nextPM: '',
+  purchaseCost: '',
 }
 
 export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: CreateAssetDialogProps) {
@@ -71,6 +72,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
         installDate:  form.installDate || undefined,
         lastPM:       form.lastPM || undefined,
         nextPM:       form.nextPM || undefined,
+        purchaseCost: form.purchaseCost ? Number(form.purchaseCost) : undefined,
       })
       onOpenChange(false)
     } catch (err) {
@@ -199,6 +201,12 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
                 <input type="date" name="nextPM" value={form.nextPM} onChange={handleChange}
                   className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
               </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">Nilai Beli / Purchase Cost (IDR)</label>
+              <input type="number" min={0} name="purchaseCost" placeholder="mis. 15000000 — untuk analitik repair-vs-replace"
+                value={form.purchaseCost} onChange={handleChange}
+                className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
             </div>
           </div>
 

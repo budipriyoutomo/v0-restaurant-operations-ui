@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, CheckSquare, CheckCircle2, Sparkles } from 'lucide-react'
+import { X, CheckSquare, CheckCircle2, Sparkles, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { CATEGORY_DEFAULTS, CreateIssueInput, IssueCategory, Priority } from '@/lib/types'
+import { CATEGORY_DEFAULTS, CreateIssueInput, IssueCategory, Priority, Asset } from '@/lib/types'
 
 interface CreateIssueDialogProps {
   open: boolean
@@ -12,6 +12,8 @@ interface CreateIssueDialogProps {
   outlets?: string[]
   /** Assignee names from store.pics — falls back to hardcoded list if empty */
   assignees?: string[]
+  /** Assets from store — shown in WO asset selector when Maintenance category */
+  assets?: Asset[]
   /** Pre-select a category and lock the selector */
   defaultCategory?: IssueCategory
   onSubmit: (input: CreateIssueInput) => Promise<void> | void
@@ -25,8 +27,8 @@ const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'critical']
 const FALLBACK_OUTLETS = ['KL Central', 'Subang', 'KLCC', 'Bangsar', 'Damansara', 'All Outlets']
 const FALLBACK_ASSIGNEES = ['Unassigned', 'Ahmad Razif', 'Lee Chong Wei', 'Mohd Faris', 'Raj Kumar', 'Sarah Johnson', 'Priya Sharma']
 
-export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, defaultCategory, onSubmit }: CreateIssueDialogProps) {
-  const outletOptions  = outlets  && outlets.length  > 0 ? outlets  : FALLBACK_OUTLETS
+export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, assets, defaultCategory, onSubmit }: CreateIssueDialogProps) {
+  const outletOptions   = outlets  && outlets.length  > 0 ? outlets  : FALLBACK_OUTLETS
   const assigneeOptions = assignees && assignees.length > 0 ? assignees : FALLBACK_ASSIGNEES
 
   const [form, setForm] = useState({
@@ -38,11 +40,16 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, defa
     assignee: 'Unassigned',
     dueDate: '',
     approvalAmount: '',
+    assetId: '',
+    estimatedCost: '',
   })
   const [generateTask, setGenerateTask] = useState(true)
   const [generateApproval, setGenerateApproval] = useState(false)
+  const [generateWorkOrder, setGenerateWorkOrder] = useState(false)
   const [touchedToggles, setTouchedToggles] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const isMaintenance = form.category === 'Maintenance'
 
   // Reset form when dialog opens, using current outlet/assignee options
   useEffect(() => {
@@ -56,7 +63,10 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, defa
         assignee: 'Unassigned',
         dueDate: '',
         approvalAmount: '',
+        assetId: '',
+        estimatedCost: '',
       })
+      setGenerateWorkOrder(false)
       setTouchedToggles(false)
       setIsSubmitting(false)
     }
@@ -94,7 +104,11 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, defa
         dueDate: form.dueDate,
         generateTask,
         generateApproval,
-        approvalAmount: generateApproval ? form.approvalAmount : undefined,
+        approvalAmount: generateApproval && form.approvalAmount ? Math.round(Number(form.approvalAmount)) : undefined,
+        generateWorkOrder: isMaintenance && generateWorkOrder,
+        assetId: isMaintenance && generateWorkOrder && form.assetId ? form.assetId : undefined,
+        estimatedCost: isMaintenance && generateWorkOrder && form.estimatedCost
+          ? Math.round(Number(form.estimatedCost)) : undefined,
       })
       onOpenChange(false)
     } finally {
@@ -232,6 +246,74 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, defa
               </div>
             </label>
 
+            {/* Work Order toggle — Maintenance category only */}
+            {isMaintenance && (
+              <>
+                <label className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/30 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={generateWorkOrder}
+                    onChange={(e) => { setTouchedToggles(true); setGenerateWorkOrder(e.target.checked) }}
+                    className="mt-0.5 size-4 accent-primary"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                      <Wrench className="size-3.5" /> Create Work Order (CMMS)
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Generates a corrective WO in the CMMS module. If estimated cost &gt; Rp 1.000.000, an approval will be required.
+                    </p>
+                  </div>
+                </label>
+
+                {generateWorkOrder && (
+                  <div className="space-y-3 pl-4 border-l-2 border-primary/30">
+                    <div>
+                      <label className="block text-sm font-semibold mb-1.5">Asset</label>
+                      {assets && assets.length > 0 ? (
+                        <select
+                          name="assetId"
+                          value={form.assetId}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        >
+                          <option value="">— Select asset —</option>
+                          {assets.map((a) => (
+                            <option key={a.id} value={a.id}>{a.name} ({a.number})</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          name="assetId"
+                          placeholder="Asset ID (add assets in CMMS)"
+                          value={form.assetId}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-1.5">Estimated Cost (Rp)</label>
+                      <input
+                        type="number"
+                        name="estimatedCost"
+                        placeholder="e.g. 1500000"
+                        value={form.estimatedCost}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      />
+                      {Number(form.estimatedCost) > 1_000_000 && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          ⚠ Above Rp 1.000.000 — 2-step approval will be created automatically.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
             <label className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/30 cursor-pointer transition-colors">
               <input
                 type="checkbox"
@@ -249,9 +331,9 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, defa
 
             {generateApproval && (
               <div>
-                <label className="block text-sm font-semibold mb-1.5">Estimated Amount (optional)</label>
+                <label className="block text-sm font-semibold mb-1.5">Estimated Amount in IDR (optional)</label>
                 <input
-                  type="text" name="approvalAmount" placeholder="e.g. RM 12,000"
+                  type="number" name="approvalAmount" placeholder="e.g. 12000000"
                   value={form.approvalAmount} onChange={handleChange}
                   className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />

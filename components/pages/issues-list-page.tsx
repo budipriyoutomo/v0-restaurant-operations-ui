@@ -11,7 +11,7 @@ import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
 const PAGE_SIZE = 12
 
 export function IssuesListPage() {
-  const { issues, tasks, approvals, outlets, pics, createIssue, updateIssueStatus } = useIssueStore()
+  const { issues, tasks, approvals, outlets, pics, assets, createIssue, updateIssueStatus } = useIssueStore()
 
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -361,6 +361,7 @@ export function IssuesListPage() {
         onOpenChange={setCreateOpen}
         outlets={outlets.map((o) => o.name)}
         assignees={['Unassigned', ...pics.map((p) => p.name)]}
+        assets={assets}
         onSubmit={handleCreate}
       />
     </div>

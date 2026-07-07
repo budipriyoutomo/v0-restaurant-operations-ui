@@ -12,6 +12,7 @@ import { api, authToken } from './api-client'
 import {
   AppNotification,
   ApprovalRequest,
+  ApproverRole,
   Asset,
   AuditLog,
   Campaign,
@@ -34,13 +35,28 @@ import {
   User,
   Vendor,
   WorkOrder,
+  WorkOrderCostUpdateInput,
+  WorkOrderDetail,
   WorkOrderStatus,
+  VendorPerformance,
   CreateOutletInput,
   UpdateOutletInput,
   CreateCategoryInput,
   UpdateCategoryInput,
   CreatePICInput,
   UpdatePICInput,
+  PMSchedule,
+  CreatePMScheduleInput,
+  UpdatePMScheduleInput,
+  RunPMGeneratorResult,
+  ApprovalPolicy,
+  CreateApprovalPolicyInput,
+  UpdateApprovalPolicyInput,
+  CMMSAnalytics,
+  Part,
+  CreatePartInput,
+  UpdatePartInput,
+  WorkOrderPart,
 } from './types'
 
 // ---------------------------------------------------------------------------
@@ -92,7 +108,9 @@ interface IssueCoreState {
   createIssue: (input: CreateIssueInput) => Promise<Issue>
   updateIssueStatus: (issueId: string, status: Issue['status']) => void
   updateTaskStatus:  (taskId: string,  status: Task['status'])  => void
-  decideApproval: (approvalId: string, decision: 'approved' | 'rejected') => void
+  decideApproval: (approvalId: string, decision: 'approved' | 'rejected', comment?: string) => Promise<void>
+  delegateApproval: (approvalId: string, target: { toUserId?: string; toRole?: ApproverRole }) => Promise<void>
+  escalateStaleApprovals: (thresholdDays?: number) => Promise<number>
 
   // CMMS
   assets: Asset[]
@@ -105,7 +123,44 @@ interface IssueCoreState {
   deleteAsset: (id: string) => Promise<void>
   createWorkOrder: (input: CreateWorkOrderInput) => Promise<WorkOrder>
   updateWorkOrderStatus: (woId: string, status: WorkOrderStatus) => void
+  transitionWorkOrder: (woId: string, targetStatus: WorkOrderStatus) => Promise<WorkOrderDetail>
+  updateWorkOrderCost: (woId: string, input: WorkOrderCostUpdateInput) => Promise<WorkOrderDetail>
+  toggleChecklistItem: (woId: string, itemId: string, isDone: boolean) => Promise<WorkOrderDetail>
   deleteWorkOrder: (id: string) => Promise<void>
+  assignWorkOrderVendor: (woId: string, vendorId: string, slaDue?: string) => Promise<WorkOrderDetail>
+  loadVendorPerformance: (vendorId: string) => Promise<VendorPerformance>
+
+  // Preventive Maintenance schedules (Tier 2.1)
+  pmSchedules: PMSchedule[]
+  pmLoading: boolean
+  loadPMSchedules: () => Promise<void>
+  createPMSchedule: (input: CreatePMScheduleInput) => Promise<PMSchedule>
+  updatePMSchedule: (id: string, input: UpdatePMScheduleInput) => Promise<PMSchedule>
+  deletePMSchedule: (id: string) => Promise<void>
+  runPMGenerator: () => Promise<RunPMGeneratorResult>
+  recordMeterReading: (assetId: string, value: number, note?: string) => Promise<void>
+
+  // CMMS analytics (Tier 3)
+  cmmsAnalytics: CMMSAnalytics | null
+  cmmsAnalyticsLoading: boolean
+  loadCMMSAnalytics: (outlet?: string) => Promise<void>
+
+  // Spare parts & inventory (Tier 3)
+  parts: Part[]
+  partsLoading: boolean
+  loadParts: () => Promise<void>
+  createPart: (input: CreatePartInput) => Promise<Part>
+  updatePart: (id: string, input: UpdatePartInput) => Promise<Part>
+  deletePart: (id: string) => Promise<void>
+  consumePart: (woId: string, partId: string, quantity: number) => Promise<WorkOrderPart>
+
+  // Approval policies (Tier 2.2)
+  approvalPolicies: ApprovalPolicy[]
+  policiesLoading: boolean
+  loadApprovalPolicies: () => Promise<void>
+  createApprovalPolicy: (input: CreateApprovalPolicyInput) => Promise<ApprovalPolicy>
+  updateApprovalPolicy: (id: string, input: UpdateApprovalPolicyInput) => Promise<ApprovalPolicy>
+  deleteApprovalPolicy: (id: string) => Promise<void>
 
   // Vendors (Procurement)
   vendors: Vendor[]
@@ -198,6 +253,18 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
   workOrders:  [],
   cmmsLoading: false,
   cmmsError:   null,
+
+  pmSchedules: [],
+  pmLoading:   false,
+
+  approvalPolicies: [],
+  policiesLoading:  false,
+
+  cmmsAnalytics:        null,
+  cmmsAnalyticsLoading: false,
+
+  parts:        [],
+  partsLoading: false,
 
   allUsers:     [],
   usersLoading: false,
@@ -404,27 +471,32 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
   // -------------------------------------------------------------------------
   createIssue: async (input) => {
     const issue = await api.post<Issue>('/api/issues', {
-      title:           input.title,
-      description:     input.description,
-      outlet:          input.outlet,
-      category:        input.category,
-      priority:        input.priority,
-      assignee:        input.assignee,
-      dueDate:         input.dueDate,
-      generateTask:    input.generateTask,
+      title:            input.title,
+      description:      input.description,
+      outlet:           input.outlet,
+      category:         input.category,
+      priority:         input.priority,
+      assignee:         input.assignee,
+      dueDate:          input.dueDate,
+      generateTask:     input.generateTask,
       generateApproval: input.generateApproval,
-      approvalAmount:  input.approvalAmount ?? null,
+      approvalAmount:   input.approvalAmount ?? null,
+      generateWorkOrder: input.generateWorkOrder,
+      assetId:          input.assetId ?? null,
+      estimatedCost:    input.estimatedCost ?? null,
     })
 
-    // Refresh tasks and approvals to pick up the newly auto-generated records.
-    const [tasks, approvals] = await Promise.all([
+    // Refresh tasks, approvals, and work orders to pick up auto-generated records.
+    const [tasks, approvals, workOrders] = await Promise.all([
       api.get<Task[]>('/api/tasks'),
       api.get<ApprovalRequest[]>('/api/approvals'),
+      api.get<WorkOrder[]>('/api/work-orders'),
     ])
     set((state) => ({
-      issues:    [issue, ...state.issues.filter((i) => i.id !== issue.id)],
+      issues:     [issue, ...state.issues.filter((i) => i.id !== issue.id)],
       tasks,
       approvals,
+      workOrders,
     }))
     return issue
   },
@@ -450,27 +522,49 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
   },
 
   // -------------------------------------------------------------------------
-  // decideApproval — optimistic update + PATCH /api/approvals/{id}/decide
-  // FR-14: if rejected, also optimistically set parent Issue to 'waiting'.
+  // decideApproval — PATCH /api/approvals/{id}/decide (step-aware)
+  // After deciding, fetches the updated approval from server so steps,
+  // currentStepOrder and status are accurate (no optimistic guess needed).
+  // FR-14: if final rejected, also updates parent Issue to 'waiting'.
   // -------------------------------------------------------------------------
-  decideApproval: (approvalId, decision) => {
-    const approval = get().approvals.find((a) => a.id === approvalId)
-
+  decideApproval: async (approvalId, decision, comment) => {
+    const decidedBy = get().currentUser?.name ?? 'System'
+    const updated = await api.patch<ApprovalRequest>(
+      `/api/approvals/${approvalId}/decide`,
+      { decision, comment, decidedBy },
+    )
     set((state) => ({
-      approvals: state.approvals.map((a) =>
-        a.id === approvalId ? { ...a, status: decision } : a
-      ),
-      issues: decision === 'rejected' && approval
+      approvals: state.approvals.map((a) => a.id === approvalId ? updated : a),
+      // If final rejected, update linked issue status → waiting
+      issues: updated.status === 'rejected'
         ? state.issues.map((i) =>
-            i.id === approval.issueId ? { ...i, status: 'waiting' as Issue['status'] } : i
+            i.id === updated.issueId ? { ...i, status: 'waiting' as Issue['status'] } : i
           )
         : state.issues,
+      // If final approved, update linked WO status in local cache
+      workOrders: updated.status === 'approved'
+        ? state.workOrders.map((wo) =>
+            wo.approvalId === updated.id ? { ...wo, status: 'in-progress' as WorkOrderStatus } : wo
+          )
+        : state.workOrders,
     }))
+  },
 
-    const decidedBy = get().currentUser?.name ?? 'System'
-    api
-      .patch(`/api/approvals/${approvalId}/decide`, { decision, decidedBy })
-      .catch(() => get().loadAll())
+  delegateApproval: async (approvalId, target) => {
+    const updated = await api.patch<ApprovalRequest>(`/api/approvals/${approvalId}/delegate`, target)
+    set((state) => ({
+      approvals: state.approvals.map((a) => a.id === approvalId ? updated : a),
+    }))
+  },
+
+  escalateStaleApprovals: async (thresholdDays) => {
+    const res = await api.post<{ escalated: number; approvalIds: string[] }>(
+      '/api/approvals/escalate-stale', { thresholdDays },
+    )
+    // Refresh approvals so escalated flags show up.
+    const approvals = await api.get<ApprovalRequest[]>('/api/approvals')
+    set({ approvals })
+    return res.escalated
   },
 
   // =========================================================================
@@ -540,12 +634,206 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     api.patch(`/api/work-orders/${woId}`, { status }).catch(() => get().loadCMMS())
   },
 
+  transitionWorkOrder: async (woId, targetStatus) => {
+    const detail = await api.patch<WorkOrderDetail>(
+      `/api/work-orders/${woId}/transition`,
+      { targetStatus },
+    )
+    set((state) => ({
+      workOrders: state.workOrders.map((wo) => wo.id === woId ? { ...wo, ...detail } : wo),
+      // Sync asset status in local cache: when WO goes in-progress → asset maintenance;
+      // when completed/cancelled → check if any other active WOs remain (best-effort).
+      assets: state.assets.map((a) => {
+        if (a.id !== detail.assetId) return a
+        if (targetStatus === 'in-progress') return { ...a, status: 'maintenance' as Asset['status'] }
+        if (targetStatus === 'completed' || targetStatus === 'cancelled') {
+          const hasOtherActive = state.workOrders.some(
+            (wo) => wo.id !== woId && wo.assetId === a.id &&
+              (wo.status === 'scheduled' || wo.status === 'in-progress' || wo.status === 'on-hold'),
+          )
+          return hasOtherActive ? a : { ...a, status: 'operational' as Asset['status'] }
+        }
+        return a
+      }),
+    }))
+    return detail
+  },
+
+  updateWorkOrderCost: async (woId, input) => {
+    const detail = await api.patch<WorkOrderDetail>(`/api/work-orders/${woId}/cost`, input)
+    set((state) => ({
+      workOrders: state.workOrders.map((wo) => wo.id === woId ? { ...wo, ...detail } : wo),
+    }))
+    return detail
+  },
+
+  toggleChecklistItem: async (woId, itemId, isDone) => {
+    const detail = await api.patch<WorkOrderDetail>(
+      `/api/work-orders/${woId}/checklist/${itemId}`,
+      { isDone },
+    )
+    return detail
+  },
+
   deleteWorkOrder: async (id) => {
     set((state) => ({ workOrders: state.workOrders.filter((wo) => wo.id !== id) }))
     try {
       await api.delete(`/api/work-orders/${id}`)
     } catch (e) {
       get().loadCMMS()
+      throw e
+    }
+  },
+
+  assignWorkOrderVendor: async (woId, vendorId, slaDue) => {
+    const detail = await api.patch<WorkOrderDetail>(`/api/work-orders/${woId}/assign-vendor`, { vendorId, slaDue })
+    set((state) => ({
+      workOrders: state.workOrders.map((wo) => wo.id === woId ? { ...wo, ...detail } : wo),
+    }))
+    return detail
+  },
+
+  loadVendorPerformance: async (vendorId) => {
+    return api.get<VendorPerformance>(`/api/vendors/${vendorId}/performance`)
+  },
+
+  // -------------------------------------------------------------------------
+  // Preventive Maintenance schedules (Tier 2.1)
+  // -------------------------------------------------------------------------
+  loadPMSchedules: async () => {
+    set({ pmLoading: true })
+    try {
+      const pmSchedules = await api.get<PMSchedule[]>('/api/pm-schedules')
+      set({ pmSchedules, pmLoading: false })
+    } catch {
+      set({ pmLoading: false })
+    }
+  },
+
+  createPMSchedule: async (input) => {
+    const sched = await api.post<PMSchedule>('/api/pm-schedules', input)
+    set((state) => ({ pmSchedules: [sched, ...state.pmSchedules] }))
+    return sched
+  },
+
+  updatePMSchedule: async (id, input) => {
+    const sched = await api.patch<PMSchedule>(`/api/pm-schedules/${id}`, input)
+    set((state) => ({
+      pmSchedules: state.pmSchedules.map((s) => s.id === id ? sched : s),
+    }))
+    return sched
+  },
+
+  deletePMSchedule: async (id) => {
+    set((state) => ({ pmSchedules: state.pmSchedules.filter((s) => s.id !== id) }))
+    try {
+      await api.delete(`/api/pm-schedules/${id}`)
+    } catch (e) {
+      get().loadPMSchedules()
+      throw e
+    }
+  },
+
+  runPMGenerator: async () => {
+    const result = await api.post<RunPMGeneratorResult>('/api/pm-schedules/run-now', {})
+    // New WOs may have been created and schedules advanced — refresh both.
+    await Promise.all([get().loadCMMS(), get().loadPMSchedules()])
+    return result
+  },
+
+  recordMeterReading: async (assetId, value, note) => {
+    await api.post(`/api/assets/${assetId}/meter-readings`, { value, note })
+  },
+
+  // -------------------------------------------------------------------------
+  // CMMS analytics (Tier 3)
+  // -------------------------------------------------------------------------
+  loadCMMSAnalytics: async (outlet) => {
+    set({ cmmsAnalyticsLoading: true })
+    try {
+      const qs = outlet ? `?outlet=${encodeURIComponent(outlet)}` : ''
+      const cmmsAnalytics = await api.get<CMMSAnalytics>(`/api/analytics/cmms${qs}`)
+      set({ cmmsAnalytics, cmmsAnalyticsLoading: false })
+    } catch {
+      set({ cmmsAnalyticsLoading: false })
+    }
+  },
+
+  // -------------------------------------------------------------------------
+  // Spare parts & inventory (Tier 3)
+  // -------------------------------------------------------------------------
+  loadParts: async () => {
+    set({ partsLoading: true })
+    try {
+      const parts = await api.get<Part[]>('/api/parts?active_only=false')
+      set({ parts, partsLoading: false })
+    } catch {
+      set({ partsLoading: false })
+    }
+  },
+
+  createPart: async (input) => {
+    const part = await api.post<Part>('/api/parts', input)
+    set((state) => ({ parts: [part, ...state.parts] }))
+    return part
+  },
+
+  updatePart: async (id, input) => {
+    const part = await api.patch<Part>(`/api/parts/${id}`, input)
+    set((state) => ({ parts: state.parts.map((p) => p.id === id ? part : p) }))
+    return part
+  },
+
+  deletePart: async (id) => {
+    set((state) => ({ parts: state.parts.filter((p) => p.id !== id) }))
+    try {
+      await api.delete(`/api/parts/${id}`)
+    } catch (e) {
+      get().loadParts()
+      throw e
+    }
+  },
+
+  consumePart: async (woId, partId, quantity) => {
+    const wp = await api.post<WorkOrderPart>(`/api/work-orders/${woId}/parts`, { partId, quantity })
+    // Stock and WO parts_cost changed — refresh parts + CMMS.
+    await Promise.all([get().loadParts(), get().loadCMMS()])
+    return wp
+  },
+
+  // -------------------------------------------------------------------------
+  // Approval policies (Tier 2.2)
+  // -------------------------------------------------------------------------
+  loadApprovalPolicies: async () => {
+    set({ policiesLoading: true })
+    try {
+      const approvalPolicies = await api.get<ApprovalPolicy[]>('/api/approval-policies')
+      set({ approvalPolicies, policiesLoading: false })
+    } catch {
+      set({ policiesLoading: false })
+    }
+  },
+
+  createApprovalPolicy: async (input) => {
+    const policy = await api.post<ApprovalPolicy>('/api/approval-policies', input)
+    set((state) => ({ approvalPolicies: [policy, ...state.approvalPolicies] }))
+    return policy
+  },
+
+  updateApprovalPolicy: async (id, input) => {
+    const policy = await api.patch<ApprovalPolicy>(`/api/approval-policies/${id}`, input)
+    set((state) => ({
+      approvalPolicies: state.approvalPolicies.map((p) => p.id === id ? policy : p),
+    }))
+    return policy
+  },
+
+  deleteApprovalPolicy: async (id) => {
+    set((state) => ({ approvalPolicies: state.approvalPolicies.filter((p) => p.id !== id) }))
+    try {
+      await api.delete(`/api/approval-policies/${id}`)
+    } catch (e) {
+      get().loadApprovalPolicies()
       throw e
     }
   },

@@ -35,6 +35,24 @@ export type ApprovalType =
   | 'marketing'
   | 'training'
   | 'asset-purchase'
+  | 'maintenance'
+
+// Multi-step approval
+export type ApprovalStepStatus = 'pending' | 'approved' | 'rejected' | 'skipped'
+export type ApproverRole = 'staff' | 'manager' | 'admin'
+
+export interface ApprovalStep {
+  id: string
+  approvalRequestId: string
+  stepOrder: number
+  approverRole: ApproverRole
+  approverUserId: string | null
+  status: ApprovalStepStatus
+  decidedBy: string | null
+  decidedAt: string | null
+  comment: string | null
+  createdAt: string
+}
 
 // Maps an Issue category to the Approval "type" badge used in the
 // Approval Center. Only categories that can carry an approval need an entry.
@@ -76,6 +94,7 @@ export interface Issue {
   // Relations — populated automatically when child records are generated
   taskIds: string[]
   approvalId: string | null
+  workOrderId: string | null  // populated when Maintenance issue auto-generates a WO
 }
 
 export interface Task {
@@ -102,11 +121,16 @@ export interface ApprovalRequest {
   requester: string
   outlet: string
   requestedDate: string | null
-  amount?: string | null
+  amount?: number | null     // IDR integer; format "Rp X.XXX" only in UI
+  currency?: string          // default "IDR"
   status: ApprovalStatus
   // Relation back to the originating Issue
   issueId: string
   issueNumber: string
+  // Multi-step fields (populated from backend)
+  currentStepOrder: number
+  escalated: boolean
+  steps: ApprovalStep[]
 }
 
 // =====================================================================
@@ -231,7 +255,7 @@ export interface User {
 
 export type AssetStatus = 'operational' | 'warning' | 'maintenance' | 'critical'
 export type WorkOrderType = 'corrective' | 'preventive'
-export type WorkOrderStatus = 'scheduled' | 'in-progress' | 'completed' | 'cancelled'
+export type WorkOrderStatus = 'scheduled' | 'in-progress' | 'on-hold' | 'completed' | 'cancelled'
 
 export interface Asset {
   id: string
@@ -246,6 +270,7 @@ export interface Asset {
   installDate: string | null
   lastPM: string | null
   nextPM: string | null
+  purchaseCost: number | null    // IDR integer — for repair-vs-replace analytics
   createdAt: string
 }
 
@@ -266,6 +291,61 @@ export interface WorkOrder {
   scheduledDate: string | null
   completedDate: string | null
   createdAt: string
+  // Cost & downtime (Tier 1 CMMS depth)
+  downtimeStart: string | null
+  downtimeEnd: string | null
+  laborHours: number
+  laborCost: number
+  partsCost: number
+  totalCost: number
+  estimatedCost: number | null
+  requiresApproval: boolean
+  approvalId: string | null
+  // Vendor / external maintenance (Tier 3)
+  vendorId: string | null
+  vendorName: string | null
+  slaDue: string | null
+  slaMet: boolean | null
+}
+
+export interface VendorPerformance {
+  vendorId: string
+  totalAssigned: number
+  completed: number
+  onTime: number
+  onTimePct: number
+  avgResolutionDays: number
+  openWorkOrders: number
+}
+
+export interface ChecklistItem {
+  id: string
+  workOrderId: string
+  title: string
+  isDone: boolean
+  doneBy: string | null
+  doneAt: string | null
+  orderIndex: number
+}
+
+export interface WorkOrderAttachment {
+  id: string
+  workOrderId: string
+  fileUrl: string
+  caption: string | null
+  uploadedBy: string
+  createdAt: string
+}
+
+export interface WorkOrderDetail extends WorkOrder {
+  checklistItems: ChecklistItem[]
+  attachments: WorkOrderAttachment[]
+}
+
+export interface WorkOrderCostUpdateInput {
+  laborHours?: number
+  laborCost?: number
+  partsCost?: number
 }
 
 export interface CreateAssetInput {
@@ -279,6 +359,7 @@ export interface CreateAssetInput {
   installDate?: string
   lastPM?: string
   nextPM?: string
+  purchaseCost?: number
 }
 
 export interface UpdateAssetInput {
@@ -292,6 +373,7 @@ export interface UpdateAssetInput {
   installDate?: string
   lastPM?: string
   nextPM?: string
+  purchaseCost?: number
 }
 
 export interface CreateWorkOrderInput {
@@ -304,6 +386,209 @@ export interface CreateWorkOrderInput {
   priority?: Priority
   assignee?: string
   scheduledDate?: string
+  estimatedCost?: number
+}
+
+// =====================================================================
+// Preventive Maintenance scheduling (Tier 2.1) — mirrors backend
+// app/schemas/pm_schedule.py exactly.
+// =====================================================================
+
+export type PMIntervalType = 'days' | 'weeks' | 'months'
+export type PMTriggerType = 'calendar' | 'meter'
+
+export interface PMSchedule {
+  id: string
+  assetId: string
+  assetName: string
+  name: string
+  triggerType: PMTriggerType
+  intervalType: PMIntervalType
+  intervalValue: number
+  meterInterval: number | null
+  lastMeterValue: number | null
+  checklist: string[]
+  assigneeRole: ApproverRole | null
+  assigneeUserId: string | null
+  assigneeName: string | null
+  leadTimeDays: number
+  nextDueDate: string | null     // ISO date (calendar only)
+  lastGeneratedAt: string | null
+  isActive: boolean
+  outlet: string
+  createdAt: string
+}
+
+export interface CreatePMScheduleInput {
+  assetId: string
+  name: string
+  triggerType?: PMTriggerType
+  intervalType?: PMIntervalType
+  intervalValue?: number
+  meterInterval?: number
+  checklist?: string[]
+  assigneeRole?: ApproverRole
+  assigneeUserId?: string
+  assigneeName?: string
+  leadTimeDays?: number
+  nextDueDate?: string | null
+  isActive?: boolean
+}
+
+export interface UpdatePMScheduleInput {
+  name?: string
+  triggerType?: PMTriggerType
+  intervalType?: PMIntervalType
+  intervalValue?: number
+  meterInterval?: number
+  checklist?: string[]
+  assigneeRole?: ApproverRole
+  assigneeUserId?: string
+  assigneeName?: string
+  leadTimeDays?: number
+  nextDueDate?: string
+  isActive?: boolean
+}
+
+export interface MeterReading {
+  id: string
+  assetId: string
+  value: number
+  note: string | null
+  recordedBy: string | null
+  recordedAt: string
+}
+
+export interface RunPMGeneratorResult {
+  generated: number
+  workOrderIds: string[]
+  schedulesEvaluated: number
+}
+
+// =====================================================================
+// Approval Policy engine (Tier 2.2) — mirrors backend
+// app/schemas/approval_policy.py exactly.
+// =====================================================================
+
+export interface PolicyStep {
+  order: number
+  role: ApproverRole
+}
+
+export interface ApprovalPolicy {
+  id: string
+  approvalType: ApprovalType
+  minAmount: number | null       // IDR integer
+  maxAmount: number | null       // IDR integer
+  steps: PolicyStep[]
+  outlet: string | null
+  isActive: boolean
+  createdAt: string
+}
+
+export interface CreateApprovalPolicyInput {
+  approvalType: ApprovalType
+  minAmount?: number | null
+  maxAmount?: number | null
+  steps: PolicyStep[]
+  outlet?: string | null
+  isActive?: boolean
+}
+
+export interface UpdateApprovalPolicyInput {
+  approvalType?: ApprovalType
+  minAmount?: number | null
+  maxAmount?: number | null
+  steps?: PolicyStep[]
+  outlet?: string | null
+  isActive?: boolean
+}
+
+// =====================================================================
+// CMMS Analytics (Tier 3) — mirrors backend /api/analytics/cmms
+// =====================================================================
+
+export interface AssetAnalytics {
+  assetId: string
+  assetName: string
+  outlet: string
+  workOrders: number
+  failures: number
+  mttrHours: number
+  mtbfHours: number
+  uptimePct: number
+  totalDowntimeHours: number
+  totalCost: number
+  repairCost: number
+  purchaseCost: number | null
+  repairVsReplace: boolean | null
+}
+
+export interface FleetAnalytics {
+  assetCount: number
+  avgMttrHours: number
+  avgMtbfHours: number
+  avgUptimePct: number
+  totalCost: number
+  replaceCandidates: number
+}
+
+export interface CMMSAnalytics {
+  perAsset: AssetAnalytics[]
+  fleet: FleetAnalytics
+}
+
+// =====================================================================
+// Spare parts & inventory (Tier 3) — mirrors backend app/schemas/part.py
+// =====================================================================
+
+export interface Part {
+  id: string
+  sku: string
+  name: string
+  category: string
+  unit: string
+  unitCost: number       // IDR integer
+  stockQty: number
+  reorderLevel: number
+  outlet: string | null
+  isActive: boolean
+  lowStock: boolean
+  createdAt: string
+}
+
+export interface CreatePartInput {
+  sku: string
+  name: string
+  category?: string
+  unit?: string
+  unitCost?: number
+  stockQty?: number
+  reorderLevel?: number
+  outlet?: string | null
+  isActive?: boolean
+}
+
+export interface UpdatePartInput {
+  name?: string
+  category?: string
+  unit?: string
+  unitCost?: number
+  stockQty?: number
+  reorderLevel?: number
+  outlet?: string | null
+  isActive?: boolean
+}
+
+export interface WorkOrderPart {
+  id: string
+  workOrderId: string
+  partId: string | null
+  partName: string
+  quantity: number
+  unitCost: number
+  lineCost: number
+  createdAt: string
 }
 
 // =====================================================================
@@ -438,7 +723,7 @@ export interface UpdateCampaignInput {
 }
 
 // Input shape for the Create Issue form. Everything the user fills in,
-// plus the two toggles that control auto-generation.
+// plus the toggles that control auto-generation.
 export interface CreateIssueInput {
   title: string
   description: string
@@ -449,5 +734,9 @@ export interface CreateIssueInput {
   dueDate: string
   generateTask: boolean
   generateApproval: boolean
-  approvalAmount?: string
+  approvalAmount?: number    // IDR integer; no formatted strings
+  // Maintenance-specific: auto-generate a corrective Work Order
+  generateWorkOrder: boolean
+  assetId?: string
+  estimatedCost?: number
 }

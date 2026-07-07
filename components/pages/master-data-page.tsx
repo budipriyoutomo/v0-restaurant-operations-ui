@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { NewOutletDialog } from '@/components/dialogs/new-outlet-dialog'
 import { NewCategoryDialog } from '@/components/dialogs/new-category-dialog'
 import { NewPICDialog } from '@/components/dialogs/new-pic-dialog'
+import { ApprovalPolicyPanel } from '@/components/master-data/approval-policy-panel'
 import { useIssueStore } from '@/lib/store'
 import { MasterCategory, Outlet, OutletStatus, PIC } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -18,13 +19,13 @@ const statusColors: Record<OutletStatus, { bg: string; text: string; badge: stri
 
 export function MasterDataPage() {
   const {
-    outlets, categories, pics, masterDataLoading,
+    outlets, categories, pics, masterDataLoading, approvalPolicies,
     createOutlet, updateOutlet, deleteOutlet,
     createCategory, updateCategory, deleteCategory,
     createPIC, updatePIC, deletePIC,
   } = useIssueStore()
 
-  const [activeTab, setActiveTab] = useState<'outlets' | 'categories' | 'pics'>('outlets')
+  const [activeTab, setActiveTab] = useState<'outlets' | 'categories' | 'pics' | 'policies'>('outlets')
   const [searchQuery, setSearchQuery] = useState('')
 
   // Dialog state — null = closed, undefined = create mode, object = edit mode
@@ -94,7 +95,7 @@ export function MasterDataPage() {
   // -------------------------------------------------------------------------
   // Tab switch helper
   // -------------------------------------------------------------------------
-  const switchTab = (tab: 'outlets' | 'categories' | 'pics') => {
+  const switchTab = (tab: 'outlets' | 'categories' | 'pics' | 'policies') => {
     setActiveTab(tab)
     setSearchQuery('')
   }
@@ -110,23 +111,31 @@ export function MasterDataPage() {
           <h1 className="text-3xl font-bold">Master Data</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage outlets, categories and PICs</p>
         </div>
-        <button
-          onClick={() => {
-            if (activeTab === 'outlets') setOutletDialog({ open: true })
-            else if (activeTab === 'categories') setCategoryDialog({ open: true })
-            else setPicDialog({ open: true })
-          }}
-          className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="size-4" />
-          New {activeTab === 'outlets' ? 'Outlet' : activeTab === 'categories' ? 'Category' : 'PIC'}
-        </button>
+        {activeTab !== 'policies' && (
+          <button
+            onClick={() => {
+              if (activeTab === 'outlets') setOutletDialog({ open: true })
+              else if (activeTab === 'categories') setCategoryDialog({ open: true })
+              else setPicDialog({ open: true })
+            }}
+            className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="size-4" />
+            New {activeTab === 'outlets' ? 'Outlet' : activeTab === 'categories' ? 'Category' : 'PIC'}
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-border">
-        {(['outlets', 'categories', 'pics'] as const).map((tab) => {
-          const count = tab === 'outlets' ? outlets.length : tab === 'categories' ? categories.length : pics.length
+        {(['outlets', 'categories', 'pics', 'policies'] as const).map((tab) => {
+          const count = tab === 'outlets' ? outlets.length
+            : tab === 'categories' ? categories.length
+            : tab === 'pics' ? pics.length
+            : approvalPolicies.length
+          const label = tab === 'pics' ? 'PIC'
+            : tab === 'policies' ? 'Approval Policies'
+            : tab.charAt(0).toUpperCase() + tab.slice(1)
           return (
             <button
               key={tab}
@@ -138,13 +147,14 @@ export function MasterDataPage() {
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               )}
             >
-              {tab === 'pics' ? 'PIC' : tab.charAt(0).toUpperCase() + tab.slice(1)} ({count})
+              {label} ({count})
             </button>
           )
         })}
       </div>
 
       {/* Search */}
+      {activeTab !== 'policies' && (
       <div className="flex gap-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -161,6 +171,7 @@ export function MasterDataPage() {
           Filter
         </button>
       </div>
+      )}
 
       {/* Loading state */}
       {masterDataLoading && (
@@ -375,6 +386,11 @@ export function MasterDataPage() {
           )}
         </div>
       )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Approval Policies Tab (Tier 2.2)                                     */}
+      {/* ------------------------------------------------------------------ */}
+      {activeTab === 'policies' && <ApprovalPolicyPanel />}
 
       {/* ------------------------------------------------------------------ */}
       {/* Dialogs                                                              */}

@@ -28,6 +28,10 @@ export function usePermissions() {
     updateIssueStatus: atLeast(role, 'manager'),
     // Asset/WO create/edit/delete — manager, admin
     manageAssets: atLeast(role, 'manager'),
+    // PM schedule CRUD — manager, admin
+    managePM: atLeast(role, 'manager'),
+    // Run the PM generator (POST /api/pm-schedules/run-now) — admin only
+    runPMGenerator: atLeast(role, 'admin'),
     // View analytics & reports — manager, admin
     viewAnalytics: atLeast(role, 'manager'),
     // Master data CRUD, user management, settings — admin only
