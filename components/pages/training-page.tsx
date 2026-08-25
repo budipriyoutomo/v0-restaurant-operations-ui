@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { BookOpen, Plus, Clock, CheckCircle2, XCircle, Users, Loader2, Pencil, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { TrainingProgram, TrainingProgramStatus, CreateTrainingProgramInput } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
@@ -22,6 +23,9 @@ export function TrainingPage() {
     issues, approvals, outlets, pics, createIssue,
     trainingPrograms, trainingLoading, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram,
   } = useIssueStore()
+  // Outlet pickers must only offer outlets this user may write to (Tier 4).
+  const myOutlets = useMyOutlets()
+  const { can } = usePermissions()
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState<Tab>('sessions')
   const [showProgramForm, setShowProgramForm] = useState(false)
@@ -45,12 +49,14 @@ export function TrainingPage() {
           <p className="text-sm text-muted-foreground mt-1">Staff training programs, certification tracking, and session scheduling</p>
         </div>
         {tab === 'programs' ? (
-          <button
-            onClick={() => { setEditingProgram(null); setShowProgramForm(true) }}
-            className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="size-4" /> New Program
-          </button>
+          can.manageTraining && (
+            <button
+              onClick={() => { setEditingProgram(null); setShowProgramForm(true) }}
+              className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="size-4" /> New Program
+            </button>
+          )
         ) : (
           <button
             onClick={() => setShowCreate(true)}
@@ -145,6 +151,7 @@ export function TrainingPage() {
         <ProgramList
           programs={trainingPrograms}
           loading={trainingLoading}
+          canManage={can.manageTraining}
           onEdit={p => { setEditingProgram(p); setShowProgramForm(true) }}
           onDelete={deleteTrainingProgram}
           onStatusChange={(id, status) => updateTrainingProgram(id, { status })}
@@ -155,7 +162,7 @@ export function TrainingPage() {
         open={showCreate}
         onOpenChange={setShowCreate}
         defaultCategory="Training"
-        outlets={outlets.map(o => o.name)}
+        outlets={myOutlets.map(o => o.name)}
         assignees={['Unassigned', ...pics.map(p => p.name)]}
         onSubmit={async (input) => { await createIssue(input) }}
       />
@@ -163,7 +170,7 @@ export function TrainingPage() {
       {showProgramForm && (
         <ProgramFormModal
           program={editingProgram}
-          outlets={outlets.map(o => o.name)}
+          outlets={myOutlets.map(o => o.name)}
           onClose={() => setShowProgramForm(false)}
           onSubmit={async (data) => {
             if (editingProgram) {
@@ -182,9 +189,10 @@ export function TrainingPage() {
 // ---------------------------------------------------------------------------
 // Programs list
 // ---------------------------------------------------------------------------
-function ProgramList({ programs, loading, onEdit, onDelete, onStatusChange }: {
+function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusChange }: {
   programs: TrainingProgram[]
   loading: boolean
+  canManage: boolean
   onEdit: (p: TrainingProgram) => void
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: TrainingProgramStatus) => void
@@ -211,10 +219,12 @@ function ProgramList({ programs, loading, onEdit, onDelete, onStatusChange }: {
                 {p.status}
               </span>
             </div>
-            <div className="flex gap-1">
-              <button onClick={() => onEdit(p)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><Pencil className="size-3" /></button>
-              <button onClick={() => setConfirmDelete(p.id)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="size-3" /></button>
-            </div>
+            {canManage && (
+              <div className="flex gap-1">
+                <button onClick={() => onEdit(p)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><Pencil className="size-3" /></button>
+                <button onClick={() => setConfirmDelete(p.id)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="size-3" /></button>
+              </div>
+            )}
           </div>
           {p.description && <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>}
           <div className="text-xs text-muted-foreground space-y-0.5">
@@ -225,18 +235,20 @@ function ProgramList({ programs, loading, onEdit, onDelete, onStatusChange }: {
             {p.duration_hours != null && <p>Duration: {p.duration_hours}h</p>}
             {p.max_participants && <p>Max participants: {p.max_participants}</p>}
           </div>
-          <div className="pt-1 border-t border-border">
-            <select
-              value={p.status}
-              onChange={e => onStatusChange(p.id, e.target.value as TrainingProgramStatus)}
-              className="w-full px-2 py-1 text-xs rounded border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary/50"
-            >
-              <option value="scheduled">Scheduled</option>
-              <option value="ongoing">Ongoing</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
+          {canManage && (
+            <div className="pt-1 border-t border-border">
+              <select
+                value={p.status}
+                onChange={e => onStatusChange(p.id, e.target.value as TrainingProgramStatus)}
+                className="w-full px-2 py-1 text-xs rounded border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary/50"
+              >
+                <option value="scheduled">Scheduled</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          )}
           {confirmDelete === p.id && (
             <div className="border-t border-border pt-2 space-y-2">
               <p className="text-xs text-muted-foreground">Delete <strong>{p.title}</strong>?</p>

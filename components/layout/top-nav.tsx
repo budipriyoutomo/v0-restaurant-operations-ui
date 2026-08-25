@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { Bell, Search, ChevronDown, Settings, LogOut, User, Sun, Moon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
-// outlets and notifications are loaded from the backend; the nav shows them
-// once a real outlet-management API is available. For now both are empty.
+import { useMyOutlets } from '@/lib/permissions'
 
 const pageLabels: Record<string, string> = {
   dashboard: 'Executive Dashboard',
@@ -30,13 +29,15 @@ interface TopNavProps {
 export function TopNav({ currentPage }: TopNavProps) {
   const { currentUser, logout } = useIssueStore()
 
-  const outlets:      { id: string; name: string; code: string; status: string }[]                    = []
+  // Only the outlets this user is scoped to (admins get all) — Tier 4.
+  const outlets = useMyOutlets()
   const notifications:{ id: string; title: string; message: string; time: string; type: string; read: boolean }[] = []
 
   const [outletOpen, setOutletOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [selectedOutlet, setSelectedOutlet] = useState<typeof outlets[number] | null>(outlets[0] ?? null)
+  // null = "all outlets I can see" rather than a single branch.
+  const [selectedOutlet, setSelectedOutlet] = useState<typeof outlets[number] | null>(null)
   const [darkMode, setDarkMode] = useState(false)
   const unreadCount = notifications.filter((n) => !n.read).length
 
@@ -63,7 +64,7 @@ export function TopNav({ currentPage }: TopNavProps) {
         <kbd className="text-[10px] bg-background border border-border rounded px-1">⌘K</kbd>
       </button>
 
-      {/* Outlet switcher — populated once outlet management API is available */}
+      {/* Outlet switcher (Tier 4) — lists only the outlets this user is assigned to */}
       {outlets.length > 0 && (
         <div className="relative">
           <button
@@ -83,6 +84,17 @@ export function TopNav({ currentPage }: TopNavProps) {
           {outletOpen && (
             <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg py-1 z-50">
               <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Select Outlet</p>
+              <button
+                onClick={() => { setSelectedOutlet(null); setOutletOpen(false) }}
+                className={cn(
+                  'w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors',
+                  selectedOutlet === null && 'bg-accent',
+                )}
+              >
+                <span className="size-1.5 rounded-full flex-shrink-0 bg-muted-foreground" />
+                <span>Semua outlet saya</span>
+                <span className="ml-auto text-muted-foreground font-mono">{outlets.length}</span>
+              </button>
               {outlets.map((outlet) => (
                 <button
                   key={outlet.id}

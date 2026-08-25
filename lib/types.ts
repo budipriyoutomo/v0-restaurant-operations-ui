@@ -124,9 +124,10 @@ export interface ApprovalRequest {
   amount?: number | null     // IDR integer; format "Rp X.XXX" only in UI
   currency?: string          // default "IDR"
   status: ApprovalStatus
-  // Relation back to the originating Issue
-  issueId: string
-  issueNumber: string
+  // Polymorphic source: an approval is for an Issue OR a Purchase Request (Tier 6.1).
+  issueId: string | null
+  issueNumber: string | null
+  purchaseRequestId?: string | null
   // Multi-step fields (populated from backend)
   currentStepOrder: number
   escalated: boolean
@@ -247,6 +248,10 @@ export interface User {
   name: string
   role: UserRole
   is_active: boolean
+  // Outlets this user is scoped to (Tier 4.1). Empty for admins (they see all)
+  // and for users not yet assigned — Tier 4.2 treats empty as deny-by-default
+  // for non-admins, never as "see everything".
+  outlet_ids: string[]
 }
 
 // =====================================================================
@@ -271,7 +276,14 @@ export interface Asset {
   lastPM: string | null
   nextPM: string | null
   purchaseCost: number | null    // IDR integer — for repair-vs-replace analytics
+  qrToken: string | null         // opaque sticker token (Tier 5.2)
   createdAt: string
+}
+
+export interface QRResolveResult {
+  asset: Asset
+  activeWorkOrderId: string | null
+  openWorkOrderCount: number
 }
 
 export interface WorkOrder {
@@ -294,7 +306,7 @@ export interface WorkOrder {
   // Cost & downtime (Tier 1 CMMS depth)
   downtimeStart: string | null
   downtimeEnd: string | null
-  laborHours: number
+  laborHours: number | null
   laborCost: number
   partsCost: number
   totalCost: number
@@ -331,9 +343,13 @@ export interface ChecklistItem {
 export interface WorkOrderAttachment {
   id: string
   workOrderId: string
-  fileUrl: string
+  fileUrl: string | null        // external URL, or serve-route for uploads
+  thumbnailUrl?: string | null  // small preview for uploads
   caption: string | null
   uploadedBy: string
+  mimeType?: string | null
+  sizeBytes?: number | null
+  isUpload?: boolean            // true = photo stored by the app
   createdAt: string
 }
 
@@ -346,6 +362,26 @@ export interface WorkOrderCostUpdateInput {
   laborHours?: number
   laborCost?: number
   partsCost?: number
+}
+
+// GET /api/assets/{id}/history
+export interface AssetHistory {
+  items: WorkOrder[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+// GET /api/assets/{id}/summary
+export interface AssetSummary {
+  totalWorkOrders: number
+  totalDowntimeHours: number
+  totalLaborCost: number
+  totalPartsCost: number
+  totalCost: number
+  lastPM: string | null
+  nextPM: string | null
+  workOrdersLast90Days: number
 }
 
 export interface CreateAssetInput {
@@ -589,6 +625,120 @@ export interface WorkOrderPart {
   unitCost: number
   lineCost: number
   createdAt: string
+}
+
+// =====================================================================
+// Procurement (Tier 6.1) — PR → PO → Goods Receipt
+// =====================================================================
+
+export type PurchaseRequestStatus =
+  | 'pending_approval' | 'approved' | 'rejected' | 'ordered' | 'received' | 'cancelled'
+export type PurchaseOrderStatus = 'sent' | 'partially_received' | 'received' | 'cancelled'
+
+export interface PurchaseRequestItem {
+  id: string
+  partId: string | null
+  partName: string
+  quantity: number
+  estUnitCost: number
+  lineTotal: number
+}
+
+export interface PurchaseRequest {
+  id: string
+  number: string
+  status: PurchaseRequestStatus
+  source: 'manual' | 'auto_reorder'
+  outlet: string | null
+  requestedBy: string | null
+  notes: string | null
+  totalEst: number
+  approvalId: string | null
+  items: PurchaseRequestItem[]
+  createdAt: string
+}
+
+export interface CreatePurchaseRequestInput {
+  outlet?: string | null
+  notes?: string | null
+  items: { partId?: string | null; partName: string; quantity: number; estUnitCost?: number }[]
+}
+
+export interface PurchaseOrderItem {
+  id: string
+  partId: string | null
+  partName: string
+  quantityOrdered: number
+  quantityReceived: number
+  unitCost: number
+  lineTotal: number
+}
+
+export interface PurchaseOrder {
+  id: string
+  number: string
+  status: PurchaseOrderStatus
+  purchaseRequestId: string | null
+  vendorId: string | null
+  vendorName: string | null
+  outlet: string | null
+  total: number
+  items: PurchaseOrderItem[]
+  createdAt: string
+}
+
+export interface ScanLowStockResult {
+  created: number
+  purchaseRequestIds: string[]
+  partsScanned: number
+}
+
+// Tier 6.2 — data-driven vendor selection
+export interface VendorPerformanceSummary {
+  vendorId: string
+  name: string
+  totalAssigned: number
+  completed: number
+  onTime: number
+  onTimePct: number
+  avgResolutionDays: number
+  openWorkOrders: number
+}
+
+export interface PartPriceHistoryEntry {
+  vendorId: string | null
+  vendorName: string | null
+  lastUnitCost: number
+  avgUnitCost: number
+  minUnitCost: number
+  timesOrdered: number
+  totalQuantity: number
+  lastOrderedAt: string | null
+}
+
+// Tier 6.3 — budgets
+export interface Budget {
+  id: string
+  outletId: string
+  outlet: string | null
+  period: string      // YYYY-MM
+  amount: number
+  createdAt: string
+}
+
+export interface BudgetStatusEntry {
+  budgetId: string
+  outletId: string
+  outlet: string | null
+  period: string
+  amount: number
+  spentWorkOrders: number
+  spentPurchaseOrders: number
+  spent: number
+  remaining: number
+  pct: number
+  overBudget: boolean
+  warning: boolean
 }
 
 // =====================================================================

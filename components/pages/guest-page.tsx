@@ -6,6 +6,7 @@ import { StatCard } from '@/components/shared/stat-card'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { usePermissions } from '@/lib/permissions'
 
 const SENTIMENT_COLORS = {
   negative: '#ef4444',
@@ -21,6 +22,7 @@ function getSentiment(priority: string): 'negative' | 'neutral' | 'positive' {
 
 export function GuestPage() {
   const { issues, updateIssueStatus } = useIssueStore()
+  const { can } = usePermissions()
 
   const guestIssues = issues.filter(i => i.category === 'Guest Service')
   const now = new Date()
@@ -115,27 +117,29 @@ export function GuestPage() {
                         </span>
                       )}
                     </div>
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        disabled={issue.status === 'resolved'}
-                        onClick={() => updateIssueStatus(issue.id, 'resolved')}
-                        className={cn(
-                          'px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors',
-                          issue.status === 'resolved'
-                            ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        )}
-                      >
-                        Mark Resolved
-                      </button>
-                      <button
-                        disabled={issue.status === 'waiting'}
-                        onClick={() => updateIssueStatus(issue.id, 'waiting')}
-                        className="px-3 py-1.5 rounded-md border border-border text-[11px] text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50"
-                      >
-                        Escalate
-                      </button>
-                    </div>
+                    {can.updateIssueStatus && (
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          disabled={issue.status === 'resolved'}
+                          onClick={() => updateIssueStatus(issue.id, 'resolved')}
+                          className={cn(
+                            'px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors',
+                            issue.status === 'resolved'
+                              ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          )}
+                        >
+                          Mark Resolved
+                        </button>
+                        <button
+                          disabled={issue.status === 'waiting'}
+                          onClick={() => updateIssueStatus(issue.id, 'waiting')}
+                          className="px-3 py-1.5 rounded-md border border-border text-[11px] text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50"
+                        >
+                          Escalate
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Monitor, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { Issue, IssueStatus } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
@@ -17,6 +18,9 @@ const COLUMNS: { status: IssueStatus; label: string; color: string }[] = [
 
 export function ITSupportPage() {
   const { issues, outlets, pics, createIssue, updateIssueStatus } = useIssueStore()
+  // Outlet pickers must only offer outlets this user may write to (Tier 4).
+  const myOutlets = useMyOutlets()
+  const { can } = usePermissions()
   const [showCreate, setShowCreate] = useState(false)
   const [selected, setSelected] = useState<Issue | null>(null)
 
@@ -118,21 +122,23 @@ export function ITSupportPage() {
               <div><p className="text-xs text-muted-foreground">Priority</p><PriorityBadge priority={selected.priority} /></div>
               <div><p className="text-xs text-muted-foreground">Due</p><p className="font-medium">{selected.dueDate || '—'}</p></div>
             </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1.5">Update Status</label>
-              <select
-                value={selected.status}
-                onChange={e => {
-                  const s = e.target.value as IssueStatus
-                  updateIssueStatus(selected.id, s)
-                  setSelected({ ...selected, status: s })
-                }}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                {COLUMNS.map(c => <option key={c.status} value={c.status}>{c.label}</option>)}
-                <option value="closed">Closed</option>
-              </select>
-            </div>
+            {can.updateIssueStatus && (
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1.5">Update Status</label>
+                <select
+                  value={selected.status}
+                  onChange={e => {
+                    const s = e.target.value as IssueStatus
+                    updateIssueStatus(selected.id, s)
+                    setSelected({ ...selected, status: s })
+                  }}
+                  className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  {COLUMNS.map(c => <option key={c.status} value={c.status}>{c.label}</option>)}
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <StatusBadge status={selected.status} />
               <button onClick={() => setSelected(null)} className="px-4 py-2 rounded-md bg-muted text-sm font-medium hover:bg-accent transition-colors">Close</button>
@@ -145,7 +151,7 @@ export function ITSupportPage() {
         open={showCreate}
         onOpenChange={setShowCreate}
         defaultCategory="IT Support"
-        outlets={outlets.map(o => o.name)}
+        outlets={myOutlets.map(o => o.name)}
         assignees={['Unassigned', ...pics.map(p => p.name)]}
         onSubmit={async (input) => { await createIssue(input) }}
       />

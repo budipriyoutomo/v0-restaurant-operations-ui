@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Package, Plus, Clock, CheckCircle2, XCircle, Wrench, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
-import { usePermissions } from '@/lib/permissions'
+import { usePermissions, useMyOutlets } from '@/lib/permissions'
 import { Asset, AssetStatus, WorkOrder } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
@@ -133,6 +133,8 @@ function AssetCard({ asset, workOrders }: { asset: Asset; workOrders: WorkOrder[
 // ---------------------------------------------------------------------------
 export function AssetsPage() {
   const { issues, approvals, outlets, pics, createIssue, assets, workOrders, cmmsLoading, createAsset } = useIssueStore()
+  // Outlet pickers must only offer outlets this user may write to (Tier 4).
+  const myOutlets = useMyOutlets()
   const { can } = usePermissions()
   const [showCreate, setShowCreate] = useState(false)
   const [showAddAsset, setShowAddAsset] = useState(false)
@@ -366,7 +368,7 @@ export function AssetsPage() {
         open={showCreate}
         onOpenChange={setShowCreate}
         defaultCategory="Asset Purchase"
-        outlets={outlets.map((o) => o.name)}
+        outlets={myOutlets.map((o) => o.name)}
         assignees={['Unassigned', ...pics.map((p) => p.name)]}
         onSubmit={async (input) => { await createIssue(input) }}
       />
@@ -374,7 +376,7 @@ export function AssetsPage() {
       <CreateAssetDialog
         open={showAddAsset}
         onOpenChange={setShowAddAsset}
-        outlets={outlets.map((o) => o.name)}
+        outlets={myOutlets.map((o) => o.name)}
         onSubmit={async (input) => { await createAsset(input) }}
       />
     </div>

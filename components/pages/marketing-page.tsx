@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Megaphone, Plus, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, X, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { Campaign, CampaignStatus, CampaignType, CreateCampaignInput } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
@@ -30,6 +31,9 @@ export function MarketingPage() {
     issues, approvals, outlets, pics, createIssue,
     campaigns, campaignsLoading, createCampaign, updateCampaign, deleteCampaign,
   } = useIssueStore()
+  // Outlet pickers must only offer outlets this user may write to (Tier 4).
+  const myOutlets = useMyOutlets()
+  const { can } = usePermissions()
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState<Tab>('campaigns')
   const [showCampaignForm, setShowCampaignForm] = useState(false)
@@ -53,12 +57,14 @@ export function MarketingPage() {
           <p className="text-sm text-muted-foreground mt-1">Campaign management, promotions, and marketing initiative approvals</p>
         </div>
         {tab === 'campaigns' ? (
-          <button
-            onClick={() => { setEditingCampaign(null); setShowCampaignForm(true) }}
-            className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="size-4" /> New Campaign
-          </button>
+          can.manageCampaigns && (
+            <button
+              onClick={() => { setEditingCampaign(null); setShowCampaignForm(true) }}
+              className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="size-4" /> New Campaign
+            </button>
+          )
         ) : (
           <button
             onClick={() => setShowCreate(true)}
@@ -99,6 +105,7 @@ export function MarketingPage() {
         <CampaignList
           campaigns={campaigns}
           loading={campaignsLoading}
+          canManage={can.manageCampaigns}
           onEdit={c => { setEditingCampaign(c); setShowCampaignForm(true) }}
           onDelete={deleteCampaign}
           onStatusChange={(id, status) => updateCampaign(id, { status })}
@@ -161,7 +168,7 @@ export function MarketingPage() {
         open={showCreate}
         onOpenChange={setShowCreate}
         defaultCategory="Marketing"
-        outlets={outlets.map(o => o.name)}
+        outlets={myOutlets.map(o => o.name)}
         assignees={['Unassigned', ...pics.map(p => p.name)]}
         onSubmit={async (input) => { await createIssue(input) }}
       />
@@ -169,7 +176,7 @@ export function MarketingPage() {
       {showCampaignForm && (
         <CampaignFormModal
           campaign={editingCampaign}
-          outlets={outlets.map(o => o.name)}
+          outlets={myOutlets.map(o => o.name)}
           onClose={() => setShowCampaignForm(false)}
           onSubmit={async (data) => {
             if (editingCampaign) {
@@ -188,9 +195,10 @@ export function MarketingPage() {
 // ---------------------------------------------------------------------------
 // Campaign list
 // ---------------------------------------------------------------------------
-function CampaignList({ campaigns, loading, onEdit, onDelete, onStatusChange }: {
+function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatusChange }: {
   campaigns: Campaign[]
   loading: boolean
+  canManage: boolean
   onEdit: (c: Campaign) => void
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: CampaignStatus) => void
@@ -218,10 +226,12 @@ function CampaignList({ campaigns, loading, onEdit, onDelete, onStatusChange }: 
                 <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">{TYPE_LABELS[c.type as CampaignType] ?? c.type}</span>
               </div>
             </div>
-            <div className="flex gap-1">
-              <button onClick={() => onEdit(c)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><Pencil className="size-3" /></button>
-              <button onClick={() => setConfirmDelete(c.id)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="size-3" /></button>
-            </div>
+            {canManage && (
+              <div className="flex gap-1">
+                <button onClick={() => onEdit(c)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><Pencil className="size-3" /></button>
+                <button onClick={() => setConfirmDelete(c.id)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="size-3" /></button>
+              </div>
+            )}
           </div>
           {c.description && <p className="text-xs text-muted-foreground line-clamp-2">{c.description}</p>}
           <div className="text-xs text-muted-foreground space-y-0.5">
@@ -235,18 +245,20 @@ function CampaignList({ campaigns, loading, onEdit, onDelete, onStatusChange }: 
               </p>
             )}
           </div>
-          <div className="pt-1 border-t border-border">
-            <select
-              value={c.status}
-              onChange={e => onStatusChange(c.id, e.target.value as CampaignStatus)}
-              className="w-full px-2 py-1 text-xs rounded border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary/50"
-            >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
+          {canManage && (
+            <div className="pt-1 border-t border-border">
+              <select
+                value={c.status}
+                onChange={e => onStatusChange(c.id, e.target.value as CampaignStatus)}
+                className="w-full px-2 py-1 text-xs rounded border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary/50"
+              >
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          )}
           {confirmDelete === c.id && (
             <div className="border-t border-border pt-2 space-y-2">
               <p className="text-xs text-muted-foreground">Delete <strong>{c.title}</strong>?</p>

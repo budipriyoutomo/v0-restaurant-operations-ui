@@ -5,6 +5,7 @@ import { Search, Filter, Plus, AlertTriangle, X, CheckSquare, CheckCircle2, Spar
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { Issue, IssueStatus } from '@/lib/types'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
 
@@ -12,6 +13,9 @@ const PAGE_SIZE = 12
 
 export function IssuesListPage() {
   const { issues, tasks, approvals, outlets, pics, assets, createIssue, updateIssueStatus } = useIssueStore()
+  // Outlet pickers must only offer outlets this user may write to (Tier 4).
+  const myOutlets = useMyOutlets()
+  const { can } = usePermissions()
 
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -318,39 +322,41 @@ export function IssuesListPage() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-2 pt-6 border-t border-border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Update Status</p>
-                <div className="relative">
-                  <button
-                    onClick={() => setStatusDropdownOpen((o) => !o)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-md border border-border text-sm font-semibold bg-background hover:bg-muted/50 transition-colors"
-                  >
-                    <StatusBadge status={selectedIssue.status} />
-                    <ChevronDown className="size-4 text-muted-foreground" />
-                  </button>
-                  {statusDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-md border border-border bg-popover shadow-md overflow-hidden">
-                      {((['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed'] as IssueStatus[])).map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => {
-                            updateIssueStatus(selectedIssue.id, s)
-                            setSelectedIssue((prev) => prev ? { ...prev, status: s } : null)
-                            setStatusDropdownOpen(false)
-                            toast.success('Status updated.')
-                          }}
-                          className={cn(
-                            'w-full flex items-center px-4 py-2 text-sm hover:bg-muted transition-colors',
-                            selectedIssue.status === s && 'bg-muted'
-                          )}
-                        >
-                          <StatusBadge status={s} />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+              {can.updateIssueStatus && (
+                <div className="flex flex-col gap-2 pt-6 border-t border-border">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Update Status</p>
+                  <div className="relative">
+                    <button
+                      onClick={() => setStatusDropdownOpen((o) => !o)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-md border border-border text-sm font-semibold bg-background hover:bg-muted/50 transition-colors"
+                    >
+                      <StatusBadge status={selectedIssue.status} />
+                      <ChevronDown className="size-4 text-muted-foreground" />
+                    </button>
+                    {statusDropdownOpen && (
+                      <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-md border border-border bg-popover shadow-md overflow-hidden">
+                        {((['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed'] as IssueStatus[])).map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => {
+                              updateIssueStatus(selectedIssue.id, s)
+                              setSelectedIssue((prev) => prev ? { ...prev, status: s } : null)
+                              setStatusDropdownOpen(false)
+                              toast.success('Status updated.')
+                            }}
+                            className={cn(
+                              'w-full flex items-center px-4 py-2 text-sm hover:bg-muted transition-colors',
+                              selectedIssue.status === s && 'bg-muted'
+                            )}
+                          >
+                            <StatusBadge status={s} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </>
@@ -359,7 +365,7 @@ export function IssuesListPage() {
       <CreateIssueDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        outlets={outlets.map((o) => o.name)}
+        outlets={myOutlets.map((o) => o.name)}
         assignees={['Unassigned', ...pics.map((p) => p.name)]}
         assets={assets}
         onSubmit={handleCreate}

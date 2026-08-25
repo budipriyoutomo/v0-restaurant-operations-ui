@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Sidebar } from './sidebar'
 import { TopNav } from './top-nav'
+import { OfflineStatusBar } from '@/components/shared/offline-status-bar'
 import { useIssueStore } from '@/lib/store'
 
 interface AppShellProps {
@@ -33,6 +34,7 @@ export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
       />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <TopNav currentPage={currentPage} sidebarCollapsed={sidebarCollapsed} />
+        <OfflineStatusBar />
         <main className="flex-1 overflow-y-auto bg-background">
           {children}
         </main>

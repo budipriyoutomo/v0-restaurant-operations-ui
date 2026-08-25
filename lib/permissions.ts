@@ -17,6 +17,27 @@ const STAFF_PAGES = new Set([
 const MANAGER_PAGES = new Set([...STAFF_PAGES, 'analytics', 'reports'])
 const ADMIN_PAGES   = new Set([...MANAGER_PAGES, 'master-data', 'users', 'settings'])
 
+/**
+ * Outlets the current user may act on (Tier 4).
+ *
+ * Admins get every outlet; everyone else gets only the ones they are assigned to
+ * (`user_outlets`). Used to populate outlet pickers so the UI never offers an
+ * action the backend will reject with 403.
+ *
+ * This is a convenience layer, not the security boundary — the backend scopes
+ * reads and guards writes regardless of what the UI shows.
+ */
+export function useMyOutlets() {
+  const currentUser = useIssueStore((s) => s.currentUser)
+  const outlets = useIssueStore((s) => s.outlets)
+
+  if (!currentUser) return []
+  if (currentUser.role === 'admin') return outlets
+
+  const mine = new Set(currentUser.outlet_ids ?? [])
+  return outlets.filter((o) => mine.has(o.id))
+}
+
 export function usePermissions() {
   const currentUser = useIssueStore((s) => s.currentUser)
   const role: UserRole = (currentUser?.role as UserRole | undefined) ?? 'staff'
@@ -30,6 +51,12 @@ export function usePermissions() {
     manageAssets: atLeast(role, 'manager'),
     // PM schedule CRUD — manager, admin
     managePM: atLeast(role, 'manager'),
+    // Campaign create/edit/delete — manager, admin
+    manageCampaigns: atLeast(role, 'manager'),
+    // Training program create/edit/delete — manager, admin
+    manageTraining: atLeast(role, 'manager'),
+    // Vendor create/edit/delete — manager, admin
+    manageVendors: atLeast(role, 'manager'),
     // Run the PM generator (POST /api/pm-schedules/run-now) — admin only
     runPMGenerator: atLeast(role, 'admin'),
     // View analytics & reports — manager, admin

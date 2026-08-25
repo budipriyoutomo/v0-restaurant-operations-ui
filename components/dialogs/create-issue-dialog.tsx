@@ -8,9 +8,9 @@ import { CATEGORY_DEFAULTS, CreateIssueInput, IssueCategory, Priority, Asset } f
 interface CreateIssueDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Outlet names from store.outlets — falls back to hardcoded list if empty */
+  /** Outlet names from store.outlets — an empty list switches to free-text entry */
   outlets?: string[]
-  /** Assignee names from store.pics — falls back to hardcoded list if empty */
+  /** Assignee names from store.pics — always includes 'Unassigned' at minimum */
   assignees?: string[]
   /** Assets from store — shown in WO asset selector when Maintenance category */
   assets?: Asset[]
@@ -24,17 +24,14 @@ const CATEGORIES: IssueCategory[] = [
 ]
 const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'critical']
 
-const FALLBACK_OUTLETS = ['KL Central', 'Subang', 'KLCC', 'Bangsar', 'Damansara', 'All Outlets']
-const FALLBACK_ASSIGNEES = ['Unassigned', 'Ahmad Razif', 'Lee Chong Wei', 'Mohd Faris', 'Raj Kumar', 'Sarah Johnson', 'Priya Sharma']
-
 export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, assets, defaultCategory, onSubmit }: CreateIssueDialogProps) {
-  const outletOptions   = outlets  && outlets.length  > 0 ? outlets  : FALLBACK_OUTLETS
-  const assigneeOptions = assignees && assignees.length > 0 ? assignees : FALLBACK_ASSIGNEES
+  const outletOptions   = outlets ?? []
+  const assigneeOptions = assignees && assignees.length > 0 ? assignees : ['Unassigned']
 
   const [form, setForm] = useState({
     title: '',
     description: '',
-    outlet: outletOptions[0],
+    outlet: outletOptions[0] ?? '',
     category: (defaultCategory ?? 'Maintenance') as IssueCategory,
     priority: 'medium' as Priority,
     assignee: 'Unassigned',
@@ -57,7 +54,7 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
       setForm({
         title: '',
         description: '',
-        outlet: outletOptions[0],
+        outlet: outletOptions[0] ?? '',
         category: defaultCategory ?? 'Maintenance',
         priority: 'medium',
         assignee: 'Unassigned',

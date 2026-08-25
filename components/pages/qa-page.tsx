@@ -6,9 +6,11 @@ import { StatCard } from '@/components/shared/stat-card'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { usePermissions } from '@/lib/permissions'
 
 export function QAPage() {
   const { issues, outlets, updateIssueStatus } = useIssueStore()
+  const { can } = usePermissions()
 
   const complianceIssues = issues.filter(i => i.category === 'Compliance')
   const now = new Date()
@@ -126,23 +128,25 @@ export function QAPage() {
                       {issue.description}
                     </div>
                   )}
-                  <div className="flex gap-2 mt-3">
-                    {(['resolved', 'closed'] as const).map(s => (
-                      <button
-                        key={s}
-                        disabled={issue.status === s}
-                        onClick={() => updateIssueStatus(issue.id, s)}
-                        className={cn(
-                          'px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors',
-                          issue.status === s
-                            ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        )}
-                      >
-                        {s === 'resolved' ? 'Mark Resolved' : 'Close CAPA'}
-                      </button>
-                    ))}
-                  </div>
+                  {can.updateIssueStatus && (
+                    <div className="flex gap-2 mt-3">
+                      {(['resolved', 'closed'] as const).map(s => (
+                        <button
+                          key={s}
+                          disabled={issue.status === s}
+                          onClick={() => updateIssueStatus(issue.id, s)}
+                          className={cn(
+                            'px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors',
+                            issue.status === s
+                              ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          )}
+                        >
+                          {s === 'resolved' ? 'Mark Resolved' : 'Close CAPA'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

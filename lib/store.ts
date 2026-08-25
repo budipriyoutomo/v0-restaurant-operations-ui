@@ -8,6 +8,7 @@
 // =====================================================================
 
 import { create } from 'zustand'
+import { toast } from 'sonner'
 import { api, authToken } from './api-client'
 import {
   AppNotification,
@@ -57,6 +58,19 @@ import {
   CreatePartInput,
   UpdatePartInput,
   WorkOrderPart,
+  PurchaseRequest,
+  CreatePurchaseRequestInput,
+  PurchaseOrder,
+  ScanLowStockResult,
+  VendorPerformanceSummary,
+  PartPriceHistoryEntry,
+  Budget,
+  BudgetStatusEntry,
+  ChecklistItem,
+  WorkOrderAttachment,
+  AssetHistory,
+  AssetSummary,
+  QRResolveResult,
 } from './types'
 
 // ---------------------------------------------------------------------------
@@ -99,7 +113,7 @@ interface IssueCoreState {
   usersLoading: boolean
   loadUsers: () => Promise<void>
   inviteUser: (email: string, name: string, role: string, password: string) => Promise<User>
-  updateUser: (id: string, patch: { name?: string; role?: string; is_active?: boolean }) => Promise<User>
+  updateUser: (id: string, patch: { name?: string; role?: string; is_active?: boolean; outlet_ids?: string[] }) => Promise<User>
   deleteUser: (id: string) => Promise<void>
 
   // Issue core actions
@@ -129,6 +143,13 @@ interface IssueCoreState {
   deleteWorkOrder: (id: string) => Promise<void>
   assignWorkOrderVendor: (woId: string, vendorId: string, slaDue?: string) => Promise<WorkOrderDetail>
   loadVendorPerformance: (vendorId: string) => Promise<VendorPerformance>
+  addChecklistItem: (woId: string, title: string, orderIndex?: number) => Promise<ChecklistItem>
+  addWorkOrderAttachment: (woId: string, fileUrl: string, caption?: string) => Promise<WorkOrderAttachment>
+  uploadWorkOrderPhoto: (woId: string, file: File, caption?: string) => Promise<WorkOrderAttachment>
+  loadWorkOrderParts: (woId: string) => Promise<WorkOrderPart[]>
+  loadAssetHistory: (assetId: string) => Promise<AssetHistory>
+  loadAssetSummary: (assetId: string) => Promise<AssetSummary>
+  resolveQr: (token: string) => Promise<QRResolveResult>
 
   // Preventive Maintenance schedules (Tier 2.1)
   pmSchedules: PMSchedule[]
@@ -153,6 +174,23 @@ interface IssueCoreState {
   updatePart: (id: string, input: UpdatePartInput) => Promise<Part>
   deletePart: (id: string) => Promise<void>
   consumePart: (woId: string, partId: string, quantity: number) => Promise<WorkOrderPart>
+
+  // Procurement (Tier 6.1)
+  purchaseRequests: PurchaseRequest[]
+  purchaseOrders: PurchaseOrder[]
+  procurementLoading: boolean
+  loadPurchaseRequests: () => Promise<void>
+  loadPurchaseOrders: () => Promise<void>
+  createPurchaseRequest: (input: CreatePurchaseRequestInput) => Promise<PurchaseRequest>
+  scanLowStock: () => Promise<ScanLowStockResult>
+  orderPurchaseRequest: (prId: string, vendorId: string) => Promise<PurchaseOrder>
+  receivePurchaseOrder: (poId: string, lines: { purchaseOrderItemId: string; quantityReceived: number }[]) => Promise<void>
+  loadVendorPerformanceSummary: () => Promise<VendorPerformanceSummary[]>
+  loadPartPriceHistory: (partId: string) => Promise<PartPriceHistoryEntry[]>
+  loadBudgetStatus: (period: string) => Promise<BudgetStatusEntry[]>
+  createBudget: (outletId: string, period: string, amount: number) => Promise<Budget>
+  updateBudget: (id: string, amount: number) => Promise<Budget>
+  deleteBudget: (id: string) => Promise<void>
 
   // Approval policies (Tier 2.2)
   approvalPolicies: ApprovalPolicy[]
@@ -256,6 +294,10 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
 
   pmSchedules: [],
   pmLoading:   false,
+
+  purchaseRequests:  [],
+  purchaseOrders:    [],
+  procurementLoading: false,
 
   approvalPolicies: [],
   policiesLoading:  false,
@@ -508,7 +550,10 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     set((state) => ({
       issues: state.issues.map((i) => i.id === issueId ? { ...i, status } : i),
     }))
-    api.patch(`/api/issues/${issueId}`, { status }).catch(() => get().loadAll())
+    api.patch(`/api/issues/${issueId}`, { status }).catch((e) => {
+      toast.error(e instanceof Error ? e.message : 'Failed to update issue status.')
+      get().loadAll()
+    })
   },
 
   // -------------------------------------------------------------------------
@@ -518,7 +563,10 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     set((state) => ({
       tasks: state.tasks.map((t) => t.id === taskId ? { ...t, status } : t),
     }))
-    api.patch(`/api/tasks/${taskId}`, { status }).catch(() => get().loadAll())
+    api.patch(`/api/tasks/${taskId}`, { status }).catch((e) => {
+      toast.error(e instanceof Error ? e.message : 'Failed to update task status.')
+      get().loadAll()
+    })
   },
 
   // -------------------------------------------------------------------------
@@ -697,6 +745,44 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     return api.get<VendorPerformance>(`/api/vendors/${vendorId}/performance`)
   },
 
+  addChecklistItem: async (woId, title, orderIndex = 0) => {
+    return api.post<ChecklistItem>(`/api/work-orders/${woId}/checklist`, { title, orderIndex })
+  },
+
+  addWorkOrderAttachment: async (woId, fileUrl, caption) => {
+    return api.post<WorkOrderAttachment>(`/api/work-orders/${woId}/attachments`, { fileUrl, caption })
+  },
+
+  uploadWorkOrderPhoto: async (woId, file, caption) => {
+    // Goes through the offline queue (Tier 5.3): in a no-signal room the photo
+    // is stored locally and uploaded when signal returns. Throws QueuedError
+    // when queued so the UI can say "will upload later".
+    return api.mutateOrQueue<WorkOrderAttachment>({
+      method: 'POST',
+      path: `/api/work-orders/${woId}/attachments/upload`,
+      file,
+      fileName: file.name,
+      formParts: caption ? [{ field: 'caption', value: caption }] : [],
+      label: `Foto WO ${woId.slice(0, 8)}`,
+    })
+  },
+
+  loadWorkOrderParts: async (woId) => {
+    return api.get<WorkOrderPart[]>(`/api/work-orders/${woId}/parts`)
+  },
+
+  loadAssetHistory: async (assetId) => {
+    return api.get<AssetHistory>(`/api/assets/${assetId}/history`)
+  },
+
+  loadAssetSummary: async (assetId) => {
+    return api.get<AssetSummary>(`/api/assets/${assetId}/summary`)
+  },
+
+  resolveQr: async (token) => {
+    return api.get<QRResolveResult>(`/api/assets/by-qr/${encodeURIComponent(token)}`)
+  },
+
   // -------------------------------------------------------------------------
   // Preventive Maintenance schedules (Tier 2.1)
   // -------------------------------------------------------------------------
@@ -799,6 +885,76 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     // Stock and WO parts_cost changed — refresh parts + CMMS.
     await Promise.all([get().loadParts(), get().loadCMMS()])
     return wp
+  },
+
+  // -------------------------------------------------------------------------
+  // Procurement (Tier 6.1)
+  // -------------------------------------------------------------------------
+  loadPurchaseRequests: async () => {
+    set({ procurementLoading: true })
+    try {
+      const purchaseRequests = await api.get<PurchaseRequest[]>('/api/purchase-requests')
+      set({ purchaseRequests, procurementLoading: false })
+    } catch {
+      set({ procurementLoading: false })
+    }
+  },
+
+  loadPurchaseOrders: async () => {
+    try {
+      const purchaseOrders = await api.get<PurchaseOrder[]>('/api/purchase-orders')
+      set({ purchaseOrders })
+    } catch { /* non-critical */ }
+  },
+
+  createPurchaseRequest: async (input) => {
+    const pr = await api.post<PurchaseRequest>('/api/purchase-requests', input)
+    set((state) => ({ purchaseRequests: [pr, ...state.purchaseRequests] }))
+    // The PR raised an approval — refresh the approval inbox.
+    get().loadAll?.()
+    return pr
+  },
+
+  scanLowStock: async () => {
+    const res = await api.post<ScanLowStockResult>('/api/purchase-requests/scan-low-stock', {})
+    await get().loadPurchaseRequests()
+    return res
+  },
+
+  orderPurchaseRequest: async (prId, vendorId) => {
+    const po = await api.post<PurchaseOrder>(`/api/purchase-requests/${prId}/order`, { vendorId })
+    await Promise.all([get().loadPurchaseRequests(), get().loadPurchaseOrders()])
+    return po
+  },
+
+  receivePurchaseOrder: async (poId, lines) => {
+    await api.post(`/api/purchase-orders/${poId}/receive`, { lines })
+    // Stock changed + PO/PR statuses advanced — refresh procurement + parts.
+    await Promise.all([get().loadPurchaseOrders(), get().loadPurchaseRequests(), get().loadParts()])
+  },
+
+  loadVendorPerformanceSummary: async () => {
+    return api.get<VendorPerformanceSummary[]>('/api/vendors/performance-summary')
+  },
+
+  loadPartPriceHistory: async (partId) => {
+    return api.get<PartPriceHistoryEntry[]>(`/api/parts/${partId}/price-history`)
+  },
+
+  loadBudgetStatus: async (period) => {
+    return api.get<BudgetStatusEntry[]>(`/api/analytics/budget?period=${period}`)
+  },
+
+  createBudget: async (outletId, period, amount) => {
+    return api.post<Budget>('/api/budgets', { outletId, period, amount })
+  },
+
+  updateBudget: async (id, amount) => {
+    return api.patch<Budget>(`/api/budgets/${id}`, { amount })
+  },
+
+  deleteBudget: async (id) => {
+    await api.delete(`/api/budgets/${id}`)
   },
 
   // -------------------------------------------------------------------------

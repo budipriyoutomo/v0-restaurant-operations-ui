@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Search, AlertCircle, Wrench, Calendar, User, Plus, GripVertical, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { usePermissions } from '@/lib/permissions'
 import { Issue, IssueStatus, Priority } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateWorkOrderDialog } from '@/components/dialogs/create-work-order-dialog'
@@ -24,6 +25,7 @@ const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low']
 
 export function MaintenanceModulePage() {
   const { issues, updateIssueStatus, workOrders, assets, pics, createWorkOrder } = useIssueStore()
+  const { can } = usePermissions()
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterPriority, setFilterPriority] = useState<Priority | null>(null)
@@ -63,7 +65,7 @@ export function MaintenanceModulePage() {
   const hasFilters = !!searchQuery || !!filterPriority
 
   function handleDrop(status: IssueStatus) {
-    if (draggingId) {
+    if (draggingId && can.updateIssueStatus) {
       const issue = maintenanceIssues.find((i) => i.id === draggingId)
       if (issue && issue.status !== status) {
         updateIssueStatus(draggingId, status)
@@ -199,6 +201,7 @@ export function MaintenanceModulePage() {
                           woCount={workOrders.filter((wo) => wo.issueId === issue.id).length}
                           isSelected={selectedIssue?.id === issue.id}
                           dragging={draggingId === issue.id}
+                          draggable={can.updateIssueStatus}
                           onSelect={() => setSelectedIssue(issue)}
                           onDragStart={() => setDraggingId(issue.id)}
                           onDragEnd={() => { setDraggingId(null); setDragOverCol(null) }}
@@ -235,19 +238,23 @@ export function MaintenanceModulePage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground font-medium">Status</span>
-                <select
-                  value={selectedIssue.status}
-                  onChange={(e) => {
-                    const s = e.target.value as IssueStatus
-                    updateIssueStatus(selectedIssue.id, s)
-                    setSelectedIssue((prev) => prev ? { ...prev, status: s } : null)
-                  }}
-                  className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                >
-                  {COLUMN_ORDER.map((id) => (
-                    <option key={id} value={id}>{STATUS_META[id].label}</option>
-                  ))}
-                </select>
+                {can.updateIssueStatus ? (
+                  <select
+                    value={selectedIssue.status}
+                    onChange={(e) => {
+                      const s = e.target.value as IssueStatus
+                      updateIssueStatus(selectedIssue.id, s)
+                      setSelectedIssue((prev) => prev ? { ...prev, status: s } : null)
+                    }}
+                    className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    {COLUMN_ORDER.map((id) => (
+                      <option key={id} value={id}>{STATUS_META[id].label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <StatusBadge status={selectedIssue.status} />
+                )}
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground font-medium">Priority</span>
@@ -364,6 +371,7 @@ function IssueCard({
   woCount,
   isSelected,
   dragging,
+  draggable,
   onSelect,
   onDragStart,
   onDragEnd,
@@ -372,18 +380,20 @@ function IssueCard({
   woCount: number
   isSelected: boolean
   dragging: boolean
+  draggable: boolean
   onSelect: () => void
   onDragStart: () => void
   onDragEnd: () => void
 }) {
   return (
     <div
-      draggable
+      draggable={draggable}
       onClick={onSelect}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
-        'group rounded-lg border bg-card p-3 cursor-grab active:cursor-grabbing transition-all hover:shadow-md',
+        'group rounded-lg border bg-card p-3 transition-all hover:shadow-md',
+        draggable && 'cursor-grab active:cursor-grabbing',
         isSelected ? 'border-primary ring-1 ring-primary shadow-md' : 'border-border hover:border-primary/40',
         dragging && 'opacity-50 ring-2 ring-primary rotate-1',
       )}

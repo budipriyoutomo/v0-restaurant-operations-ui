@@ -4,14 +4,20 @@ import { useState } from 'react'
 import { ShoppingCart, Plus, Clock, CheckCircle2, XCircle, Building2, Loader2, Pencil, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { PurchasingPanel } from '@/components/procurement/purchasing-panel'
+import { BudgetPanel } from '@/components/procurement/budget-panel'
+import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { ApprovalRequest, Issue, Vendor, CreateVendorInput } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
 
-type Tab = 'requests' | 'approvals' | 'vendors'
+type Tab = 'requests' | 'purchasing' | 'budget' | 'approvals' | 'vendors'
 
 export function ProcurementPage() {
   const { issues, approvals, outlets, pics, createIssue, vendors, vendorsLoading, createVendor, updateVendor, deleteVendor } = useIssueStore()
+  // Outlet pickers must only offer outlets this user may write to (Tier 4).
+  const myOutlets = useMyOutlets()
+  const { can } = usePermissions()
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState<Tab>('requests')
   const [showVendorForm, setShowVendorForm] = useState(false)
@@ -37,12 +43,14 @@ export function ProcurementPage() {
         </div>
         <div className="flex gap-2">
           {tab === 'vendors' ? (
-            <button
-              onClick={() => { setEditingVendor(null); setShowVendorForm(true) }}
-              className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="size-4" /> Add Vendor
-            </button>
+            can.manageVendors && (
+              <button
+                onClick={() => { setEditingVendor(null); setShowVendorForm(true) }}
+                className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="size-4" /> Add Vendor
+              </button>
+            )
           ) : (
             <button
               onClick={() => setShowCreate(true)}
@@ -65,7 +73,9 @@ export function ProcurementPage() {
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
         {([
-          { id: 'requests',  label: `Purchase Requests (${requests.length})` },
+          { id: 'requests',  label: `Issue Procurement (${requests.length})` },
+          { id: 'purchasing', label: `Pembelian (PR → PO)` },
+          { id: 'budget',    label: `Anggaran` },
           { id: 'approvals', label: `Approvals (${approvalsP.length})` },
           { id: 'vendors',   label: `Vendors (${activeVendors.length})` },
         ] as const).map(t => (
@@ -85,6 +95,12 @@ export function ProcurementPage() {
       {tab === 'requests' && (
         <IssueList issues={requests} emptyLabel="No purchase requests" emptyHint="Create a new request to get started." />
       )}
+      {tab === 'purchasing' && (
+        <PurchasingPanel />
+      )}
+      {tab === 'budget' && (
+        <BudgetPanel />
+      )}
       {tab === 'approvals' && (
         <ApprovalList approvals={approvalsP} />
       )}
@@ -92,6 +108,7 @@ export function ProcurementPage() {
         <VendorList
           vendors={vendors}
           loading={vendorsLoading}
+          canManage={can.manageVendors}
           onEdit={(v) => { setEditingVendor(v); setShowVendorForm(true) }}
           onDelete={deleteVendor}
           onToggleActive={(v) => updateVendor(v.id, { is_active: !v.is_active })}
@@ -102,7 +119,7 @@ export function ProcurementPage() {
         open={showCreate}
         onOpenChange={setShowCreate}
         defaultCategory="Procurement"
-        outlets={outlets.map(o => o.name)}
+        outlets={myOutlets.map(o => o.name)}
         assignees={['Unassigned', ...pics.map(p => p.name)]}
         onSubmit={async (input) => { await createIssue(input) }}
       />
@@ -110,7 +127,7 @@ export function ProcurementPage() {
       {showVendorForm && (
         <VendorFormModal
           vendor={editingVendor}
-          outlets={outlets.map(o => o.name)}
+          outlets={myOutlets.map(o => o.name)}
           onClose={() => setShowVendorForm(false)}
           onSubmit={async (data) => {
             if (editingVendor) {
@@ -209,9 +226,10 @@ function ApprovalList({ approvals }: { approvals: ApprovalRequest[] }) {
   )
 }
 
-function VendorList({ vendors, loading, onEdit, onDelete, onToggleActive }: {
+function VendorList({ vendors, loading, canManage, onEdit, onDelete, onToggleActive }: {
   vendors: Vendor[]
   loading: boolean
+  canManage: boolean
   onEdit: (v: Vendor) => void
   onDelete: (id: string) => void
   onToggleActive: (v: Vendor) => void
@@ -246,14 +264,16 @@ function VendorList({ vendors, loading, onEdit, onDelete, onToggleActive }: {
               <p className="text-sm font-semibold truncate">{v.name}</p>
               <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">{v.category}</span>
             </div>
-            <div className="flex gap-1 flex-shrink-0">
-              <button onClick={() => onEdit(v)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                <Pencil className="size-3" />
-              </button>
-              <button onClick={() => setConfirmDelete(v.id)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                <Trash2 className="size-3" />
-              </button>
-            </div>
+            {canManage && (
+              <div className="flex gap-1 flex-shrink-0">
+                <button onClick={() => onEdit(v)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <Pencil className="size-3" />
+                </button>
+                <button onClick={() => setConfirmDelete(v.id)} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                  <Trash2 className="size-3" />
+                </button>
+              </div>
+            )}
           </div>
           {v.contact_name  && <p className="text-xs text-muted-foreground">Contact: {v.contact_name}</p>}
           {v.contact_phone && <p className="text-xs text-muted-foreground">{v.contact_phone}</p>}
@@ -263,9 +283,11 @@ function VendorList({ vendors, loading, onEdit, onDelete, onToggleActive }: {
             <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded', v.is_active ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>
               {v.is_active ? 'Active' : 'Inactive'}
             </span>
-            <button onClick={() => onToggleActive(v)} className="text-[10px] text-muted-foreground hover:text-foreground underline">
-              {v.is_active ? 'Deactivate' : 'Activate'}
-            </button>
+            {canManage && (
+              <button onClick={() => onToggleActive(v)} className="text-[10px] text-muted-foreground hover:text-foreground underline">
+                {v.is_active ? 'Deactivate' : 'Activate'}
+              </button>
+            )}
           </div>
           {confirmDelete === v.id && (
             <div className="border-t border-border pt-2 space-y-2">

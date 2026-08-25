@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Filter, CheckCircle2, XCircle, Clock, ShoppingCart, Megaphone, BookOpen, Package, Wrench, X, Loader2 } from 'lucide-react'
+import { Search, Filter, CheckCircle2, XCircle, Clock, ShoppingCart, Megaphone, BookOpen, Package, Wrench, X, Loader2, AlertTriangle, UserCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
@@ -25,7 +25,7 @@ const typeLabels: Record<ApprovalType, string> = {
 }
 
 export function ApprovalCenterPage() {
-  const { approvals, decideApproval, currentUser } = useIssueStore()
+  const { approvals, decideApproval, currentUser, delegateApproval, escalateStaleApprovals, allUsers } = useIssueStore()
   const { can } = usePermissions()
   const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -33,6 +33,56 @@ export function ApprovalCenterPage() {
   const [filterStatus, setFilterStatus] = useState<string | null>('pending')
   const [isDeciding, setIsDeciding] = useState(false)
   const [decisionComment, setDecisionComment] = useState('')
+  const [delegateTo, setDelegateTo] = useState('')
+  const [isDelegating, setIsDelegating] = useState(false)
+  const [isEscalating, setIsEscalating] = useState(false)
+
+  // Only manager/admin can hold an approval step, so those are the valid delegates.
+  const delegateCandidates = allUsers.filter(
+    (u) => u.is_active && (u.role === 'manager' || u.role === 'admin') && u.id !== currentUser?.id,
+  )
+
+  const syncSelected = (id: string) => {
+    const refreshed = useIssueStore.getState().approvals.find((a) => a.id === id)
+    setSelectedApproval(refreshed ?? null)
+  }
+
+  const handleDelegate = async () => {
+    if (!selectedApproval || !delegateTo || isDelegating) return
+    const target = allUsers.find((u) => u.id === delegateTo)
+    if (!target) return
+    setIsDelegating(true)
+    try {
+      // Send the target's role too, so the active step's required role matches
+      // the delegate and they are actually able to decide it.
+      await delegateApproval(selectedApproval.id, { toUserId: target.id, toRole: target.role })
+      syncSelected(selectedApproval.id)
+      setDelegateTo('')
+      toast.success(`Didelegasikan ke ${target.name}.`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal mendelegasikan.')
+    } finally {
+      setIsDelegating(false)
+    }
+  }
+
+  const handleEscalate = async () => {
+    if (isEscalating) return
+    setIsEscalating(true)
+    try {
+      const count = await escalateStaleApprovals()
+      if (count > 0) {
+        toast.success(`${count} approval menggantung dieskalasi ke admin.`)
+        if (selectedApproval) syncSelected(selectedApproval.id)
+      } else {
+        toast.message('Tidak ada approval yang menggantung.')
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal eskalasi.')
+    } finally {
+      setIsEscalating(false)
+    }
+  }
 
   const filteredApprovals = approvals.filter((approval) => {
     const matchesSearch = approval.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -84,6 +134,17 @@ export function ApprovalCenterPage() {
           <h1 className="text-3xl font-bold">Approval Center</h1>
           <p className="text-sm text-muted-foreground mt-1">Review and approve requests - Centralized approval inbox</p>
         </div>
+        {can.manageUsers && (
+          <button
+            onClick={handleEscalate}
+            disabled={isEscalating}
+            title="Flag & notify admins about approvals stuck beyond the threshold"
+            className="flex items-center gap-1.5 px-3 h-9 rounded-md border border-border text-xs font-semibold hover:bg-accent transition-colors disabled:opacity-60"
+          >
+            {isEscalating ? <Loader2 className="size-3.5 animate-spin" /> : <AlertTriangle className="size-3.5" />}
+            Eskalasi yang menggantung
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -248,10 +309,27 @@ export function ApprovalCenterPage() {
                   <span className="text-sm font-mono">{selectedApproval.requestedDate}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">Linked Issue</span>
-                  <span className="text-sm font-mono font-bold text-primary">{selectedApproval.issueNumber}</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {selectedApproval.purchaseRequestId ? 'Purchase Request' : 'Linked Issue'}
+                  </span>
+                  <span className="text-sm font-mono font-bold text-primary">
+                    {selectedApproval.issueNumber ?? (selectedApproval.purchaseRequestId ? 'PR' : '—')}
+                  </span>
                 </div>
               </div>
+
+              {/* Escalation banner (Tier 3) */}
+              {selectedApproval.escalated && selectedApproval.status === 'pending' && (
+                <div className="flex items-start gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/30">
+                  <AlertTriangle className="size-4 text-destructive flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-destructive">Dieskalasi — menggantung terlalu lama</p>
+                    <p className="text-[11px] text-destructive/80 mt-0.5">
+                      Admin sudah diberi tahu. Putuskan atau delegasikan ke approver lain.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Step timeline — only shown for multi-step approvals */}
               {selectedApproval.steps.length > 0 && (
@@ -387,6 +465,38 @@ export function ApprovalCenterPage() {
                             Reject
                           </button>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Delegation (Tier 3) — any manager/admin can hand the active step over */}
+                    {can.approve && (
+                      <div className="space-y-2 pt-4 border-t border-border">
+                        <label className="block text-xs font-semibold text-muted-foreground">
+                          Delegasikan step aktif
+                        </label>
+                        <div className="flex gap-2">
+                          <select
+                            value={delegateTo}
+                            onChange={(e) => setDelegateTo(e.target.value)}
+                            className="flex-1 h-9 rounded-md border border-border bg-muted/20 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          >
+                            <option value="">— pilih approver —</option>
+                            {delegateCandidates.map((u) => (
+                              <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={handleDelegate}
+                            disabled={isDelegating || !delegateTo}
+                            className="px-3 h-9 rounded-md border border-border text-xs font-semibold hover:bg-accent transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                          >
+                            {isDelegating ? <Loader2 className="size-3.5 animate-spin" /> : <UserCheck className="size-3.5" />}
+                            Delegasikan
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          Approver baru akan menerima notifikasi dan step berpindah ke role-nya.
+                        </p>
                       </div>
                     )}
                   </>

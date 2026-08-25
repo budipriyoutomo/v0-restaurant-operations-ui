@@ -61,7 +61,8 @@ function exportApprovals(approvals: ApprovalRequest[]) {
   const headers = ['Number', 'Title', 'Type', 'Requester', 'Outlet', 'Amount', 'Status', 'Requested Date', 'Issue Number']
   const rows = approvals.map((a) => [
     a.number, a.title, a.type, a.requester, a.outlet,
-    a.amount ?? '', a.status, a.requestedDate ?? '', a.issueNumber,
+    // amount is an INTEGER rupiah value — CSV cells are strings
+    String(a.amount ?? ''), a.status, a.requestedDate ?? '', a.issueNumber ?? '',
   ])
   downloadCSV(buildCSV(headers, rows), `approvals_${todayString()}.csv`)
 }

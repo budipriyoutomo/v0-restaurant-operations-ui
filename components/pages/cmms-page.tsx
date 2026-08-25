@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { QrCode, Calendar, Wrench, Package, Clock, AlertCircle, Plus, X, CheckSquare, Square, DollarSign, PlayCircle, CheckCircle2, Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { QrCode, Calendar, Wrench, Package, Clock, AlertCircle, Plus, X, CheckSquare, Square, DollarSign, PlayCircle, CheckCircle2, Loader2, Building2, Camera } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
 import { StatCard } from '@/components/shared/stat-card'
@@ -11,10 +11,12 @@ import { CreateWorkOrderDialog } from '@/components/dialogs/create-work-order-di
 import { PMSchedulePanel } from '@/components/cmms/pm-schedule-panel'
 import { CMMSAnalyticsPanel } from '@/components/cmms/cmms-analytics-panel'
 import { PartsInventoryPanel } from '@/components/cmms/parts-inventory-panel'
+import { AuthedImage } from '@/components/shared/authed-image'
+import { QrDialog } from '@/components/cmms/qr-dialog'
 import { useIssueStore } from '@/lib/store'
-import { api } from '@/lib/api-client'
-import { Asset, AssetStatus, WorkOrder, WorkOrderDetail, WorkOrderStatus } from '@/lib/types'
-import { usePermissions } from '@/lib/permissions'
+import { api, QueuedError } from '@/lib/api-client'
+import { Asset, AssetStatus, AssetSummary, WorkOrder, WorkOrderDetail, WorkOrderStatus, WorkOrderPart } from '@/lib/types'
+import { usePermissions, useMyOutlets } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -97,7 +99,11 @@ function PMCalendar({ assets }: { assets: Asset[] }) {
 // Work Order detail drawer — slides in from right when a WO row is clicked
 // ---------------------------------------------------------------------------
 function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () => void }) {
-  const { transitionWorkOrder, toggleChecklistItem, updateWorkOrderCost, approvals } = useIssueStore()
+  const {
+    transitionWorkOrder, toggleChecklistItem, updateWorkOrderCost, approvals,
+    vendors, parts, assignWorkOrderVendor, consumePart, addChecklistItem,
+    addWorkOrderAttachment, uploadWorkOrderPhoto, loadWorkOrderParts, loadParts,
+  } = useIssueStore()
   const { can } = usePermissions()
   const [detail, setDetail] = useState<WorkOrderDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -105,13 +111,114 @@ function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () =>
   const [costForm, setCostForm] = useState({ laborHours: '', laborCost: '', partsCost: '' })
   const [savingCost, setSavingCost] = useState(false)
 
-  // Fetch WO detail on mount
-  useState(() => {
-    api.get<WorkOrderDetail>(`/api/work-orders/${woId}`)
-      .then((d) => { setDetail(d); setCostForm({ laborHours: String(d.laborHours || ''), laborCost: String(d.laborCost || ''), partsCost: String(d.partsCost || '') }) })
+  // Tier 3 state
+  const [woParts, setWoParts] = useState<WorkOrderPart[]>([])
+  const [partForm, setPartForm] = useState({ partId: '', quantity: '1' })
+  const [vendorForm, setVendorForm] = useState({ vendorId: '', slaDue: '' })
+  const [newChecklistItem, setNewChecklistItem] = useState('')
+  const [attachForm, setAttachForm] = useState({ fileUrl: '', caption: '' })
+  const [busy, setBusy] = useState<string | null>(null)
+
+  const refreshDetail = async () => {
+    const d = await api.get<WorkOrderDetail>(`/api/work-orders/${woId}`)
+    setDetail(d)
+    return d
+  }
+
+  // Fetch WO detail + consumed parts on mount
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      api.get<WorkOrderDetail>(`/api/work-orders/${woId}`),
+      loadWorkOrderParts(woId).catch(() => [] as WorkOrderPart[]),
+    ])
+      .then(([d, wp]) => {
+        if (cancelled) return
+        setDetail(d)
+        setWoParts(wp)
+        setCostForm({ laborHours: String(d.laborHours || ''), laborCost: String(d.laborCost || ''), partsCost: String(d.partsCost || '') })
+      })
       .catch(() => toast.error('Failed to load work order details.'))
-      .finally(() => setLoading(false))
-  })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    if (parts.length === 0) loadParts()
+    return () => { cancelled = true }
+  }, [woId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleConsumePart = async () => {
+    if (!detail || !partForm.partId) return toast.error('Pilih part dulu')
+    const qty = Number(partForm.quantity)
+    if (!qty || qty < 1) return toast.error('Jumlah tidak valid')
+    setBusy('part')
+    try {
+      await consumePart(detail.id, partForm.partId, qty)
+      const [d, wp] = await Promise.all([refreshDetail(), loadWorkOrderParts(detail.id)])
+      setWoParts(wp)
+      setCostForm((p) => ({ ...p, partsCost: String(d.partsCost || '') }))
+      setPartForm({ partId: '', quantity: '1' })
+      toast.success('Part dipakai — stok & parts cost diperbarui')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal memakai part')
+    } finally { setBusy(null) }
+  }
+
+  const handleAssignVendor = async () => {
+    if (!detail || !vendorForm.vendorId) return toast.error('Pilih vendor dulu')
+    setBusy('vendor')
+    try {
+      const updated = await assignWorkOrderVendor(detail.id, vendorForm.vendorId, vendorForm.slaDue || undefined)
+      setDetail(updated)
+      toast.success('Vendor ditugaskan')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal menugaskan vendor')
+    } finally { setBusy(null) }
+  }
+
+  const handleAddChecklist = async () => {
+    if (!detail || !newChecklistItem.trim()) return
+    setBusy('checklist')
+    try {
+      await addChecklistItem(detail.id, newChecklistItem.trim(), detail.checklistItems.length)
+      await refreshDetail()
+      setNewChecklistItem('')
+    } catch {
+      toast.error('Gagal menambah item checklist')
+    } finally { setBusy(null) }
+  }
+
+  const handleAddAttachment = async () => {
+    if (!detail || !attachForm.fileUrl.trim()) return toast.error('URL wajib diisi')
+    setBusy('attach')
+    try {
+      await addWorkOrderAttachment(detail.id, attachForm.fileUrl.trim(), attachForm.caption || undefined)
+      await refreshDetail()
+      setAttachForm({ fileUrl: '', caption: '' })
+      toast.success('Lampiran ditambahkan')
+    } catch {
+      toast.error('Gagal menambah lampiran')
+    } finally { setBusy(null) }
+  }
+
+  const handleUploadPhoto = async (fileList: FileList | null) => {
+    if (!detail || !fileList || fileList.length === 0) return
+    setBusy('upload')
+    let queued = 0
+    try {
+      for (const file of Array.from(fileList)) {
+        try {
+          await uploadWorkOrderPhoto(detail.id, file, attachForm.caption || undefined)
+        } catch (e) {
+          if (e instanceof QueuedError) { queued += 1; continue }
+          throw e
+        }
+      }
+      await refreshDetail().catch(() => {})   // offline: refetch may fail, that's fine
+      setAttachForm((a) => ({ ...a, caption: '' }))
+      if (queued > 0) toast.message(`${queued} foto akan diunggah saat online`)
+      else toast.success('Foto diunggah')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal mengunggah foto')
+    } finally { setBusy(null) }
+  }
 
   const linkedApproval = detail?.approvalId
     ? approvals.find(a => a.id === detail.approvalId)
@@ -288,8 +395,108 @@ function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () =>
                 )}
               </div>
 
+              {/* Spare parts consumed (Tier 3) */}
+              <div className="space-y-2 pb-4 border-b border-border">
+                <div className="flex items-center gap-1.5">
+                  <Package className="size-3.5 text-muted-foreground" />
+                  <p className="text-xs font-semibold">Spare Parts</p>
+                </div>
+                {woParts.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">Belum ada part dipakai.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {woParts.map((wp) => (
+                      <div key={wp.id} className="flex items-center justify-between text-xs px-2 py-1.5 rounded bg-muted/30">
+                        <span>{wp.partName} <span className="text-muted-foreground">× {wp.quantity}</span></span>
+                        <span className="font-semibold">{fmt(wp.lineCost)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {can.manageAssets && !isDone && (
+                  <div className="flex gap-1.5 pt-1">
+                    <select
+                      value={partForm.partId}
+                      onChange={(e) => setPartForm((p) => ({ ...p, partId: e.target.value }))}
+                      className="flex-1 h-7 rounded border border-border bg-muted/20 px-1.5 text-[11px]"
+                    >
+                      <option value="">— pilih part —</option>
+                      {parts.filter((p) => p.isActive && p.stockQty > 0).map((p) => (
+                        <option key={p.id} value={p.id}>{p.name} (stok {p.stockQty})</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number" min={1} value={partForm.quantity}
+                      onChange={(e) => setPartForm((p) => ({ ...p, quantity: e.target.value }))}
+                      className="w-14 h-7 rounded border border-border bg-muted/20 px-1.5 text-[11px]"
+                    />
+                    <button
+                      onClick={handleConsumePart}
+                      disabled={busy === 'part'}
+                      className="px-2 h-7 rounded bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {busy === 'part' ? <Loader2 className="size-3 animate-spin" /> : 'Pakai'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Vendor / SLA (Tier 3) */}
+              <div className="space-y-2 pb-4 border-b border-border">
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="size-3.5 text-muted-foreground" />
+                  <p className="text-xs font-semibold">Vendor Eksternal</p>
+                </div>
+                {detail.vendorName ? (
+                  <div className="flex items-center gap-2 flex-wrap text-xs">
+                    <span className="font-semibold">{detail.vendorName}</span>
+                    {detail.slaDue && (
+                      <span className="text-muted-foreground font-mono text-[11px]">SLA: {detail.slaDue}</span>
+                    )}
+                    {detail.slaMet !== null && (
+                      <span className={cn(
+                        'text-[10px] px-1.5 py-0.5 rounded font-semibold border',
+                        detail.slaMet
+                          ? 'bg-success/15 text-success border-success/30'
+                          : 'bg-destructive/15 text-destructive border-destructive/30',
+                      )}>
+                        {detail.slaMet ? 'SLA terpenuhi' : 'SLA terlewat'}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Dikerjakan internal.</p>
+                )}
+                {can.manageAssets && !isDone && (
+                  <div className="flex gap-1.5 pt-1">
+                    <select
+                      value={vendorForm.vendorId}
+                      onChange={(e) => setVendorForm((v) => ({ ...v, vendorId: e.target.value }))}
+                      className="flex-1 h-7 rounded border border-border bg-muted/20 px-1.5 text-[11px]"
+                    >
+                      <option value="">— pilih vendor —</option>
+                      {vendors.filter((v) => v.is_active).map((v) => (
+                        <option key={v.id} value={v.id}>{v.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="date" value={vendorForm.slaDue}
+                      onChange={(e) => setVendorForm((v) => ({ ...v, slaDue: e.target.value }))}
+                      className="h-7 rounded border border-border bg-muted/20 px-1.5 text-[11px]"
+                    />
+                    <button
+                      onClick={handleAssignVendor}
+                      disabled={busy === 'vendor'}
+                      className="px-2 h-7 rounded bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {busy === 'vendor' ? <Loader2 className="size-3 animate-spin" /> : 'Tugaskan'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Checklist */}
-              {detail.checklistItems.length > 0 && (
+              {(detail.checklistItems.length > 0 || (can.manageAssets && !isDone)) && (
                 <div className="space-y-2 pb-4 border-b border-border">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold">Checklist</p>
@@ -323,8 +530,100 @@ function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () =>
                       </button>
                     ))}
                   </div>
+
+                  {/* Add checklist item */}
+                  {can.manageAssets && !isDone && (
+                    <div className="flex gap-1.5 pt-1">
+                      <input
+                        value={newChecklistItem}
+                        onChange={(e) => setNewChecklistItem(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddChecklist() }}
+                        placeholder="Tambah item checklist…"
+                        className="flex-1 h-7 rounded border border-border bg-muted/20 px-2 text-[11px]"
+                      />
+                      <button
+                        onClick={handleAddChecklist}
+                        disabled={busy === 'checklist' || !newChecklistItem.trim()}
+                        className="px-2 h-7 rounded border border-border text-[11px] font-semibold hover:bg-accent disabled:opacity-50"
+                      >
+                        {busy === 'checklist' ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* Attachments */}
+              <div className="space-y-2 pb-4 border-b border-border">
+                <p className="text-xs font-semibold">Foto & Lampiran</p>
+                {detail.attachments.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">Belum ada lampiran.</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {detail.attachments.map((att) => (
+                      att.isUpload ? (
+                        <a
+                          key={att.id}
+                          href="#"
+                          onClick={async (e) => { e.preventDefault(); if (att.fileUrl) window.open(await api.objectUrl(att.fileUrl), '_blank') }}
+                          title={att.caption ?? ''}
+                          className="group relative block aspect-square rounded overflow-hidden border border-border"
+                        >
+                          <AuthedImage path={att.thumbnailUrl || att.fileUrl || ''} alt={att.caption ?? 'foto'} className="w-full h-full object-cover" />
+                          {att.caption && (
+                            <span className="absolute inset-x-0 bottom-0 bg-black/50 text-white text-[9px] px-1 py-0.5 truncate">{att.caption}</span>
+                          )}
+                        </a>
+                      ) : (
+                        <a
+                          key={att.id} href={att.fileUrl ?? '#'} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center justify-center aspect-square rounded border border-border bg-muted/30 text-[10px] text-primary hover:underline p-1 text-center break-all"
+                        >
+                          {att.caption || 'link'}
+                        </a>
+                      )
+                    ))}
+                  </div>
+                )}
+
+                {/* Upload a real photo (Tier 5.1) — camera on mobile, file picker on desktop */}
+                <input
+                  value={attachForm.caption}
+                  onChange={(e) => setAttachForm((a) => ({ ...a, caption: e.target.value }))}
+                  placeholder="Keterangan foto (opsional)"
+                  className="w-full h-7 rounded border border-border bg-muted/20 px-2 text-[11px] mt-1"
+                />
+                <label className="flex items-center justify-center gap-1.5 px-2 h-8 rounded-md border border-dashed border-border text-[11px] font-semibold cursor-pointer hover:bg-accent transition-colors">
+                  {busy === 'upload' ? <Loader2 className="size-3.5 animate-spin" /> : <Camera className="size-3.5" />}
+                  {busy === 'upload' ? 'Mengunggah…' : 'Ambil / unggah foto'}
+                  <input
+                    type="file" accept="image/*" capture="environment" multiple
+                    disabled={busy === 'upload'}
+                    onChange={(e) => { handleUploadPhoto(e.target.files); e.target.value = '' }}
+                    className="hidden"
+                  />
+                </label>
+
+                {/* Fallback: attach an external URL (documents/links) */}
+                <details className="group">
+                  <summary className="text-[10px] text-muted-foreground cursor-pointer hover:underline list-none">Tautkan URL eksternal…</summary>
+                  <div className="flex gap-1.5 pt-1.5">
+                    <input
+                      value={attachForm.fileUrl}
+                      onChange={(e) => setAttachForm((a) => ({ ...a, fileUrl: e.target.value }))}
+                      placeholder="https://…"
+                      className="flex-1 h-7 rounded border border-border bg-muted/20 px-2 text-[11px]"
+                    />
+                    <button
+                      onClick={handleAddAttachment}
+                      disabled={busy === 'attach'}
+                      className="px-2 h-7 rounded border border-border text-[11px] font-semibold hover:bg-accent disabled:opacity-50"
+                    >
+                      {busy === 'attach' ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+                    </button>
+                  </div>
+                </details>
+              </div>
 
               {/* Transition action — manager only */}
               {can.manageAssets && !isDone && nextStatus && (
@@ -361,8 +660,27 @@ function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () =>
 // Expandable asset detail panel (inline)
 // ---------------------------------------------------------------------------
 function AssetDetailPanel({ asset, onClose, onSelectWO }: { asset: Asset; onClose: () => void; onSelectWO: (woId: string) => void }) {
-  const { workOrders } = useIssueStore()
-  const linkedWOs = workOrders.filter((wo) => wo.assetId === asset.id)
+  const { workOrders, loadAssetHistory, loadAssetSummary } = useIssueStore()
+  const [summary, setSummary] = useState<AssetSummary | null>(null)
+  const [history, setHistory] = useState<WorkOrder[] | null>(null)
+
+  // Server-authoritative history + cost/downtime rollup for this asset.
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      loadAssetSummary(asset.id).catch(() => null),
+      loadAssetHistory(asset.id).catch(() => null),
+    ]).then(([s, h]) => {
+      if (cancelled) return
+      setSummary(s)
+      setHistory(h ? h.items : null)
+    })
+    return () => { cancelled = true }
+  }, [asset.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fall back to the store cache if the history call failed.
+  const linkedWOs = history ?? workOrders.filter((wo) => wo.assetId === asset.id)
+  const rp = (n: number) => 'Rp ' + (n ?? 0).toLocaleString('id-ID')
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -371,12 +689,30 @@ function AssetDetailPanel({ asset, onClose, onSelectWO }: { asset: Asset; onClos
           <h3 className="text-sm font-semibold">{asset.name}</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             {asset.number} · {asset.category} · {asset.outlet}
+            {asset.purchaseCost ? ` · nilai ${rp(asset.purchaseCost)}` : ''}
           </p>
         </div>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
           <AlertCircle className="size-4" />
         </button>
       </div>
+
+      {/* Maintenance rollup — GET /api/assets/{id}/summary */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 pb-4 border-b border-border">
+          {[
+            { label: 'Total WO', value: String(summary.totalWorkOrders) },
+            { label: 'Downtime', value: `${summary.totalDowntimeHours.toFixed(1)}h` },
+            { label: 'Total biaya', value: rp(summary.totalCost) },
+            { label: 'WO 90 hari', value: String(summary.workOrdersLast90Days) },
+          ].map(({ label, value }) => (
+            <div key={label} className="p-2 rounded-md bg-muted/30">
+              <p className="text-[10px] text-muted-foreground">{label}</p>
+              <p className="text-sm font-bold mt-0.5">{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs mb-4">
         <div>
@@ -439,9 +775,12 @@ function AssetDetailPanel({ asset, onClose, onSelectWO }: { asset: Asset; onClos
 // ---------------------------------------------------------------------------
 export function CMMSPage() {
   const { assets, workOrders, cmmsLoading, outlets, pics, createAsset, createWorkOrder } = useIssueStore()
+  // Outlet pickers must only offer outlets this user may write to (Tier 4).
+  const myOutlets = useMyOutlets()
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [selectedWOId, setSelectedWOId] = useState<string | null>(null)
   const [showAddAsset, setShowAddAsset] = useState(false)
+  const [showQr, setShowQr] = useState(false)
   const [showAddWO, setShowAddWO] = useState(false)
 
   // KPI derivations
@@ -528,7 +867,9 @@ export function CMMSPage() {
         <div className="lg:col-span-2 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Asset Status</h3>
-            <button className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border text-xs text-muted-foreground hover:bg-accent transition-colors">
+            <button
+              onClick={() => setShowQr(true)}
+              className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border text-xs text-muted-foreground hover:bg-accent transition-colors">
               <QrCode className="size-3" /> Scan QR
             </button>
           </div>
@@ -705,10 +1046,29 @@ export function CMMSPage() {
         <WorkOrderDetailDrawer woId={selectedWOId} onClose={() => setSelectedWOId(null)} />
       )}
 
+      {/* QR scan / print stickers (Tier 5.2) */}
+      {showQr && (
+        <QrDialog
+          onClose={() => setShowQr(false)}
+          onResolved={(r) => {
+            setShowQr(false)
+            // Land straight on the active work order if there is one, else the asset.
+            if (r.activeWorkOrderId) {
+              setSelectedAsset(null)
+              setSelectedWOId(r.activeWorkOrderId)
+            } else {
+              const a = assets.find((x) => x.id === r.asset.id) ?? r.asset
+              setSelectedAsset(a)
+            }
+            toast.success(`Aset: ${r.asset.name}`)
+          }}
+        />
+      )}
+
       <CreateAssetDialog
         open={showAddAsset}
         onOpenChange={setShowAddAsset}
-        outlets={outlets.map((o) => o.name)}
+        outlets={myOutlets.map((o) => o.name)}
         onSubmit={async (input) => { await createAsset(input) }}
       />
 
