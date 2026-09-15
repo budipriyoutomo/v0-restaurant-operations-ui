@@ -775,6 +775,7 @@ function AssetDetailPanel({ asset, onClose, onSelectWO }: { asset: Asset; onClos
 // ---------------------------------------------------------------------------
 export function CMMSPage() {
   const { assets, workOrders, cmmsLoading, outlets, pics, createAsset, createWorkOrder } = useIssueStore()
+  const { can } = usePermissions()
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
@@ -838,21 +839,24 @@ export function CMMSPage() {
 
   return (
     <div className="p-5 space-y-5">
-      {/* Header actions */}
-      <div className="flex items-center justify-end gap-2">
-        <button
-          onClick={() => setShowAddWO(true)}
-          className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent transition-colors"
-        >
-          <Plus className="size-3.5" /> New Work Order
-        </button>
-        <button
-          onClick={() => setShowAddAsset(true)}
-          className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="size-3.5" /> Add Asset
-        </button>
-      </div>
+      {/* Header actions — creating assets and work orders is manager/admin only
+          on the backend, so staff must not be offered a button that 403s. */}
+      {can.manageAssets && (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={() => setShowAddWO(true)}
+            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent transition-colors"
+          >
+            <Plus className="size-3.5" /> New Work Order
+          </button>
+          <button
+            onClick={() => setShowAddAsset(true)}
+            className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="size-3.5" /> Add Asset
+          </button>
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

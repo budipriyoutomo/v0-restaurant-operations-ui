@@ -15,6 +15,7 @@ import {
   MessageSquareWarning,
   Monitor,
   Package,
+  Gauge,
   BarChart3,
   FileText,
   Database,
@@ -50,6 +51,7 @@ const navItems: NavItem[] = [
   { id: 'guest-service',label: 'Guest Service', icon: MessageSquareWarning,  group: 'modules' },
   { id: 'it-support',   label: 'IT Support',    icon: Monitor,               group: 'modules' },
   { id: 'assets',       label: 'Assets',        icon: Package,               group: 'modules' },
+  { id: 'cmms',         label: 'CMMS',          icon: Gauge,                 group: 'modules' },
 
   // INSIGHTS - Analytics & reporting
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'insights' },

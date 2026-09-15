@@ -11,7 +11,7 @@ function atLeast(userRole: UserRole, minRole: UserRole): boolean {
 const STAFF_PAGES = new Set([
   'dashboard', 'issues', 'tasks', 'approvals',
   'maintenance', 'qa', 'procurement', 'training',
-  'marketing', 'guest-service', 'it-support', 'assets',
+  'marketing', 'guest-service', 'it-support', 'assets', 'cmms',
   'notifications',
 ])
 const MANAGER_PAGES = new Set([...STAFF_PAGES, 'analytics', 'reports'])

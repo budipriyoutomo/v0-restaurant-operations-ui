@@ -284,8 +284,9 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
                         // foreign key, so an asset *name* typed in by hand can
                         // only ever be rejected by the server.
                         <p className="px-3 py-2 rounded-md border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
-                          No assets registered yet — add them in CMMS first. The work
-                          order will still be created, just without an asset link.
+                          No assets registered yet — add them under Assets → Physical
+                          Assets. The work order will still be created, just without
+                          an asset link.
                         </p>
                       )}
                     </div>

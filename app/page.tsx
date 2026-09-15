@@ -33,6 +33,7 @@ import { TrainingPage }    from '@/components/pages/training-page'
 import { MarketingPage }   from '@/components/pages/marketing-page'
 import { ITSupportPage }   from '@/components/pages/it-support-page'
 import { AssetsPage }      from '@/components/pages/assets-page'
+import { CMMSPage }        from '@/components/pages/cmms-page'
 
 export default function Page() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -112,6 +113,7 @@ export default function Page() {
       case 'marketing':   return <MarketingPage />
       case 'it-support':  return <ITSupportPage />
       case 'assets':      return <AssetsPage />
+      case 'cmms':        return <CMMSPage />
       case 'users':    return <UsersPage />
       case 'settings': return <SettingsPage />
 
