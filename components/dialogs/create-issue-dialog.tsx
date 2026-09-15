@@ -280,14 +280,13 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
                           ))}
                         </select>
                       ) : (
-                        <input
-                          type="text"
-                          name="assetId"
-                          placeholder="Asset ID (add assets in CMMS)"
-                          value={form.assetId}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        />
+                        // No free-text box here on purpose: assetId is a UUID
+                        // foreign key, so an asset *name* typed in by hand can
+                        // only ever be rejected by the server.
+                        <p className="px-3 py-2 rounded-md border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
+                          No assets registered yet — add them in CMMS first. The work
+                          order will still be created, just without an asset link.
+                        </p>
                       )}
                     </div>
                     <div>

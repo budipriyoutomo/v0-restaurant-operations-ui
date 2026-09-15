@@ -57,6 +57,7 @@ export interface ApprovalStep {
 // Maps an Issue category to the Approval "type" badge used in the
 // Approval Center. Only categories that can carry an approval need an entry.
 export const CATEGORY_TO_APPROVAL_TYPE: Partial<Record<IssueCategory, ApprovalType>> = {
+  Maintenance: 'maintenance',
   Procurement: 'procurement',
   Marketing: 'marketing',
   Training: 'training',
