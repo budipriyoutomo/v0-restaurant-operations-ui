@@ -74,7 +74,7 @@ export function PurchasingPanel() {
               <p className="text-xs text-muted-foreground mt-0.5">Stok menipis → PR otomatis → approval → PO</p>
             </div>
           </div>
-          {can.manageMasterData && (
+          {can.runSystemJobs && (
             <button onClick={handleScan} disabled={busy === 'scan'}
               className="flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent disabled:opacity-50">
               {busy === 'scan' ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
@@ -115,7 +115,7 @@ export function PurchasingPanel() {
                       </span>
                     </td>
                     <td className="py-2 text-right">
-                      {pr.status === 'approved' && can.manageAssets && (
+                      {pr.status === 'approved' && can.manageProcurement && (
                         <button onClick={() => setChoosingFor(pr)}
                           className="px-2 h-7 rounded border border-border text-[11px] font-semibold hover:bg-accent">
                           Buat PO
@@ -170,7 +170,7 @@ export function PurchasingPanel() {
                         </span>
                       </td>
                       <td className="py-2 text-right">
-                        {(po.status === 'sent' || po.status === 'partially_received') && can.manageAssets && (
+                        {(po.status === 'sent' || po.status === 'partially_received') && can.manageProcurement && (
                           <button onClick={() => setReceivingPo(po)}
                             className="flex items-center gap-1 px-2 h-7 rounded border border-border text-[11px] font-semibold hover:bg-accent ml-auto">
                             <PackageCheck className="size-3.5" /> Terima

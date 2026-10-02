@@ -22,8 +22,9 @@ function buildHeaders(extra?: HeadersInit): HeadersInit {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: buildHeaders(options?.headers),
     ...options,
+    // After the spread: options.headers must extend, not replace, auth + JSON.
+    headers: buildHeaders(options?.headers),
   })
   if (!res.ok) {
     // Clear token on 401 so stale tokens don't get stuck
@@ -148,9 +149,23 @@ export function initOfflineSync(onChange?: (pending: number) => void): void {
   doFlush()
 }
 
+/** Human-readable message from an API error: FastAPI's `detail` (string, or
+ *  {message} as the Issue closure guard returns), else the raw error text. */
+export function apiErrorMessage(e: unknown, fallback = 'Request failed.'): string {
+  if (!(e instanceof Error)) return fallback
+  const json = e.message.slice(e.message.indexOf(': ') + 2)
+  try {
+    const detail = JSON.parse(json).detail
+    if (typeof detail === 'string') return detail
+    if (detail && typeof detail.message === 'string') return detail.message
+  } catch { /* not JSON */ }
+  return e.message
+}
+
 export const api = {
   get:    <T>(path: string)                => request<T>(path),
-  post:   <T>(path: string, body: unknown) => request<T>(path, { method: 'POST',   body: JSON.stringify(body) }),
+  post:   <T>(path: string, body: unknown, headers?: Record<string, string>) =>
+    request<T>(path, { method: 'POST', body: JSON.stringify(body), headers }),
   patch:  <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH',  body: JSON.stringify(body) }),
   delete: <T = void>(path: string)         => request<T>(path, { method: 'DELETE' }),
   postForm: requestForm,

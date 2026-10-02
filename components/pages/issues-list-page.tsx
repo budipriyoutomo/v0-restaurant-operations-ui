@@ -1,25 +1,55 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Filter, Plus, AlertTriangle, X, CheckSquare, CheckCircle2, Sparkles, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
+import { Search, Plus, AlertTriangle, X, CheckSquare, CheckCircle2, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Lock, Ban, RotateCcw, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { apiErrorMessage } from '@/lib/api-client'
 import { useMyOutlets, usePermissions } from '@/lib/permissions'
-import { Issue, IssueStatus } from '@/lib/types'
+import { Issue, IssueCategory, IssueStatus } from '@/lib/types'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
 
 const PAGE_SIZE = 12
 
-export function IssuesListPage() {
-  const { issues, tasks, approvals, outlets, pics, assets, createIssue, updateIssueStatus } = useIssueStore()
+// Saved views (Todo-Pilot §6): QA & Compliance, Guest Service and IT Support are
+// the Issues list pinned to one category, not separate half-built modules.
+// Their page ids stay, so the existing per-module permissions still apply.
+export type IssueViewId = 'qa' | 'guest-service' | 'it-support'
+
+const ISSUE_VIEWS: Record<IssueViewId, { title: string; description: string; category: IssueCategory }> = {
+  qa:              { title: 'QA & Compliance', category: 'Compliance',    description: 'Compliance issues across outlets — food safety, hygiene and SOP findings.' },
+  'guest-service': { title: 'Guest Service',   category: 'Guest Service', description: 'Guest complaints and their follow-up.' },
+  'it-support':    { title: 'IT Support',      category: 'IT Support',    description: 'IT tickets — POS, network, devices.' },
+}
+
+const CATEGORIES: IssueCategory[] = [
+  'Maintenance', 'IT Support', 'Compliance', 'Training', 'Procurement', 'Marketing', 'Asset Purchase', 'Guest Service', 'Other',
+]
+
+export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
+  const viewDef = view ? ISSUE_VIEWS[view] : undefined
+  const {
+    issues, tasks, approvals, outlets, pics, assets, createIssue, updateIssueStatus,
+    cancelIssue, reopenIssue, reviseApproval,
+  } = useIssueStore()
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
   const { can } = usePermissions()
 
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
+  // Keep only the id: the drawer must show the store's latest copy, since
+  // closureBlockers change whenever a Task / WO / Approval moves.
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selectedIssue = selectedId ? issues.find((i) => i.id === selectedId) ?? null : null
+  const setSelectedIssue = (issue: Issue | null) => setSelectedId(issue?.id ?? null)
+  const [lifecycleAction, setLifecycleAction] = useState<'cancel' | 'reopen' | 'revise' | null>(null)
+  const [actionReason, setActionReason] = useState('')
+  const [actionAmount, setActionAmount] = useState('')
+  const [actionBusy, setActionBusy] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterPriority, setFilterPriority] = useState<string | null>(null)
+  const [filterCategory, setFilterCategory] = useState<IssueCategory | null>(null)
+  const [hideFinished, setHideFinished] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
@@ -30,7 +60,10 @@ export function IssuesListPage() {
       issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       issue.outlet.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesPriority = !filterPriority || issue.priority === filterPriority
-    return matchesSearch && matchesPriority
+    const category = viewDef?.category ?? filterCategory
+    const matchesCategory = !category || issue.category === category
+    const matchesStatus = !hideFinished || !['resolved', 'closed', 'cancelled'].includes(issue.status)
+    return matchesSearch && matchesPriority && matchesCategory && matchesStatus
   })
 
   const totalPages = Math.max(1, Math.ceil(filteredIssues.length / PAGE_SIZE))
@@ -51,6 +84,40 @@ export function IssuesListPage() {
     setPage(1)
   }
 
+  const closeDrawer = () => {
+    setSelectedIssue(null)
+    setStatusDropdownOpen(false)
+    setLifecycleAction(null)
+  }
+
+  const openAction = (action: 'cancel' | 'reopen' | 'revise') => {
+    setLifecycleAction(action)
+    setActionReason('')
+    setActionAmount(action === 'revise' && linkedApproval?.amount != null ? String(linkedApproval.amount) : '')
+  }
+
+  const runAction = async () => {
+    if (!selectedIssue || !lifecycleAction || actionBusy) return
+    setActionBusy(true)
+    try {
+      if (lifecycleAction === 'cancel') {
+        await cancelIssue(selectedIssue.id, actionReason.trim())
+        toast.success('Issue cancelled. Open tasks and work orders were cancelled too.')
+      } else if (lifecycleAction === 'reopen') {
+        await reopenIssue(selectedIssue.id, actionReason.trim())
+        toast.success('Issue reopened.')
+      } else {
+        await reviseApproval(selectedIssue.id, Math.round(Number(actionAmount)), actionReason.trim())
+        toast.success('Revised cost sent back to the Approval Center.')
+      }
+      setLifecycleAction(null)
+    } catch (e) {
+      toast.error(apiErrorMessage(e))
+    } finally {
+      setActionBusy(false)
+    }
+  }
+
   const handleSearchChange = (value: string) => {
     setSearchQuery(value)
     setPage(1)
@@ -66,8 +133,10 @@ export function IssuesListPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Issues</h1>
-          <p className="text-sm text-muted-foreground mt-1">Central issue management hub - all operational issues in one place</p>
+          <h1 className="text-3xl font-bold">{viewDef?.title ?? 'Issues'}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {viewDef ? `${viewDef.description} A saved view of Issues.` : 'Central issue management hub - all operational issues in one place'}
+          </p>
         </div>
         <button
           onClick={() => setCreateOpen(true)}
@@ -90,10 +159,6 @@ export function IssuesListPage() {
               className="w-full pl-9 pr-4 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-md border border-border hover:bg-muted/50 transition-colors font-medium text-sm">
-            <Filter className="size-4" />
-            Filters
-          </button>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -112,7 +177,29 @@ export function IssuesListPage() {
               </button>
             ))}
           </div>
+          <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground ml-2 cursor-pointer">
+            <input type="checkbox" checked={hideFinished} onChange={(e) => { setHideFinished(e.target.checked); setPage(1) }} />
+            Hide resolved, closed &amp; cancelled
+          </label>
         </div>
+
+        {!viewDef && (
+          <div className="flex gap-1 items-center flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground">Category:</span>
+            {CATEGORIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => { setFilterCategory(filterCategory === c ? null : c); setPage(1) }}
+                className={cn(
+                  'px-2.5 py-1 rounded-full text-xs font-semibold transition-colors',
+                  filterCategory === c ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Issues count + pagination info */}
@@ -222,7 +309,7 @@ export function IssuesListPage() {
       {/* Issue Detail Side Drawer */}
       {selectedIssue && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => { setSelectedIssue(null); setStatusDropdownOpen(false) }} />
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={closeDrawer} />
           <div className="fixed right-0 top-0 h-screen w-96 bg-background border-l border-border shadow-lg z-50 overflow-y-auto">
             <div className="p-6 space-y-6">
               <div className="flex items-start justify-between">
@@ -230,7 +317,7 @@ export function IssuesListPage() {
                   <p className="font-mono text-xs text-primary font-bold mb-2">{selectedIssue.number}</p>
                   <h2 className="font-bold text-xl leading-snug pr-4">{selectedIssue.title}</h2>
                 </div>
-                <button onClick={() => { setSelectedIssue(null); setStatusDropdownOpen(false) }} className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1">
+                <button onClick={closeDrawer} className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1">
                   <X className="size-5" />
                 </button>
               </div>
@@ -322,7 +409,24 @@ export function IssuesListPage() {
                 </div>
               )}
 
-              {can.updateIssueStatus && (
+              {selectedIssue.closureBlockers.length > 0 && !FINAL_STATUSES.includes(selectedIssue.status) && (
+                <div className="p-4 rounded-md bg-amber-100/50 border border-amber-200 space-y-2">
+                  <p className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+                    <Lock className="size-4" /> Cannot be resolved or closed yet
+                  </p>
+                  <p className="text-xs text-amber-800">Finish or cancel these first:</p>
+                  <ul className="space-y-1">
+                    {selectedIssue.closureBlockers.map((b) => (
+                      <li key={b.id} className="flex items-center justify-between text-xs">
+                        <span className="font-mono font-bold text-amber-900">{b.number}</span>
+                        <span className="text-amber-800">{BLOCKER_LABELS[b.type]} · {b.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {can.updateIssueStatus && !FINAL_STATUSES.includes(selectedIssue.status) && (
                 <div className="flex flex-col gap-2 pt-6 border-t border-border">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Update Status</p>
                   <div className="relative">
@@ -335,26 +439,96 @@ export function IssuesListPage() {
                     </button>
                     {statusDropdownOpen && (
                       <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-md border border-border bg-popover shadow-md overflow-hidden">
-                        {((['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed'] as IssueStatus[])).map((s) => (
-                          <button
-                            key={s}
-                            onClick={() => {
-                              updateIssueStatus(selectedIssue.id, s)
-                              setSelectedIssue((prev) => prev ? { ...prev, status: s } : null)
-                              setStatusDropdownOpen(false)
-                              toast.success('Status updated.')
-                            }}
-                            className={cn(
-                              'w-full flex items-center px-4 py-2 text-sm hover:bg-muted transition-colors',
-                              selectedIssue.status === s && 'bg-muted'
-                            )}
-                          >
-                            <StatusBadge status={s} />
-                          </button>
-                        ))}
+                        {statusOptions(selectedIssue.status).map((s) => {
+                          const blocked = CLOSING_STATUSES.includes(s) && selectedIssue.closureBlockers.length > 0
+                          return (
+                            <button
+                              key={s}
+                              disabled={blocked}
+                              title={blocked ? 'Open tasks, work orders or approvals must be finished first' : undefined}
+                              onClick={() => {
+                                updateIssueStatus(selectedIssue.id, s)
+                                setStatusDropdownOpen(false)
+                              }}
+                              className={cn(
+                                'w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent',
+                                selectedIssue.status === s && 'bg-muted'
+                              )}
+                            >
+                              <StatusBadge status={s} />
+                              {blocked && <Lock className="size-3.5 text-muted-foreground" />}
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+
+              {can.updateIssueStatus && (
+                <div className="flex flex-col gap-2">
+                  {lifecycleAction === null ? (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedIssue.status === 'waiting' && linkedApproval?.status === 'rejected' && (
+                        <button onClick={() => openAction('revise')} className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-muted/50">
+                          <RefreshCw className="size-3.5" /> Revise cost
+                        </button>
+                      )}
+                      {selectedIssue.status === 'resolved' && (
+                        <button onClick={() => openAction('reopen')} className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-muted/50">
+                          <RotateCcw className="size-3.5" /> Reopen
+                        </button>
+                      )}
+                      {!FINAL_STATUSES.includes(selectedIssue.status) && (
+                        <button onClick={() => openAction('cancel')} className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50">
+                          <Ban className="size-3.5" /> Cancel issue
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2 p-3 rounded-md border border-border bg-muted/20">
+                      <p className="text-xs font-semibold">
+                        {lifecycleAction === 'cancel' && 'Cancel this issue? Open tasks and work orders are cancelled, a pending approval is rejected.'}
+                        {lifecycleAction === 'reopen' && 'Reopen this issue (back to In Progress).'}
+                        {lifecycleAction === 'revise' && 'Send a revised cost back through approval.'}
+                      </p>
+                      {lifecycleAction === 'revise' && (
+                        <input
+                          type="number" min={0} value={actionAmount}
+                          onChange={(e) => setActionAmount(e.target.value)}
+                          placeholder="Revised amount (IDR)"
+                          className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
+                        />
+                      )}
+                      <textarea
+                        value={actionReason}
+                        onChange={(e) => setActionReason(e.target.value)}
+                        rows={2}
+                        placeholder={lifecycleAction === 'reopen' ? 'Reason (required)' : 'Reason (optional)'}
+                        className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => setLifecycleAction(null)} disabled={actionBusy} className="px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-muted/50">
+                          Back
+                        </button>
+                        <button
+                          onClick={runAction}
+                          disabled={
+                            actionBusy
+                            || (lifecycleAction === 'reopen' && !actionReason.trim())
+                            || (lifecycleAction === 'revise' && (actionAmount === '' || Number(actionAmount) < 0))
+                          }
+                          className={cn(
+                            'px-3 h-8 rounded-md text-xs font-semibold disabled:opacity-50',
+                            lifecycleAction === 'cancel' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          )}
+                        >
+                          {actionBusy ? 'Saving…' : 'Confirm'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -368,6 +542,7 @@ export function IssuesListPage() {
         outlets={myOutlets.map((o) => o.name)}
         assignees={['Unassigned', ...pics.map((p) => p.name)]}
         assets={assets}
+        defaultCategory={viewDef?.category}
         onSubmit={handleCreate}
       />
     </div>
@@ -390,7 +565,19 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 const STATUS_LABELS: Record<string, string> = {
   open: 'Open', assigned: 'Assigned', 'in-progress': 'In Progress',
-  waiting: 'Waiting', resolved: 'Resolved', closed: 'Closed',
+  waiting: 'Waiting', resolved: 'Resolved', closed: 'Closed', cancelled: 'Cancelled',
+}
+
+// Lifecycle rules mirrored from the API (Todo-Pilot §1–2): closed/cancelled are
+// final, a resolved Issue can only be closed (or reopened via its own action),
+// and resolved/closed need every derived record finished.
+const FINAL_STATUSES: IssueStatus[] = ['closed', 'cancelled']
+const CLOSING_STATUSES: IssueStatus[] = ['resolved', 'closed']
+const BLOCKER_LABELS: Record<string, string> = { task: 'Task', work_order: 'Work order', approval: 'Approval' }
+
+function statusOptions(current: IssueStatus): IssueStatus[] {
+  if (current === 'resolved') return ['resolved', 'closed']
+  return ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed']
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -402,6 +589,7 @@ function StatusBadge({ status }: { status: string }) {
       status === 'in-progress' ? 'bg-amber-100 text-amber-700' :
       status === 'waiting' ? 'bg-cyan-100 text-cyan-700' :
       status === 'resolved' ? 'bg-green-100 text-green-700' :
+      status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
       'bg-gray-100 text-gray-700'
     )}>
       {STATUS_LABELS[status] || status}

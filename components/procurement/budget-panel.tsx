@@ -68,7 +68,7 @@ export function BudgetPanel() {
             <span className="text-xs font-mono px-1.5">{period}</span>
             <button onClick={() => setPeriod((p) => shiftPeriod(p, 1))} className="p-1 hover:bg-accent"><ChevronRight className="size-3.5" /></button>
           </div>
-          {can.manageMasterData && (
+          {can.manageBudgets && (
             <button onClick={() => setShowForm((v) => !v)}
               className="flex items-center gap-1.5 px-2.5 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90">
               <Plus className="size-3.5" /> Set anggaran
@@ -77,7 +77,7 @@ export function BudgetPanel() {
         </div>
       </div>
 
-      {showForm && can.manageMasterData && (
+      {showForm && can.manageBudgets && (
         <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-muted/20 p-3">
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">Outlet</span>

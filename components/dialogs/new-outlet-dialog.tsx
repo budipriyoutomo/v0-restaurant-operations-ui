@@ -3,17 +3,18 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Outlet, OutletStatus } from '@/lib/types'
+import { CreateOutletInput, Outlet, OutletStatus } from '@/lib/types'
 
 interface NewOutletDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialData?: Outlet
-  onSubmit?: (data: { name: string; code: string; status: OutletStatus }) => Promise<void> | void
+  onSubmit?: (data: CreateOutletInput) => Promise<void> | void
 }
 
 const statuses: OutletStatus[] = ['operational', 'warning', 'critical']
-const defaultForm = { name: '', code: '', status: 'operational' as OutletStatus }
+// approvalThreshold is kept as the raw input string: '' = use the global default.
+const defaultForm = { name: '', code: '', status: 'operational' as OutletStatus, approvalThreshold: '' }
 
 export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: NewOutletDialogProps) {
   const [formData, setFormData] = useState(defaultForm)
@@ -25,14 +26,20 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
   useEffect(() => {
     if (open) {
       setFormData(initialData
-        ? { name: initialData.name, code: initialData.code, status: initialData.status }
+        ? {
+            name: initialData.name,
+            code: initialData.code,
+            status: initialData.status,
+            approvalThreshold: initialData.approvalThreshold == null ? '' : String(initialData.approvalThreshold),
+          }
         : defaultForm
       )
       setError(null)
     }
   }, [open, initialData])
 
-  const isComplete = formData.name.trim() && formData.code.trim()
+  const thresholdValid = formData.approvalThreshold === '' || /^\d+$/.test(formData.approvalThreshold)
+  const isComplete = formData.name.trim() && formData.code.trim() && thresholdValid
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -45,7 +52,12 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
     setIsSubmitting(true)
     setError(null)
     try {
-      await onSubmit?.({ ...formData, code: formData.code.toUpperCase(), status: formData.status })
+      await onSubmit?.({
+        name: formData.name,
+        code: formData.code.toUpperCase(),
+        status: formData.status,
+        approvalThreshold: formData.approvalThreshold === '' ? null : Number(formData.approvalThreshold),
+      })
       onOpenChange(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
@@ -113,6 +125,24 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold mb-1.5">Approval Threshold (Rp)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              name="approvalThreshold"
+              placeholder={`Default: ${(initialData?.approvalThresholdDefault ?? 1_000_000).toLocaleString('id-ID')}`}
+              value={formData.approvalThreshold}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <p className={cn('text-xs mt-1', thresholdValid ? 'text-muted-foreground' : 'text-destructive')}>
+              {thresholdValid
+                ? 'Corrective work orders above this cost need approval. Leave empty to use the default.'
+                : 'Enter a whole number without dots or commas.'}
+            </p>
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-border">

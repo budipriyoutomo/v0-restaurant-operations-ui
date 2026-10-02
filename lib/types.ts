@@ -14,8 +14,17 @@ export type IssueStatus =
   | 'waiting'
   | 'resolved'
   | 'closed'
+  | 'cancelled'   // only via POST /api/issues/{id}/cancel (Todo-Pilot §2)
 
 export type TaskStatus = IssueStatus
+
+/** A derived record that still blocks resolving/closing its Issue (Todo-Pilot §1). */
+export interface ClosureBlocker {
+  type: 'task' | 'work_order' | 'approval'
+  id: string
+  number: string
+  status: string
+}
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
 
@@ -96,6 +105,7 @@ export interface Issue {
   taskIds: string[]
   approvalId: string | null
   workOrderId: string | null  // populated when Maintenance issue auto-generates a WO
+  closureBlockers: ClosureBlocker[]  // non-empty → Resolve/Close is refused by the API
 }
 
 export interface Task {
@@ -147,6 +157,10 @@ export interface Outlet {
   name: string
   code: string
   status: OutletStatus
+  // IDR. Corrective WOs costing more than this need approval.
+  // null = outlet uses approvalThresholdDefault (global).
+  approvalThreshold: number | null
+  approvalThresholdDefault: number
 }
 
 export interface MasterCategory {
@@ -169,12 +183,14 @@ export interface CreateOutletInput {
   name: string
   code: string
   status: OutletStatus
+  approvalThreshold?: number | null
 }
 
 export interface UpdateOutletInput {
   name?: string
   code?: string
   status?: OutletStatus
+  approvalThreshold?: number | null   // null clears the override
 }
 
 export interface CreateCategoryInput {
@@ -241,7 +257,11 @@ export interface AppNotification {
 // Auth — User session
 // =====================================================================
 
-export type UserRole = 'staff' | 'manager' | 'admin'
+// Role key — staff / manager / admin or a custom role (see RoleDef).
+export type UserRole = string
+// Approval tier a role acts as in approval workflows (approver_role enum).
+export type ApprovalTier = 'staff' | 'manager' | 'admin'
+export type AccessLevel = 'none' | 'view' | 'manage'
 
 export interface User {
   id: string
@@ -249,10 +269,34 @@ export interface User {
   name: string
   role: UserRole
   is_active: boolean
-  // Outlets this user is scoped to (Tier 4.1). Empty for admins (they see all)
-  // and for users not yet assigned — Tier 4.2 treats empty as deny-by-default
-  // for non-admins, never as "see everything".
+  // Personal outlet override. Empty = inherit the role's outlet access.
   outlet_ids: string[]
+  // Resolved from the role by the backend.
+  role_name: string
+  approval_tier: ApprovalTier
+  permissions: Record<string, AccessLevel>
+  all_outlets: boolean
+  effective_outlet_ids: string[]
+  whatsapp_number?: string | null   // normalised digits, e.g. 6281234567890 (Todo-Pilot §4)
+}
+
+export interface RoleDef {
+  key: string
+  name: string
+  description: string | null
+  permissions: Record<string, AccessLevel>
+  all_outlets: boolean
+  outlet_ids: string[]
+  approval_tier: ApprovalTier
+  is_system: boolean
+  user_count: number
+}
+
+export interface ModuleDef {
+  key: string
+  label: string
+  group: string
+  manageable: boolean
 }
 
 // =====================================================================
@@ -801,6 +845,8 @@ export interface TrainingProgram {
   duration_hours: number | null
   status: TrainingProgramStatus
   max_participants: number | null
+  enrolled_count: number     // Todo-Pilot §9
+  attended_count: number
   created_at: string
   updated_at: string
 }
@@ -841,13 +887,39 @@ export interface Campaign {
   type: CampaignType
   description: string | null
   outlet: string | null
-  budget: string | null
+  budget: number | null          // integer major units (Todo-Pilot §10)
+  currency: string               // ISO, default IDR
+  budget_legacy: string | null   // old free text that could not be converted
   start_date: string | null
   end_date: string | null
   status: CampaignStatus
   pic: string | null
+  // Entered by hand (Todo-Pilot §10)
+  actual_cost: number | null
+  result_transactions: number | null
+  result_revenue: number | null
+  baseline_transactions: number | null
+  baseline_revenue: number | null
+  metrics: CampaignMetrics
   created_at: string
   updated_at: string
+}
+
+export interface CampaignMetrics {
+  budget_used_pct: number | null
+  over_budget: boolean
+  cost_per_transaction: number | null
+  revenue_per_rupiah: number | null
+  revenue_uplift_pct: number | null
+  transaction_uplift_pct: number | null
+}
+
+export interface CampaignResultsInput {
+  actual_cost?: number | null
+  result_transactions?: number | null
+  result_revenue?: number | null
+  baseline_transactions?: number | null
+  baseline_revenue?: number | null
 }
 
 export interface CreateCampaignInput {
@@ -855,7 +927,8 @@ export interface CreateCampaignInput {
   type?: CampaignType
   description?: string
   outlet?: string
-  budget?: string
+  budget?: number | null
+  currency?: string
   start_date?: string
   end_date?: string
   pic?: string
@@ -866,7 +939,8 @@ export interface UpdateCampaignInput {
   type?: CampaignType
   description?: string
   outlet?: string
-  budget?: string
+  budget?: number | null
+  currency?: string
   start_date?: string
   end_date?: string
   status?: CampaignStatus
@@ -890,4 +964,177 @@ export interface CreateIssueInput {
   generateWorkOrder: boolean
   assetId?: string
   estimatedCost?: number
+  // Client-only: sent as the Idempotency-Key header, one per dialog opening,
+  // so a double submit / retry never creates a second Issue (Todo-Pilot §3).
+  idempotencyKey?: string
+}
+
+// ---------------------------------------------------------------------------
+// QA audit checklist (Todo-Pilot §7) — mirrors backend/app/schemas/qa_audit.py
+// ---------------------------------------------------------------------------
+
+export type QAAuditResult = 'pass' | 'fail' | 'na'
+
+export interface QAAuditTemplateItem {
+  id: string
+  title: string
+  category: string
+  weight: number            // 1–10
+  requiresPhoto: boolean
+  isCritical: boolean
+  orderIndex: number
+}
+
+export interface QAAuditTemplate {
+  id: string
+  name: string
+  description: string
+  isActive: boolean
+  items: QAAuditTemplateItem[]
+}
+
+export interface QAAuditTemplateItemInput {
+  id?: string
+  title: string
+  category: string
+  weight: number
+  requiresPhoto: boolean
+  isCritical: boolean
+}
+
+export interface QAAuditPhoto {
+  id: string
+  fileUrl: string
+  thumbnailUrl: string
+  createdAt: string
+}
+
+export interface QAAuditFinding {
+  id: string
+  templateItemId: string | null
+  title: string
+  category: string
+  weight: number
+  requiresPhoto: boolean
+  isCritical: boolean
+  result: QAAuditResult | null
+  notes: string
+  isRepeat: boolean
+  issueId: string | null
+  photos: QAAuditPhoto[]
+}
+
+export interface QAAuditSummary {
+  id: string
+  number: string            // AUD-2026-00001
+  templateId: string
+  templateName: string
+  outlet: string
+  auditor: string
+  auditDate: string
+  status: 'in_progress' | 'submitted'
+  score: number | null
+  progress: { answered: number; total: number }
+  failedCount: number
+  repeatCount: number
+  submittedAt: string | null
+}
+
+export interface QAAuditDetail extends QAAuditSummary {
+  findings: QAAuditFinding[]
+}
+
+export interface QAOutletScore {
+  outlet: string
+  latestScore: number | null
+  latestDate: string | null
+  audits: number
+  repeatFindings: number
+}
+
+export interface QAScores {
+  outlets: QAOutletScore[]
+  trend: Record<string, { month: string; score: number; audits: number }[]>
+}
+
+// ---------------------------------------------------------------------------
+// Guest Service (Todo-Pilot §8) — mirrors backend/app/schemas/guest_case.py
+// ---------------------------------------------------------------------------
+
+export type GuestChannel = 'walk-in' | 'phone' | 'google-review' | 'instagram' | 'whatsapp' | 'other'
+export type CompensationType = 'none' | 'discount' | 'free-item' | 'voucher' | 'refund' | 'other'
+
+export interface GuestCase {
+  id: string
+  issueId: string
+  issueNumber: string
+  title: string
+  status: IssueStatus          // the Issue's status
+  priority: Priority
+  outlet: string
+  guestName: string
+  guestContact: string
+  channel: GuestChannel
+  reportedAt: string
+  firstResponseAt: string | null
+  firstResponseBy: string
+  firstResponseNote: string
+  resolvedAt: string | null
+  firstResponseMinutes: number | null
+  resolutionMinutes: number | null
+  compensationType: CompensationType
+  compensationValue: number    // integer IDR
+  currency: string
+  compensationNote: string
+}
+
+export interface GuestKpis {
+  cases: number
+  open: number
+  responded: number
+  resolved: number
+  avgFirstResponseMinutes: number | null
+  medianFirstResponseMinutes: number | null
+  avgResolutionMinutes: number | null
+  medianResolutionMinutes: number | null
+  targetMinutes: number
+  withinTargetPct: number | null
+  byChannel: Partial<Record<GuestChannel, number>>
+  compensationTotal: Record<string, number>
+  perOutlet: { outlet: string; cases: number; open: number; avgFirstResponseMinutes: number | null; avgResolutionMinutes: number | null }[]
+}
+
+// ---------------------------------------------------------------------------
+// Training enrollment & attendance (Todo-Pilot §9) — snake_case like the
+// training API (backend/app/routers/training_programs.py)
+// ---------------------------------------------------------------------------
+
+export type EnrollmentStatus = 'registered' | 'attended' | 'no-show'
+
+export interface TrainingEnrollment {
+  id: string
+  program_id: string
+  user_id: string
+  user_name: string
+  role_name: string          // snapshot at enrollment
+  outlet: string             // snapshot at enrollment
+  status: EnrollmentStatus
+  score: number | null       // 0–100, attended only
+  notes: string
+  enrolled_at: string
+  marked_at: string | null
+}
+
+export interface AttendanceBucket {
+  enrolled: number
+  attended: number
+  no_show: number
+  pending: number
+  attendance_rate: number | null
+}
+
+export interface AttendanceRecap {
+  totals: AttendanceBucket
+  by_outlet: (AttendanceBucket & { key: string })[]
+  by_role: (AttendanceBucket & { key: string })[]
 }

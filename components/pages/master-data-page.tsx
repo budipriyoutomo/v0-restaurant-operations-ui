@@ -193,13 +193,14 @@ export function MasterDataPage() {
                   <th className="px-6 py-3 text-left text-sm font-semibold">Outlet Name</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold">Code</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold">Approval Threshold</th>
                   <th className="px-6 py-3 text-right text-sm font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredOutlets.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
+                    <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
                       No outlets found
                     </td>
                   </tr>
@@ -220,6 +221,15 @@ export function MasterDataPage() {
                         )}>
                           {statusColors[outlet.status].badge}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        {outlet.approvalThreshold == null ? (
+                          <span className="text-muted-foreground">
+                            Rp {outlet.approvalThresholdDefault.toLocaleString('id-ID')} (default)
+                          </span>
+                        ) : (
+                          <span>Rp {outlet.approvalThreshold.toLocaleString('id-ID')}</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">

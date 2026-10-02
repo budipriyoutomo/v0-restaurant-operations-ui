@@ -17,7 +17,7 @@ export function ProcurementPage() {
   const { issues, approvals, outlets, pics, createIssue, vendors, vendorsLoading, createVendor, updateVendor, deleteVendor } = useIssueStore()
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
-  const { can } = usePermissions()
+  const { can, canViewPage } = usePermissions()
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState<Tab>('requests')
   const [showVendorForm, setShowVendorForm] = useState(false)
@@ -78,7 +78,10 @@ export function ProcurementPage() {
           { id: 'budget',    label: `Anggaran` },
           { id: 'approvals', label: `Approvals (${approvalsP.length})` },
           { id: 'vendors',   label: `Vendors (${activeVendors.length})` },
-        ] as const).map(t => (
+        ] as const).filter(t =>
+          // Budgets and vendors are separate modules a role may not hold.
+          (t.id !== 'budget' || canViewPage('budgets')) && (t.id !== 'vendors' || canViewPage('vendors'))
+        ).map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}

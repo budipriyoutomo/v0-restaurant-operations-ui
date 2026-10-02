@@ -42,16 +42,20 @@ const navItems: NavItem[] = [
   { id: 'tasks',       label: 'Tasks',                icon: CheckSquare,     group: 'operations', badgeKey: 'tasks' },
   { id: 'approvals',   label: 'Approvals',            icon: CheckCircle2,    group: 'operations', badgeKey: 'approvals' },
 
-  // OPERATIONS MODULES - Execution domains
-  { id: 'maintenance',  label: 'Maintenance',   icon: Wrench,               group: 'modules' },
-  { id: 'qa',           label: 'QA & Compliance',icon: Shield,              group: 'modules' },
-  { id: 'procurement',  label: 'Procurement',   icon: ShoppingCart,          group: 'modules' },
-  { id: 'training',     label: 'Training',      icon: BookOpen,              group: 'modules' },
-  { id: 'marketing',    label: 'Marketing',     icon: Megaphone,             group: 'modules' },
-  { id: 'guest-service',label: 'Guest Service', icon: MessageSquareWarning,  group: 'modules' },
-  { id: 'it-support',   label: 'IT Support',    icon: Monitor,               group: 'modules' },
-  { id: 'assets',       label: 'Assets',        icon: Package,               group: 'modules' },
-  { id: 'cmms',         label: 'CMMS',          icon: Gauge,                 group: 'modules' },
+  // OPERATIONS MODULES - Execution domains (Todo-Pilot §6)
+  //   Maintenance = outlet queue of maintenance issues · CMMS = equipment, WOs, PM, parts
+  //   Asset Purchase = requests to buy/replace assets
+  { id: 'maintenance',  label: 'Maintenance',    icon: Wrench,               group: 'modules' },
+  { id: 'cmms',         label: 'CMMS',           icon: Gauge,                group: 'modules' },
+  { id: 'assets',       label: 'Asset Purchase', icon: Package,              group: 'modules' },
+  { id: 'procurement',  label: 'Procurement',    icon: ShoppingCart,         group: 'modules' },
+  { id: 'training',     label: 'Training',       icon: BookOpen,             group: 'modules' },
+  { id: 'marketing',    label: 'Marketing',      icon: Megaphone,            group: 'modules' },
+  { id: 'qa',           label: 'QA & Compliance',icon: Shield,               group: 'modules' },
+  { id: 'guest-service',label: 'Guest Service',  icon: MessageSquareWarning, group: 'modules' },
+
+  // ISSUE VIEWS - the Issues list pinned to one category
+  { id: 'it-support',   label: 'IT Support',     icon: Monitor,              group: 'views' },
 
   // INSIGHTS - Analytics & reporting
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'insights' },
@@ -67,6 +71,7 @@ const navItems: NavItem[] = [
 const groups: { id: string; label: string }[] = [
   { id: 'operations', label: 'Operations' },
   { id: 'modules', label: 'Operations Modules' },
+  { id: 'views', label: 'Issue Views' },
   { id: 'insights', label: 'Insights' },
   { id: 'system', label: 'System' },
 ]

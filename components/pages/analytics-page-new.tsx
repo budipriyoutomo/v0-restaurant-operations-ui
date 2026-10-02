@@ -4,15 +4,17 @@ import { BarChart3, PieChart, TrendingUp, AlertTriangle, CheckCircle2, Clock, Cl
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { IssueStatus, Priority } from '@/lib/types'
+import { QAScoresPanel } from '@/components/qa/qa-scores-panel'
+import { GuestKpiPanel } from '@/components/guest/guest-kpi-panel'
 
-const STATUS_ORDER: IssueStatus[] = ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed']
+const STATUS_ORDER: IssueStatus[] = ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed', 'cancelled']
 const STATUS_LABELS: Record<IssueStatus, string> = {
   open: 'Open', assigned: 'Assigned', 'in-progress': 'In Progress',
-  waiting: 'Waiting', resolved: 'Resolved', closed: 'Closed',
+  waiting: 'Waiting', resolved: 'Resolved', closed: 'Closed', cancelled: 'Cancelled',
 }
 const STATUS_COLORS: Record<IssueStatus, string> = {
   open: 'bg-blue-500', assigned: 'bg-purple-500', 'in-progress': 'bg-amber-500',
-  waiting: 'bg-cyan-500', resolved: 'bg-green-500', closed: 'bg-gray-400',
+  waiting: 'bg-cyan-500', resolved: 'bg-green-500', closed: 'bg-gray-400', cancelled: 'bg-rose-400',
 }
 
 const PRIORITY_ORDER: Priority[] = ['critical', 'high', 'medium', 'low']
@@ -271,6 +273,18 @@ export function AnalyticsDashboardPage() {
             </div>
           )}
         </ChartCard>
+      </div>
+
+      {/* QA audit scores per outlet + monthly trend (Todo-Pilot §7) */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold">QA audit score by outlet</h2>
+        <QAScoresPanel />
+      </div>
+
+      {/* Guest complaint response KPIs (Todo-Pilot §8) */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold">Guest complaints — response &amp; recovery (last 3 months)</h2>
+        <GuestKpiPanel compact />
       </div>
     </div>
   )

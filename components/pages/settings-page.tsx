@@ -1,9 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Sun, Moon, Bell, Shield, RefreshCw, Check, Loader2 } from 'lucide-react'
+import { Sun, Moon, Bell, Shield, RefreshCw, Check, Loader2, Mail, MessageCircle, Send } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { api } from '@/lib/api-client'
+import { api, apiErrorMessage } from '@/lib/api-client'
+import { useIssueStore } from '@/lib/store'
+import type { User } from '@/lib/types'
 
 interface AppPreferences {
   darkMode: boolean
@@ -11,6 +14,20 @@ interface AppPreferences {
   approvalReminders: boolean
   autoRefresh: boolean
   compactSidebar: boolean
+  // Email notifications — keys read by the backend (notification_service.EMAIL_EVENT_PREFS).
+  // Email is only sent when the server has SMTP configured.
+  emailApprovalPending: boolean
+  emailApprovalEscalated: boolean
+  emailApprovalDecided: boolean
+  emailWorkOrderAssigned: boolean
+  // WhatsApp (Todo-Pilot §4) — keys read by whatsapp_service.WA_EVENT_PREFS.
+  // Opt-in: nothing is sent until waEnabled is on and a number is saved.
+  waEnabled: boolean
+  waApprovalPending: boolean
+  waApprovalEscalated: boolean
+  waApprovalDecided: boolean
+  waWorkOrderAssigned: boolean
+  waIssueReadyToClose: boolean
 }
 
 const DEFAULT_PREFS: AppPreferences = {
@@ -19,7 +36,25 @@ const DEFAULT_PREFS: AppPreferences = {
   approvalReminders: true,
   autoRefresh:       false,
   compactSidebar:    false,
+  emailApprovalPending:   true,
+  emailApprovalEscalated: true,
+  emailApprovalDecided:   true,
+  emailWorkOrderAssigned: true,
+  waEnabled:           false,
+  waApprovalPending:   true,
+  waApprovalEscalated: true,
+  waApprovalDecided:   true,
+  waWorkOrderAssigned: true,
+  waIssueReadyToClose: true,
 }
+
+const WA_EVENTS: { key: keyof AppPreferences; label: string; description: string }[] = [
+  { key: 'waApprovalPending',   label: 'Approval waiting for you', description: 'An approval step needs my decision' },
+  { key: 'waApprovalEscalated', label: 'Approval escalated',       description: 'An approval is stuck and escalated (admins)' },
+  { key: 'waApprovalDecided',   label: 'My request decided',       description: 'A request I made is approved or rejected' },
+  { key: 'waWorkOrderAssigned', label: 'Work order assigned',      description: 'A work order is assigned to me' },
+  { key: 'waIssueReadyToClose', label: 'Issue ready to close',     description: 'All work under an issue in my outlet is done (managers)' },
+]
 
 function applyDarkMode(dark: boolean) {
   if (typeof document !== 'undefined') {
@@ -125,6 +160,39 @@ export function SettingsPage() {
         />
       </SettingGroup>
 
+      <SettingGroup label="Email">
+        <ToggleRow
+          icon={<Mail className="size-4" />}
+          label="Approval waiting for you"
+          description="Email me when an approval step needs my decision"
+          checked={prefs.emailApprovalPending}
+          onChange={() => toggle('emailApprovalPending')}
+        />
+        <ToggleRow
+          icon={<Mail className="size-4" />}
+          label="Approval escalated"
+          description="Email me when an approval is stuck and escalated (admins)"
+          checked={prefs.emailApprovalEscalated}
+          onChange={() => toggle('emailApprovalEscalated')}
+        />
+        <ToggleRow
+          icon={<Mail className="size-4" />}
+          label="My request decided"
+          description="Email me when a request I made is approved or rejected"
+          checked={prefs.emailApprovalDecided}
+          onChange={() => toggle('emailApprovalDecided')}
+        />
+        <ToggleRow
+          icon={<Mail className="size-4" />}
+          label="Work order assigned"
+          description="Email me when a work order is assigned to me"
+          checked={prefs.emailWorkOrderAssigned}
+          onChange={() => toggle('emailWorkOrderAssigned')}
+        />
+      </SettingGroup>
+
+      <WhatsAppGroup prefs={prefs} toggle={toggle} />
+
       <SettingGroup label="System">
         <ToggleRow
           icon={<RefreshCw className="size-4" />}
@@ -142,6 +210,111 @@ export function SettingsPage() {
         />
       </SettingGroup>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// WhatsApp — number, opt-in and per-event switches (Todo-Pilot §4)
+// ---------------------------------------------------------------------------
+function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key: keyof AppPreferences) => void }) {
+  const currentUser = useIssueStore((s) => s.currentUser)
+  const savedNumber = currentUser?.whatsapp_number ?? ''
+  const [number, setNumber] = useState(savedNumber)
+  const [serverEnabled, setServerEnabled] = useState<boolean | null>(null)
+  const [busy, setBusy] = useState<'save' | 'test' | null>(null)
+
+  useEffect(() => {
+    api.get<{ enabled: boolean }>('/api/auth/whatsapp/status')
+      .then((r) => setServerEnabled(r.enabled))
+      .catch(() => setServerEnabled(null))
+  }, [])
+
+  const saveNumber = async () => {
+    setBusy('save')
+    try {
+      const user = await api.patch<User>('/api/auth/me/whatsapp', { number: number.trim() })
+      useIssueStore.setState({ currentUser: user })
+      setNumber(user.whatsapp_number ?? '')
+      toast.success(user.whatsapp_number ? `WhatsApp number saved: +${user.whatsapp_number}` : 'WhatsApp number removed.')
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not save the number.'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const sendTest = async () => {
+    setBusy('test')
+    try {
+      await api.post('/api/auth/me/whatsapp/test', {})
+      toast.success('Test message queued — check your WhatsApp.')
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not send a test message.'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const hasNumber = !!savedNumber
+  const dirty = number.trim() !== savedNumber
+
+  return (
+    <SettingGroup label="WhatsApp">
+      <div className="px-4 py-3.5 space-y-2">
+        {serverEnabled === false && (
+          <p className="text-xs text-amber-700 bg-amber-100/60 border border-amber-200 rounded-md px-2.5 py-1.5">
+            WhatsApp is not configured on the server yet — you can save your settings now; messages start once an admin connects WuzAPI.
+          </p>
+        )}
+        <label className="text-sm font-medium flex items-center gap-2">
+          <MessageCircle className="size-4 text-muted-foreground" /> WhatsApp number
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="tel"
+            value={number}
+            onChange={(e) => setNumber(e.target.value)}
+            placeholder="0812 3456 7890"
+            className="flex-1 h-9 px-3 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+          <button
+            onClick={saveNumber}
+            disabled={!dirty || busy !== null}
+            className="px-3 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50"
+          >
+            {busy === 'save' ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            onClick={sendTest}
+            disabled={!hasNumber || dirty || busy !== null || serverEnabled === false}
+            title="Send a test message to this number"
+            className="flex items-center gap-1 px-3 h-9 rounded-md border border-border text-xs font-semibold hover:bg-muted/50 disabled:opacity-50"
+          >
+            <Send className="size-3.5" /> {busy === 'test' ? 'Sending…' : 'Test'}
+          </button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Indonesian numbers can start with 0; use +country code for others. Leave empty and save to remove.
+        </p>
+      </div>
+      <ToggleRow
+        icon={<MessageCircle className="size-4" />}
+        label="Send notifications to WhatsApp"
+        description={hasNumber ? 'Off by default — turn on to receive the events below' : 'Save a number first'}
+        checked={prefs.waEnabled && hasNumber}
+        onChange={() => hasNumber && toggle('waEnabled')}
+      />
+      {prefs.waEnabled && hasNumber && WA_EVENTS.map((ev) => (
+        <ToggleRow
+          key={ev.key}
+          icon={<MessageCircle className="size-4" />}
+          label={ev.label}
+          description={ev.description}
+          checked={prefs[ev.key] as boolean}
+          onChange={() => toggle(ev.key)}
+        />
+      ))}
+    </SettingGroup>
   )
 }
 

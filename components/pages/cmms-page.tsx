@@ -360,7 +360,7 @@ function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () =>
                 )}
 
                 {/* Cost edit form — managers only, non-completed */}
-                {can.manageAssets && !isDone && (
+                {can.manageCMMS && !isDone && (
                   <details className="group">
                     <summary className="text-[11px] text-primary cursor-pointer hover:underline list-none mt-1">
                       Update cost…
@@ -413,7 +413,7 @@ function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () =>
                     ))}
                   </div>
                 )}
-                {can.manageAssets && !isDone && (
+                {can.manageCMMS && !isDone && (
                   <div className="flex gap-1.5 pt-1">
                     <select
                       value={partForm.partId}
@@ -467,7 +467,7 @@ function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () =>
                 ) : (
                   <p className="text-[11px] text-muted-foreground">Dikerjakan internal.</p>
                 )}
-                {can.manageAssets && !isDone && (
+                {can.manageCMMS && !isDone && (
                   <div className="flex gap-1.5 pt-1">
                     <select
                       value={vendorForm.vendorId}
@@ -496,7 +496,7 @@ function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () =>
               </div>
 
               {/* Checklist */}
-              {(detail.checklistItems.length > 0 || (can.manageAssets && !isDone)) && (
+              {(detail.checklistItems.length > 0 || (can.manageCMMS && !isDone)) && (
                 <div className="space-y-2 pb-4 border-b border-border">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold">Checklist</p>
@@ -532,7 +532,7 @@ function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () =>
                   </div>
 
                   {/* Add checklist item */}
-                  {can.manageAssets && !isDone && (
+                  {can.manageCMMS && !isDone && (
                     <div className="flex gap-1.5 pt-1">
                       <input
                         value={newChecklistItem}
@@ -626,7 +626,7 @@ function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose: () =>
               </div>
 
               {/* Transition action — manager only */}
-              {can.manageAssets && !isDone && nextStatus && (
+              {can.manageCMMS && !isDone && nextStatus && (
                 <button
                   onClick={() => handleTransition(nextStatus)}
                   disabled={transitioning || detail.status === 'on-hold'}
@@ -783,9 +783,22 @@ export function CMMSPage() {
   const [showAddAsset, setShowAddAsset] = useState(false)
   const [showQr, setShowQr] = useState(false)
   const [showAddWO, setShowAddWO] = useState(false)
+  // Asset filters (moved here with the old Assets → Physical Assets tab).
+  const [filterOutlet, setFilterOutlet] = useState('')
+  const [filterAssetStatus, setFilterAssetStatus] = useState<AssetStatus | ''>('')
+  // Work order list: open ones by default, everything on demand.
+  const [woScope, setWoScope] = useState<'open' | 'all'>('open')
+  const [showAllWOs, setShowAllWOs] = useState(false)
+
+  const assetOutlets = [...new Set(assets.map((a) => a.outlet))].sort()
+  const filteredAssets = assets.filter((a) =>
+    (!filterOutlet || a.outlet === filterOutlet) && (!filterAssetStatus || a.status === filterAssetStatus),
+  )
 
   // KPI derivations
   const openWOs      = workOrders.filter((wo) => wo.status !== 'completed' && wo.status !== 'cancelled')
+  const listedWOs    = woScope === 'open' ? openWOs : workOrders
+  const visibleWOs   = showAllWOs ? listedWOs : listedWOs.slice(0, 10)
   const overdueWOs   = workOrders.filter((wo) => {
     if (wo.status === 'completed' || wo.status === 'cancelled') return false
     return wo.scheduledDate && new Date(wo.scheduledDate) < new Date()
@@ -839,24 +852,33 @@ export function CMMSPage() {
 
   return (
     <div className="p-5 space-y-5">
-      {/* Header actions — creating assets and work orders is manager/admin only
-          on the backend, so staff must not be offered a button that 403s. */}
-      {can.manageAssets && (
-        <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={() => setShowAddWO(true)}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent transition-colors"
-          >
-            <Plus className="size-3.5" /> New Work Order
-          </button>
-          <button
-            onClick={() => setShowAddAsset(true)}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="size-3.5" /> Add Asset
-          </button>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold">CMMS</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Equipment, work orders, preventive maintenance and spare parts — for technicians and managers.
+            Outlet staff report problems from Maintenance.
+          </p>
         </div>
-      )}
+        {/* Header actions — need assets:manage / cmms:manage on the backend, so
+            roles without them must not be offered a button that 403s. */}
+        {(can.manageCMMS || can.manageAssets) && (
+          <div className="flex items-center justify-end gap-2">
+            {can.manageCMMS && <button
+              onClick={() => setShowAddWO(true)}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent transition-colors"
+            >
+              <Plus className="size-3.5" /> New Work Order
+            </button>}
+            {can.manageAssets && <button
+              onClick={() => setShowAddAsset(true)}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="size-3.5" /> Add Asset
+            </button>}
+          </div>
+        )}
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -869,18 +891,42 @@ export function CMMSPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Asset table */}
         <div className="lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <h3 className="text-sm font-semibold">Asset Status</h3>
-            <button
-              onClick={() => setShowQr(true)}
-              className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border text-xs text-muted-foreground hover:bg-accent transition-colors">
-              <QrCode className="size-3" /> Scan QR
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={filterOutlet}
+                onChange={(e) => setFilterOutlet(e.target.value)}
+                className="h-7 text-xs rounded-md border border-border bg-background px-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="">All Outlets</option>
+                {assetOutlets.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+              <select
+                value={filterAssetStatus}
+                onChange={(e) => setFilterAssetStatus(e.target.value as AssetStatus | '')}
+                className="h-7 text-xs rounded-md border border-border bg-background px-2 focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="">All Statuses</option>
+                {(['operational', 'warning', 'maintenance', 'critical'] as AssetStatus[]).map((st) => (
+                  <option key={st} value={st} className="capitalize">{st}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowQr(true)}
+                className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border text-xs text-muted-foreground hover:bg-accent transition-colors">
+                <QrCode className="size-3" /> Scan QR
+              </button>
+            </div>
           </div>
 
           {assets.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border flex items-center justify-center py-16 text-xs text-muted-foreground">
               No assets registered yet.
+            </div>
+          ) : filteredAssets.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border flex items-center justify-center py-16 text-xs text-muted-foreground">
+              No assets match the current filters.
             </div>
           ) : (
             <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -896,7 +942,7 @@ export function CMMSPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {assets.map((asset) => {
+                  {filteredAssets.map((asset) => {
                     const woCount = workOrders.filter((wo) => wo.assetId === asset.id).length
                     const pmOverdue = asset.nextPM && new Date(asset.nextPM) < new Date()
                     return (
@@ -947,13 +993,32 @@ export function CMMSPage() {
       {/* Work Orders + Downtime chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <h3 className="text-sm font-semibold mb-3">Work Orders</h3>
-          {workOrders.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8">No work orders yet.</p>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold">Work Orders</h3>
+            <div className="flex rounded-md border border-border overflow-hidden text-[11px] font-semibold">
+              {(['open', 'all'] as const).map((sc) => (
+                <button
+                  key={sc}
+                  onClick={() => { setWoScope(sc); setShowAllWOs(false) }}
+                  className={cn('px-2.5 h-6', woScope === sc ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}
+                >
+                  {sc === 'open' ? `Open (${openWOs.length})` : `All (${workOrders.length})`}
+                </button>
+              ))}
+            </div>
+          </div>
+          {listedWOs.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">
+              {workOrders.length === 0 ? 'No work orders yet.' : 'No open work orders.'}
+            </p>
           ) : (
             <div className="space-y-2">
-              {workOrders.slice(0, 10).map((wo) => (
-                <div key={wo.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/20 hover:bg-accent/50 transition-colors">
+              {visibleWOs.map((wo) => (
+                <div
+                  key={wo.id}
+                  onClick={() => setSelectedWOId(wo.id)}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/20 hover:bg-accent/50 transition-colors cursor-pointer"
+                >
                   <div className="flex-shrink-0">
                     <p className="text-[11px] font-mono text-muted-foreground">{wo.number}</p>
                     <p className="text-xs font-semibold mt-0.5">{wo.assetName}</p>
@@ -977,10 +1042,13 @@ export function CMMSPage() {
                   </div>
                 </div>
               ))}
-              {workOrders.length > 10 && (
-                <p className="text-[11px] text-muted-foreground text-center pt-1">
-                  +{workOrders.length - 10} more — use filters in Asset Management
-                </p>
+              {listedWOs.length > 10 && (
+                <button
+                  onClick={() => setShowAllWOs((v) => !v)}
+                  className="w-full text-[11px] text-muted-foreground hover:text-foreground text-center pt-1"
+                >
+                  {showAllWOs ? 'Show fewer' : `Show ${listedWOs.length - 10} more`}
+                </button>
               )}
             </div>
           )}

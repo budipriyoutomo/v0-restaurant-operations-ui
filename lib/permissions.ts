@@ -1,28 +1,15 @@
 import { useIssueStore } from './store'
-import { UserRole } from './types'
+import { hasPermission } from './access'
 
-const ROLE_RANK: Record<UserRole, number> = { staff: 0, manager: 1, admin: 2 }
-
-function atLeast(userRole: UserRole, minRole: UserRole): boolean {
-  return ROLE_RANK[userRole] >= ROLE_RANK[minRole]
-}
-
-// Pages accessible per role — anything not listed here is admin-only by default.
-const STAFF_PAGES = new Set([
-  'dashboard', 'issues', 'tasks', 'approvals',
-  'maintenance', 'qa', 'procurement', 'training',
-  'marketing', 'guest-service', 'it-support', 'assets', 'cmms',
-  'notifications',
-])
-const MANAGER_PAGES = new Set([...STAFF_PAGES, 'analytics', 'reports'])
-const ADMIN_PAGES   = new Set([...MANAGER_PAGES, 'master-data', 'users', 'settings'])
+// Pages every signed-in user can open regardless of role.
+const ALWAYS_VISIBLE = new Set(['notifications'])
 
 /**
- * Outlets the current user may act on (Tier 4).
+ * Outlets the current user may act on.
  *
- * Admins get every outlet; everyone else gets only the ones they are assigned to
- * (`user_outlets`). Used to populate outlet pickers so the UI never offers an
- * action the backend will reject with 403.
+ * Resolved by the backend from the role (all outlets, or the role's default
+ * outlets) and the user's personal override. Used to populate outlet pickers so
+ * the UI never offers an action the backend will reject with 403.
  *
  * This is a convenience layer, not the security boundary — the backend scopes
  * reads and guards writes regardless of what the UI shows.
@@ -32,45 +19,59 @@ export function useMyOutlets() {
   const outlets = useIssueStore((s) => s.outlets)
 
   if (!currentUser) return []
-  if (currentUser.role === 'admin') return outlets
+  if (currentUser.all_outlets) return outlets
 
-  const mine = new Set(currentUser.outlet_ids ?? [])
+  const mine = new Set(currentUser.effective_outlet_ids ?? [])
   return outlets.filter((o) => mine.has(o.id))
 }
 
+/**
+ * Module permissions of the current user's role (none / view / manage per
+ * module — see backend/app/permissions.py). Page ids are module keys.
+ */
 export function usePermissions() {
   const currentUser = useIssueStore((s) => s.currentUser)
-  const role: UserRole = (currentUser?.role as UserRole | undefined) ?? 'staff'
+  const role = currentUser?.role ?? ''
+  const manage = (m: string) => hasPermission(currentUser, m, 'manage')
+  const view = (m: string) => hasPermission(currentUser, m, 'view')
 
   const can = {
-    // Approval decide — manager, admin
-    approve: atLeast(role, 'manager'),
-    // Issue status change (PATCH /api/issues/{id}) — manager, admin
-    updateIssueStatus: atLeast(role, 'manager'),
-    // Asset/WO create/edit/delete — manager, admin
-    manageAssets: atLeast(role, 'manager'),
-    // PM schedule CRUD — manager, admin
-    managePM: atLeast(role, 'manager'),
-    // Campaign create/edit/delete — manager, admin
-    manageCampaigns: atLeast(role, 'manager'),
-    // Training program create/edit/delete — manager, admin
-    manageTraining: atLeast(role, 'manager'),
-    // Vendor create/edit/delete — manager, admin
-    manageVendors: atLeast(role, 'manager'),
-    // Run the PM generator (POST /api/pm-schedules/run-now) — admin only
-    runPMGenerator: atLeast(role, 'admin'),
-    // View analytics & reports — manager, admin
-    viewAnalytics: atLeast(role, 'manager'),
-    // Master data CRUD, user management, settings — admin only
-    manageMasterData: atLeast(role, 'admin'),
-    manageUsers: atLeast(role, 'admin'),
-    viewSettings: atLeast(role, 'admin'),
+    // Approval decide / delegate
+    approve: manage('approvals'),
+    // Issue status change (PATCH /api/issues/{id})
+    updateIssueStatus: manage('issues'),
+    // Guest Service: record compensation (Todo-Pilot §8)
+    manageGuest: manage('guest-service'),
+    // QA audits: run audits, edit checklist templates (Todo-Pilot §7)
+    manageQA: manage('qa'),
+    // Asset create/edit/delete
+    manageAssets: manage('assets'),
+    // Work orders, PM schedules, spare parts
+    manageCMMS: manage('cmms'),
+    managePM: manage('cmms'),
+    // Campaign create/edit/delete
+    manageCampaigns: manage('marketing'),
+    // Training program create/edit/delete
+    manageTraining: manage('training'),
+    // Vendor create/edit/delete
+    manageVendors: manage('vendors'),
+    // Purchase requests / orders / goods receipts
+    manageProcurement: manage('procurement'),
+    // Budget create/edit/delete
+    manageBudgets: manage('budgets'),
+    // System jobs: PM generator, low-stock scan, stale-approval escalation
+    runSystemJobs: manage('settings'),
+    runPMGenerator: manage('settings'),
+    // View analytics
+    viewAnalytics: view('analytics'),
+    // Master data CRUD, user & role management, settings
+    manageMasterData: manage('master-data'),
+    manageUsers: manage('users'),
+    viewSettings: view('settings'),
   } as const
 
   function canViewPage(page: string): boolean {
-    if (role === 'admin') return ADMIN_PAGES.has(page)
-    if (role === 'manager') return MANAGER_PAGES.has(page)
-    return STAFF_PAGES.has(page)
+    return ALWAYS_VISIBLE.has(page) || view(page)
   }
 
   return { role, can, canViewPage }

@@ -16,8 +16,10 @@ const STATUS_META: Record<TaskStatus, { label: string; dot: string; accent: stri
   waiting:       { label: 'Waiting',     dot: 'bg-cyan-500',    accent: 'border-t-cyan-500',    ring: 'ring-cyan-500/40' },
   resolved:      { label: 'Resolved',    dot: 'bg-emerald-500', accent: 'border-t-emerald-500', ring: 'ring-emerald-500/40' },
   closed:        { label: 'Closed',      dot: 'bg-slate-400',   accent: 'border-t-slate-400',   ring: 'ring-slate-400/40' },
+  cancelled:     { label: 'Cancelled',   dot: 'bg-rose-400',    accent: 'border-t-rose-400',    ring: 'ring-rose-400/40' },
 }
 
+// 'cancelled' (parent Issue cancelled) is kept off the board.
 const COLUMN_ORDER: TaskStatus[] = ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed']
 
 const PRIORITY_META: Record<Priority, { label: string; badge: string }> = {

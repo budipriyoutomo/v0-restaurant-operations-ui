@@ -1,206 +1,202 @@
 'use client'
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
-import { MessageSquareWarning, ThumbsDown, CheckCircle2, Clock, HeartHandshake } from 'lucide-react'
-import { StatCard } from '@/components/shared/stat-card'
-import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
+// Guest Service (Todo-Pilot §8): guest complaints with channel, first response,
+// recovery and KPIs. Each complaint is a Guest Service Issue — its status and
+// tasks are handled in the Issues tab like any other issue.
+import { useEffect, useState } from 'react'
+import { Plus, Wallet } from 'lucide-react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { useIssueStore } from '@/lib/store'
-import { usePermissions } from '@/lib/permissions'
+import { apiErrorMessage } from '@/lib/api-client'
+import { newKey } from '@/lib/offline-queue'
+import { CHANNEL_LABELS, formatDuration, formatIDR, responseState } from '@/lib/guest-service'
+import { guestApi, type NewGuestCase } from '@/lib/guest-service-api'
+import { useMyOutlets, usePermissions } from '@/lib/permissions'
+import type { GuestCase, GuestChannel, Priority } from '@/lib/types'
+import { GuestCaseDrawer } from '@/components/guest/guest-case-drawer'
+import { GuestKpiPanel } from '@/components/guest/guest-kpi-panel'
+import { IssuesListPage } from '@/components/pages/issues-list-page'
 
-const SENTIMENT_COLORS = {
-  negative: '#ef4444',
-  neutral:  '#f59e0b',
-  positive: '#10b981',
-}
+type Tab = 'complaints' | 'kpis' | 'issues'
 
-function getSentiment(priority: string): 'negative' | 'neutral' | 'positive' {
-  if (priority === 'critical' || priority === 'high') return 'negative'
-  if (priority === 'medium') return 'neutral'
-  return 'positive'
-}
+// Matches backend settings.GUEST_FIRST_RESPONSE_TARGET_MINUTES; the KPI
+// endpoint reports the live value, which the list uses once loaded.
+const DEFAULT_TARGET = 60
 
 export function GuestPage() {
-  const { issues, updateIssueStatus } = useIssueStore()
   const { can } = usePermissions()
+  const myOutlets = useMyOutlets()
+  const [tab, setTab] = useState<Tab>('complaints')
+  const [cases, setCases] = useState<GuestCase[] | null>(null)
+  const [target, setTarget] = useState(DEFAULT_TARGET)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [showNew, setShowNew] = useState(false)
+  const [openOnly, setOpenOnly] = useState(true)
+  const [channel, setChannel] = useState<GuestChannel | ''>('')
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
 
-  const guestIssues = issues.filter(i => i.category === 'Guest Service')
-  const now = new Date()
+  const reload = () => setRefreshKey((k) => k + 1)
 
-  const unresolved = guestIssues.filter(i => i.status !== 'resolved' && i.status !== 'closed')
-  const escalated  = guestIssues.filter(i => i.slaBreach)
-  const resolved   = guestIssues.filter(i => i.status === 'resolved' || i.status === 'closed')
-  const resolutionRate = guestIssues.length
-    ? Math.round((resolved.length / guestIssues.length) * 100) : 0
+  useEffect(() => {
+    guestApi.list().then(setCases).catch((e) => { toast.error(apiErrorMessage(e)); setCases([]) })
+    guestApi.kpis(3).then((k) => setTarget(k.targetMinutes)).catch(() => {})
+    setNow(Date.now())
+  }, [refreshKey])
 
-  // Sentiment breakdown
-  const neg = guestIssues.filter(i => getSentiment(i.priority) === 'negative').length
-  const neu = guestIssues.filter(i => getSentiment(i.priority) === 'neutral').length
-  const pos = guestIssues.filter(i => getSentiment(i.priority) === 'positive').length
-  const total = guestIssues.length || 1
-  const sentimentData = [
-    { name: 'Negative', value: Math.round((neg / total) * 100), color: SENTIMENT_COLORS.negative },
-    { name: 'Neutral',  value: Math.round((neu / total) * 100), color: SENTIMENT_COLORS.neutral  },
-    { name: 'Positive', value: Math.round((pos / total) * 100), color: SENTIMENT_COLORS.positive },
-  ].filter(s => s.value > 0)
+  // Keep the "waiting 42m" counters moving.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(t)
+  }, [])
 
-  const negPct = guestIssues.length ? Math.round((neg / guestIssues.length) * 100) : 0
+  const visible = (cases ?? []).filter((c) =>
+    (!openOnly || !['resolved', 'closed', 'cancelled'].includes(c.status)) && (!channel || c.channel === channel))
+  const overdue = (cases ?? []).filter((c) => responseState(c, now, target).state === 'overdue').length
 
   return (
-    <div className="p-5 space-y-5">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard title="Total Complaints" value={String(guestIssues.length)} subtitle="Guest service issues" icon={MessageSquareWarning} variant="warning" />
-        <StatCard title="Unresolved" value={String(unresolved.length)} subtitle={`${escalated.length} SLA breached`} icon={Clock} variant={unresolved.length > 0 ? 'critical' : 'success'} />
-        <StatCard title="Resolution Rate" value={`${resolutionRate}%`} subtitle="Target: 90%" icon={CheckCircle2} variant={resolutionRate >= 90 ? 'success' : 'warning'} />
-        <StatCard title="Negative Sentiment" value={`${negPct}%`} subtitle="High/Critical priority" icon={ThumbsDown} variant={negPct > 50 ? 'critical' : 'warning'} />
+    <div className="p-4 sm:p-6 space-y-5">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold">Guest Service</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Guest complaints from every channel — respond within {formatDuration(target)}, record any recovery given.
+          </p>
+        </div>
+        <button onClick={() => setShowNew(true)}
+          className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90">
+          <Plus className="size-4" /> New complaint
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Complaint feed */}
-        <div className="lg:col-span-2 space-y-3">
-          <h3 className="text-sm font-semibold">Guest Complaint Feed</h3>
-          {guestIssues.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-border rounded-xl">
-              <HeartHandshake className="size-8 text-muted-foreground mb-3" />
-              <p className="text-sm font-medium">No guest complaints</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Create an issue with category &ldquo;Guest Service&rdquo; to see complaints here.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {guestIssues.map((issue) => {
-                const sentiment = getSentiment(issue.priority)
-                const initials = issue.assignee
-                  ? issue.assignee.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-                  : '?'
-                return (
-                  <div
-                    key={issue.id}
-                    className="w-full text-left p-3.5 rounded-xl border bg-card shadow-sm border-border"
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="size-7 rounded-full bg-muted flex items-center justify-center text-[11px] font-bold text-muted-foreground">
-                          {initials}
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold">{issue.assignee || 'Unassigned'}</p>
-                          <p className="text-[11px] text-muted-foreground">{issue.outlet} · {issue.createdDate}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <PriorityBadge priority={issue.priority} />
-                        <StatusBadge status={issue.status} />
-                      </div>
-                    </div>
-                    <p className="text-xs font-semibold text-foreground mb-1">{issue.title}</p>
-                    {issue.description && (
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-2 line-clamp-2">
-                        {issue.description}
-                      </p>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span
-                        className="text-[11px] px-2 py-0.5 rounded font-semibold"
-                        style={{
-                          background: `${SENTIMENT_COLORS[sentiment]}20`,
-                          color: SENTIMENT_COLORS[sentiment],
-                        }}
-                      >
-                        {sentiment}
-                      </span>
-                      {issue.dueDate && (
-                        <span className={cn('text-[11px]', new Date(issue.dueDate) < now ? 'text-destructive font-medium' : 'text-muted-foreground')}>
-                          Due: {issue.dueDate}
-                        </span>
-                      )}
-                    </div>
-                    {can.updateIssueStatus && (
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          disabled={issue.status === 'resolved'}
-                          onClick={() => updateIssueStatus(issue.id, 'resolved')}
-                          className={cn(
-                            'px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors',
-                            issue.status === 'resolved'
-                              ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                          )}
-                        >
-                          Mark Resolved
-                        </button>
-                        <button
-                          disabled={issue.status === 'waiting'}
-                          onClick={() => updateIssueStatus(issue.id, 'waiting')}
-                          className="px-3 py-1.5 rounded-md border border-border text-[11px] text-muted-foreground hover:bg-accent transition-colors disabled:opacity-50"
-                        >
-                          Escalate
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
+        {([['complaints', 'Complaints'], ['kpis', 'KPIs'], ['issues', 'Issues']] as [Tab, string][]).map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            className={cn('px-4 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap',
+              tab === id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+            {label}{id === 'complaints' && overdue > 0 && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">{overdue} overdue</span>}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'complaints' && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground cursor-pointer">
+              <input type="checkbox" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} /> Open only
+            </label>
+            <select value={channel} onChange={(e) => setChannel(e.target.value as GuestChannel | '')}
+              className="h-8 text-xs rounded-md border border-border bg-background px-2">
+              <option value="">All channels</option>
+              {(Object.keys(CHANNEL_LABELS) as GuestChannel[]).map((ch) => <option key={ch} value={ch}>{CHANNEL_LABELS[ch]}</option>)}
+            </select>
+          </div>
+          {cases === null ? <p className="text-sm text-muted-foreground">Loading…</p>
+            : visible.length === 0 ? <div className="py-14 text-center text-sm text-muted-foreground border border-dashed border-border rounded-xl">No complaints here.</div>
+            : visible.map((c) => <CaseRow key={c.id} c={c} now={now} target={target} onOpen={() => setOpenId(c.id)} />)}
         </div>
+      )}
 
-        {/* Sentiment & stats */}
-        <div className="space-y-4">
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-            <h3 className="text-sm font-semibold mb-3">Sentiment Analysis</h3>
-            {sentimentData.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">No data yet</p>
-            ) : (
-              <>
-                <ResponsiveContainer width="100%" height={120}>
-                  <PieChart>
-                    <Pie data={sentimentData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} dataKey="value" paddingAngle={2}>
-                      {sentimentData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-popover)', color: 'var(--color-foreground)' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="space-y-1.5 mt-2">
-                  {sentimentData.map((s) => (
-                    <div key={s.name} className="flex items-center gap-2 text-xs">
-                      <span className="size-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                      <span className="text-muted-foreground flex-1">{s.name}</span>
-                      <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${s.value}%`, background: s.color }} />
-                      </div>
-                      <span className="font-semibold w-7 text-right">{s.value}%</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+      {tab === 'kpis' && <GuestKpiPanel refreshKey={refreshKey} />}
+      {tab === 'issues' && <IssuesListPage view="guest-service" />}
 
-          <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-            <h3 className="text-sm font-semibold mb-3">By Outlet</h3>
-            {guestIssues.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2 text-center">No data yet</p>
-            ) : (
-              <div className="space-y-2">
-                {Object.entries(
-                  guestIssues.reduce<Record<string, number>>((acc, i) => {
-                    acc[i.outlet] = (acc[i.outlet] ?? 0) + 1
-                    return acc
-                  }, {})
-                ).sort((a, b) => b[1] - a[1]).map(([outlet, count]) => (
-                  <div key={outlet} className="flex items-center gap-2 text-xs">
-                    <span className="text-muted-foreground flex-1 truncate">{outlet}</span>
-                    <span className="font-semibold">{count}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      {showNew && (
+        <NewComplaintDialog outlets={myOutlets.map((o) => o.name)} onClose={() => setShowNew(false)}
+          onCreated={(id) => { setShowNew(false); reload(); setOpenId(id) }} />
+      )}
+      {openId && (
+        <GuestCaseDrawer caseId={openId} canManage={can.manageGuest} targetMinutes={target}
+          onClose={() => setOpenId(null)} onChanged={reload} />
+      )}
+    </div>
+  )
+}
+
+function CaseRow({ c, now, target, onOpen }: { c: GuestCase; now: number; target: number; onOpen: () => void }) {
+  const rs = responseState(c, now, target)
+  return (
+    <button onClick={onOpen}
+      className="w-full text-left p-3 sm:p-4 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors flex items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-mono text-[11px] text-muted-foreground">{c.issueNumber}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted font-semibold">{CHANNEL_LABELS[c.channel]}</span>
+          <span className="text-sm font-semibold truncate">{c.title}</span>
+        </div>
+        <p className="text-xs text-muted-foreground truncate">
+          {c.guestName || 'Unknown guest'} · {c.outlet} · {c.status}
+          {c.compensationType !== 'none' && <span className="inline-flex items-center gap-0.5 ml-1.5"><Wallet className="size-3" />{formatIDR(c.compensationValue)}</span>}
+        </p>
+      </div>
+      <div className="text-right flex-shrink-0 text-xs">
+        {rs.state === 'responded' && <span className="text-emerald-700 font-semibold">Responded in {formatDuration(c.firstResponseMinutes)}</span>}
+        {rs.state === 'waiting' && <span className="text-amber-600 font-semibold">Waiting {formatDuration(rs.minutes)}</span>}
+        {rs.state === 'overdue' && <span className="text-red-600 font-semibold">Overdue {formatDuration(rs.minutes)}</span>}
+      </div>
+    </button>
+  )
+}
+
+function NewComplaintDialog({ outlets, onClose, onCreated }: {
+  outlets: string[]; onClose: () => void; onCreated: (id: string) => void
+}) {
+  const [form, setForm] = useState<NewGuestCase>({
+    title: '', description: '', outlet: outlets[0] ?? '', priority: 'medium',
+    guestName: '', guestContact: '', channel: 'walk-in',
+  })
+  // Local datetime for "when did the guest complain" (a review may be from yesterday).
+  const [reportedLocal, setReportedLocal] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [key] = useState(newKey)                 // one per dialog — no double complaints
+
+  const set = <K extends keyof NewGuestCase>(k: K, v: NewGuestCase[K]) => setForm((f) => ({ ...f, [k]: v }))
+
+  const submit = async () => {
+    setBusy(true)
+    try {
+      const body = { ...form, reportedAt: reportedLocal ? new Date(reportedLocal).toISOString() : undefined }
+      const created = await guestApi.create(body, key)
+      toast.success(`Complaint ${created.issueNumber} logged.`)
+      onCreated(created.id)
+    } catch (e) {
+      toast.error(apiErrorMessage(e))
+      setBusy(false)
+    }
+  }
+
+  const input = 'w-full h-9 px-3 rounded-md border border-border bg-background text-sm'
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-background rounded-lg border border-border shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto p-5 space-y-3">
+        <h2 className="font-semibold">New guest complaint</h2>
+        <input className={input} placeholder="What happened? e.g. Steak served cold" value={form.title} onChange={(e) => set('title', e.target.value)} />
+        <textarea className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm" rows={3} placeholder="Details"
+          value={form.description} onChange={(e) => set('description', e.target.value)} />
+        <div className="grid grid-cols-2 gap-2">
+          <select className={input} value={form.channel} onChange={(e) => set('channel', e.target.value as GuestChannel)}>
+            {(Object.keys(CHANNEL_LABELS) as GuestChannel[]).map((ch) => <option key={ch} value={ch}>{CHANNEL_LABELS[ch]}</option>)}
+          </select>
+          <select className={input} value={form.priority} onChange={(e) => set('priority', e.target.value as Priority)}>
+            {(['low', 'medium', 'high', 'critical'] as Priority[]).map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <select className={input} value={form.outlet} onChange={(e) => set('outlet', e.target.value)}>
+          {outlets.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+        <div className="grid grid-cols-2 gap-2">
+          <input className={input} placeholder="Guest name" value={form.guestName} onChange={(e) => set('guestName', e.target.value)} />
+          <input className={input} placeholder="Phone / @handle" value={form.guestContact} onChange={(e) => set('guestContact', e.target.value)} />
+        </div>
+        <label className="block space-y-1">
+          <span className="text-xs text-muted-foreground">Reported at (leave empty for now)</span>
+          <input type="datetime-local" className={input} value={reportedLocal} onChange={(e) => setReportedLocal(e.target.value)} />
+        </label>
+        <div className="flex justify-end gap-2 pt-1">
+          <button onClick={onClose} className="px-4 h-9 rounded-md border border-border text-sm">Cancel</button>
+          <button onClick={submit} disabled={!form.title.trim() || !form.outlet || busy}
+            className="px-4 h-9 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50">
+            {busy ? 'Saving…' : 'Log complaint'}
+          </button>
         </div>
       </div>
     </div>

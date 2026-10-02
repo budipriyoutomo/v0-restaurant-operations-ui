@@ -114,20 +114,20 @@ export function LoginPage() {
         <div className="mt-6 p-3 rounded-md bg-muted/40 border border-border text-xs text-muted-foreground space-y-1">
           <p className="font-semibold text-foreground/70 mb-2">Demo Accounts</p>
           {[
-            { role: 'Admin', email: 'admin@restaurant.com' },
-            { role: 'Manager', email: 'manager@restaurant.com' },
-            { role: 'Staff', email: 'staff@restaurant.com' },
-          ].map(({ role, email }) => (
+            { role: 'Admin', email: 'admin@restaurant.com', password: 'admin123' },
+            { role: 'Manager', email: 'manager@restaurant.com', password: 'manager123' },
+            { role: 'Staff', email: 'staff@restaurant.com', password: 'staff123' },
+          ].map(({ role, email, password: pw }) => (
             <button
               key={email}
               type="button"
-              onClick={() => { setEmail(email); setPassword('admin123') }}
+              onClick={() => { setEmail(email); setPassword(pw) }}
               className="w-full text-left hover:text-foreground transition-colors py-0.5"
             >
-              <span className="font-medium">{role}</span> — {email}
+              <span className="font-medium">{role}</span> — {email} / {pw}
             </button>
           ))}
-          <p className="text-muted-foreground/60 pt-1">Password: admin123 · click to autofill</p>
+          <p className="text-muted-foreground/60 pt-1">Click to autofill</p>
         </div>
       </div>
     </div>

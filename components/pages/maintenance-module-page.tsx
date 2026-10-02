@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Search, AlertCircle, Wrench, Calendar, User, Plus, GripVertical, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
-import { usePermissions } from '@/lib/permissions'
+import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { Issue, IssueStatus, Priority } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateWorkOrderDialog } from '@/components/dialogs/create-work-order-dialog'
+import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
 
 // Theme-aware status presentation — matches the Task Center kanban.
 const STATUS_META: Record<IssueStatus, { label: string; dot: string; accent: string; ring: string }> = {
@@ -17,6 +19,7 @@ const STATUS_META: Record<IssueStatus, { label: string; dot: string; accent: str
   waiting:       { label: 'Waiting',     dot: 'bg-cyan-500',    accent: 'border-t-cyan-500',    ring: 'ring-cyan-500/40' },
   resolved:      { label: 'Resolved',    dot: 'bg-emerald-500', accent: 'border-t-emerald-500', ring: 'ring-emerald-500/40' },
   closed:        { label: 'Closed',       dot: 'bg-slate-400',   accent: 'border-t-slate-400',   ring: 'ring-slate-400/40' },
+  cancelled:     { label: 'Cancelled',   dot: 'bg-rose-400',    accent: 'border-t-rose-400',    ring: 'ring-rose-400/40' },
 }
 
 // Maintenance board shows the active pipeline only — 'closed' issues drop off the board.
@@ -24,9 +27,14 @@ const COLUMN_ORDER: IssueStatus[] = ['open', 'assigned', 'in-progress', 'waiting
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low']
 
 export function MaintenanceModulePage() {
-  const { issues, updateIssueStatus, workOrders, assets, pics, createWorkOrder } = useIssueStore()
+  const { issues, updateIssueStatus, workOrders, assets, pics, createWorkOrder, createIssue } = useIssueStore()
   const { can } = usePermissions()
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
+  const myOutlets = useMyOutlets()
+  // Id only — the drawer reads the store's latest copy (status, closureBlockers).
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selectedIssue = selectedId ? issues.find((i) => i.id === selectedId) ?? null : null
+  const setSelectedIssue = (issue: Issue | null) => setSelectedId(issue?.id ?? null)
+  const [showReport, setShowReport] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterPriority, setFilterPriority] = useState<Priority | null>(null)
   const [showCreateWO, setShowCreateWO] = useState(false)
@@ -68,8 +76,9 @@ export function MaintenanceModulePage() {
     if (draggingId && can.updateIssueStatus) {
       const issue = maintenanceIssues.find((i) => i.id === draggingId)
       if (issue && issue.status !== status) {
-        updateIssueStatus(draggingId, status)
-        setSelectedIssue((prev) => prev && prev.id === draggingId ? { ...prev, status } : prev)
+        const why = moveBlockedReason(issue, status)
+        if (why) toast.error(why)
+        else updateIssueStatus(draggingId, status)
       }
     }
     setDraggingId(null)
@@ -81,11 +90,17 @@ export function MaintenanceModulePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Maintenance Module</h1>
+          <h1 className="text-3xl font-bold">Maintenance</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Maintenance issues across all outlets — linked to Issue Core
+            Queue of maintenance issues reported by outlets. Equipment, work orders and PM are managed in CMMS.
           </p>
         </div>
+        <button
+          onClick={() => setShowReport(true)}
+          className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="size-4" /> Report Issue
+        </button>
       </div>
 
       {/* Stats */}
@@ -238,18 +253,16 @@ export function MaintenanceModulePage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground font-medium">Status</span>
-                {can.updateIssueStatus ? (
+                {can.updateIssueStatus && !LOCKED_STATUSES.includes(selectedIssue.status) ? (
                   <select
                     value={selectedIssue.status}
-                    onChange={(e) => {
-                      const s = e.target.value as IssueStatus
-                      updateIssueStatus(selectedIssue.id, s)
-                      setSelectedIssue((prev) => prev ? { ...prev, status: s } : null)
-                    }}
+                    onChange={(e) => updateIssueStatus(selectedIssue.id, e.target.value as IssueStatus)}
                     className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
                     {COLUMN_ORDER.map((id) => (
-                      <option key={id} value={id}>{STATUS_META[id].label}</option>
+                      <option key={id} value={id} disabled={id !== selectedIssue.status && !!moveBlockedReason(selectedIssue, id)}>
+                        {STATUS_META[id].label}
+                      </option>
                     ))}
                   </select>
                 ) : (
@@ -300,12 +313,14 @@ export function MaintenanceModulePage() {
                   Work Orders
                   <span className="ml-1.5 text-muted-foreground font-normal">({linkedWOs.length})</span>
                 </p>
-                <button
-                  onClick={() => setShowCreateWO(true)}
-                  className="flex items-center gap-1 px-2.5 h-7 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 transition-colors"
-                >
-                  <Plus className="size-3" /> Create WO
-                </button>
+                {can.manageCMMS && (
+                  <button
+                    onClick={() => setShowCreateWO(true)}
+                    className="flex items-center gap-1 px-2.5 h-7 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 transition-colors"
+                  >
+                    <Plus className="size-3" /> Create WO
+                  </button>
+                )}
               </div>
 
               {linkedWOs.length === 0 ? (
@@ -313,7 +328,7 @@ export function MaintenanceModulePage() {
                   <Wrench className="size-6 text-muted-foreground mx-auto mb-2" />
                   <p className="text-xs text-muted-foreground">No work orders linked.</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Create one to assign a technician.
+                    {can.manageCMMS ? 'Create one to assign a technician.' : 'A technician or manager will create one in CMMS.'}
                   </p>
                 </div>
               ) : (
@@ -362,8 +377,33 @@ export function MaintenanceModulePage() {
         defaultIssueNumber={selectedIssue?.number}
         onSubmit={async (input) => { await createWorkOrder(input) }}
       />
+
+      <CreateIssueDialog
+        open={showReport}
+        onOpenChange={setShowReport}
+        defaultCategory="Maintenance"
+        outlets={myOutlets.map((o) => o.name)}
+        assignees={['Unassigned', ...pics.map((p) => p.name)]}
+        assets={assets}
+        onSubmit={async (input) => { await createIssue(input) }}
+      />
     </div>
   )
+}
+
+// Board moves mirror the API's Issue lifecycle (Todo-Pilot §1–2): a resolved
+// Issue is closed or reopened from the Issues page, and nothing reaches
+// `resolved` while a Task / WO / Approval of it is still open.
+const LOCKED_STATUSES: IssueStatus[] = ['resolved', 'closed', 'cancelled']
+
+function moveBlockedReason(issue: Issue, target: IssueStatus): string | null {
+  if (LOCKED_STATUSES.includes(issue.status)) {
+    return `${issue.number} is ${issue.status} — close or reopen it from the Issues page.`
+  }
+  if (target === 'resolved' && issue.closureBlockers.length > 0) {
+    return `${issue.number} still has open work: ${issue.closureBlockers.map((b) => b.number).join(', ')}.`
+  }
+  return null
 }
 
 function IssueCard({

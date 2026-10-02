@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import { Megaphone, Plus, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, X, Calendar } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Megaphone, Plus, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, X, Calendar, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { useMyOutlets, usePermissions } from '@/lib/permissions'
-import { Campaign, CampaignStatus, CampaignType, CreateCampaignInput } from '@/lib/types'
+import { Campaign, CampaignResultsInput, CampaignStatus, CampaignType, CreateCampaignInput } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
+import { api, apiErrorMessage } from '@/lib/api-client'
+import { budgetBar, formatMoney, parseMoneyInput, upliftLabel } from '@/lib/campaign'
 
 type Tab = 'campaigns' | 'approvals' | 'issues'
 
@@ -29,7 +31,7 @@ const TYPE_LABELS: Record<CampaignType, string> = {
 export function MarketingPage() {
   const {
     issues, approvals, outlets, pics, createIssue,
-    campaigns, campaignsLoading, createCampaign, updateCampaign, deleteCampaign,
+    campaigns, campaignsLoading, createCampaign, updateCampaign, deleteCampaign, recordCampaignResults,
   } = useIssueStore()
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
@@ -38,6 +40,7 @@ export function MarketingPage() {
   const [tab, setTab] = useState<Tab>('campaigns')
   const [showCampaignForm, setShowCampaignForm] = useState(false)
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null)
+  const [resultsFor, setResultsFor] = useState<Campaign | null>(null)
 
   const marketingIssues = issues.filter(i => i.category === 'Marketing')
   const approvalsM = approvals.filter(a => a.type === 'marketing')
@@ -101,6 +104,8 @@ export function MarketingPage() {
         ))}
       </div>
 
+      {tab === 'campaigns' && <CampaignSummary refreshKey={campaigns} />}
+
       {tab === 'campaigns' && (
         <CampaignList
           campaigns={campaigns}
@@ -109,6 +114,15 @@ export function MarketingPage() {
           onEdit={c => { setEditingCampaign(c); setShowCampaignForm(true) }}
           onDelete={deleteCampaign}
           onStatusChange={(id, status) => updateCampaign(id, { status })}
+          onResults={setResultsFor}
+        />
+      )}
+
+      {resultsFor && (
+        <ResultsDialog
+          campaign={resultsFor}
+          onClose={() => setResultsFor(null)}
+          onSave={async (input) => { await recordCampaignResults(resultsFor.id, input); setResultsFor(null) }}
         />
       )}
 
@@ -195,13 +209,14 @@ export function MarketingPage() {
 // ---------------------------------------------------------------------------
 // Campaign list
 // ---------------------------------------------------------------------------
-function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatusChange }: {
+function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatusChange, onResults }: {
   campaigns: Campaign[]
   loading: boolean
   canManage: boolean
   onEdit: (c: Campaign) => void
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: CampaignStatus) => void
+  onResults: (c: Campaign) => void
 }) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -237,7 +252,8 @@ function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatu
           <div className="text-xs text-muted-foreground space-y-0.5">
             {c.outlet && <p>Outlet: {c.outlet}</p>}
             {c.pic && <p>PIC: {c.pic}</p>}
-            {c.budget && <p>Budget: <span className="font-semibold text-foreground">{c.budget}</span></p>}
+            {c.budget !== null && <p>Budget: <span className="font-semibold text-foreground">{formatMoney(c.budget, c.currency)}</span></p>}
+            {c.budget === null && c.budget_legacy && <p className="text-amber-700">Old budget text: “{c.budget_legacy}” — edit to set an amount</p>}
             {(c.start_date || c.end_date) && (
               <p className="flex items-center gap-1">
                 <Calendar className="size-3" />
@@ -245,6 +261,13 @@ function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatu
               </p>
             )}
           </div>
+          <CampaignMoney c={c} />
+          {canManage && (
+            <button onClick={() => onResults(c)}
+              className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md border border-border text-xs font-medium hover:bg-muted/50">
+              <TrendingUp className="size-3.5" /> {c.actual_cost !== null || c.result_revenue !== null ? 'Update spend & results' : 'Record spend & results'}
+            </button>
+          )}
           {canManage && (
             <div className="pt-1 border-t border-border">
               <select
@@ -278,6 +301,146 @@ function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatu
 }
 
 // ---------------------------------------------------------------------------
+// Totals per currency — never summed across currencies (Todo-Pilot §10)
+// ---------------------------------------------------------------------------
+interface CampaignSummaryData {
+  campaigns: number
+  over_budget: number
+  by_currency: Record<string, { budget: number; actual_cost: number; revenue: number }>
+}
+
+function CampaignSummary({ refreshKey }: { refreshKey: unknown }) {
+  const [s, setS] = useState<CampaignSummaryData | null>(null)
+  useEffect(() => {
+    api.get<CampaignSummaryData>('/api/campaigns/summary').then(setS).catch(() => setS(null))
+  }, [refreshKey])
+  if (!s || s.campaigns === 0) return null
+  return (
+    <div className="flex flex-wrap gap-3 text-xs">
+      {Object.entries(s.by_currency).map(([cur, t]) => (
+        <div key={cur} className="px-3 py-2 rounded-lg border border-border bg-muted/20 space-x-3">
+          <span>Budget <b>{formatMoney(t.budget, cur)}</b></span>
+          <span>Spend <b>{formatMoney(t.actual_cost, cur)}</b></span>
+          <span>Revenue <b>{formatMoney(t.revenue, cur)}</b></span>
+        </div>
+      ))}
+      {s.over_budget > 0 && (
+        <div className="px-3 py-2 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive font-medium">
+          {s.over_budget} campaign(s) over budget
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Budget vs spend + results on a campaign card (Todo-Pilot §10)
+// ---------------------------------------------------------------------------
+function CampaignMoney({ c }: { c: Campaign }) {
+  const bar = budgetBar(c.budget, c.actual_cost)
+  const m = c.metrics
+  const hasResults = c.result_revenue !== null || c.result_transactions !== null
+  if (c.budget === null && c.actual_cost === null && !hasResults) return null
+  return (
+    <div className="space-y-2 text-xs">
+      {(c.budget !== null || c.actual_cost !== null) && (
+        <div className="space-y-1">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Spend {formatMoney(c.actual_cost, c.currency)}</span>
+            <span className={cn('font-medium', bar.over ? 'text-destructive' : 'text-muted-foreground')}>{bar.label}</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className={cn('h-full rounded-full', bar.over ? 'bg-destructive' : 'bg-primary')} style={{ width: `${bar.fill}%` }} />
+          </div>
+        </div>
+      )}
+      {hasResults && (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-md bg-muted/30 p-2">
+          <span className="text-muted-foreground">Revenue</span>
+          <span className="text-right font-semibold">{formatMoney(c.result_revenue, c.currency)} <span className={cn('font-normal', (m.revenue_uplift_pct ?? 0) < 0 ? 'text-destructive' : 'text-success')}>{m.revenue_uplift_pct !== null && upliftLabel(m.revenue_uplift_pct)}</span></span>
+          <span className="text-muted-foreground">Transactions</span>
+          <span className="text-right font-semibold">{c.result_transactions ?? '—'} <span className={cn('font-normal', (m.transaction_uplift_pct ?? 0) < 0 ? 'text-destructive' : 'text-success')}>{m.transaction_uplift_pct !== null && upliftLabel(m.transaction_uplift_pct)}</span></span>
+          {m.cost_per_transaction !== null && <><span className="text-muted-foreground">Cost / transaction</span><span className="text-right">{formatMoney(m.cost_per_transaction, c.currency)}</span></>}
+          {m.revenue_per_rupiah !== null && <><span className="text-muted-foreground">Revenue per 1 spent</span><span className="text-right">{m.revenue_per_rupiah}×</span></>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Spend & results dialog — entered by hand for now (Todo-Pilot §10)
+// ---------------------------------------------------------------------------
+function ResultsDialog({ campaign: c, onClose, onSave }: {
+  campaign: Campaign
+  onClose: () => void
+  onSave: (input: CampaignResultsInput) => Promise<void>
+}) {
+  const canRecordResults = c.status === 'active' || c.status === 'completed'
+  const str = (n: number | null) => (n === null ? '' : String(n))
+  const [f, setF] = useState({
+    actual_cost: str(c.actual_cost), result_transactions: str(c.result_transactions), result_revenue: str(c.result_revenue),
+    baseline_transactions: str(c.baseline_transactions), baseline_revenue: str(c.baseline_revenue),
+  })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const save = async () => {
+    setBusy(true); setError(null)
+    const input: CampaignResultsInput = { actual_cost: parseMoneyInput(f.actual_cost) }
+    if (canRecordResults) {
+      input.result_transactions = parseMoneyInput(f.result_transactions)
+      input.result_revenue = parseMoneyInput(f.result_revenue)
+      input.baseline_transactions = parseMoneyInput(f.baseline_transactions)
+      input.baseline_revenue = parseMoneyInput(f.baseline_revenue)
+    }
+    try { await onSave(input) } catch (e) { setError(apiErrorMessage(e)); setBusy(false) }
+  }
+
+  const field = (key: keyof typeof f, label: string, money: boolean, disabled = false) => (
+    <label className="block space-y-1">
+      <span className="text-xs font-semibold">{label}</span>
+      <input inputMode="numeric" value={f[key]} disabled={disabled}
+        onChange={(e) => setF((x) => ({ ...x, [key]: e.target.value }))}
+        className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm disabled:opacity-50" />
+      {money && parseMoneyInput(f[key]) !== null && <span className="text-[11px] text-muted-foreground">{formatMoney(parseMoneyInput(f[key]), c.currency)}</span>}
+    </label>
+  )
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="w-full max-w-md bg-background rounded-2xl border border-border shadow-xl p-6 max-h-[90vh] overflow-y-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold">Spend &amp; results — {c.title}</h2>
+          <button onClick={onClose} className="size-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent"><X className="size-4" /></button>
+        </div>
+        {field('actual_cost', `Actual spend (${c.currency})`, true)}
+        <div className="space-y-3 rounded-lg border border-border p-3">
+          <p className="text-xs font-semibold">During the campaign{c.start_date && ` (${c.start_date} → ${c.end_date ?? '?'})`}</p>
+          {!canRecordResults && <p className="text-[11px] text-muted-foreground">Results can be recorded once the campaign is active.</p>}
+          <div className="grid grid-cols-2 gap-3">
+            {field('result_transactions', 'Transactions', false, !canRecordResults)}
+            {field('result_revenue', `Revenue (${c.currency})`, true, !canRecordResults)}
+          </div>
+          <p className="text-xs font-semibold pt-1">Baseline — same length before (optional)</p>
+          <div className="grid grid-cols-2 gap-3">
+            {field('baseline_transactions', 'Transactions', false, !canRecordResults)}
+            {field('baseline_revenue', `Revenue (${c.currency})`, true, !canRecordResults)}
+          </div>
+        </div>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 h-9 rounded-md border border-border text-sm">Cancel</button>
+          <button onClick={save} disabled={busy} className="px-4 h-9 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50">
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Campaign form modal
 // ---------------------------------------------------------------------------
 function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
@@ -291,7 +454,8 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
     type:        campaign?.type        ?? 'other',
     description: campaign?.description ?? '',
     outlet:      campaign?.outlet      ?? '',
-    budget:      campaign?.budget      ?? '',
+    budget:      campaign?.budget != null ? String(campaign.budget) : '',
+    currency:    campaign?.currency    ?? 'IDR',
     start_date:  campaign?.start_date  ?? '',
     end_date:    campaign?.end_date    ?? '',
     pic:         campaign?.pic         ?? '',
@@ -310,13 +474,14 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
         type:        (form.type as CampaignType) || 'other',
         description: form.description || undefined,
         outlet:      form.outlet || undefined,
-        budget:      form.budget || undefined,
+        budget:      parseMoneyInput(form.budget),
+        currency:    form.currency,
         start_date:  form.start_date || undefined,
         end_date:    form.end_date || undefined,
         pic:         form.pic || undefined,
       })
     } catch (e) {
-      setError(String(e).replace(/Error: API \d+ [^:]+: /, ''))
+      setError(apiErrorMessage(e))
       setLoading(false)
     }
   }
@@ -365,10 +530,23 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
           </div>
           <div>
             <label className="block text-xs font-semibold mb-1">Budget</label>
-            <input type="text" placeholder="RM 5,000" value={form.budget}
-              onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
+            <div className="flex gap-2">
+              <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
+                className="px-2 py-2 rounded-md border border-border bg-muted/20 text-sm">
+                <option value="IDR">IDR</option>
+                <option value="MYR">MYR</option>
+              </select>
+              <input type="text" inputMode="numeric" placeholder="5000000" value={form.budget}
+                onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
+                className="flex-1 px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+            {parseMoneyInput(form.budget) !== null && (
+              <p className="text-[11px] text-muted-foreground mt-1">{formatMoney(parseMoneyInput(form.budget), form.currency)}</p>
+            )}
+            {campaign?.budget_legacy && campaign.budget === null && (
+              <p className="text-[11px] text-amber-700 mt-1">Old budget text: “{campaign.budget_legacy}”</p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

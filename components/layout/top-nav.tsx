@@ -8,15 +8,22 @@ import { useMyOutlets } from '@/lib/permissions'
 
 const pageLabels: Record<string, string> = {
   dashboard: 'Executive Dashboard',
-  tickets: 'Ticket Management',
-  cmms: 'CMMS Dashboard',
-  assets: 'Asset Management',
-  finance: 'Finance Workflow',
-  qa: 'QA / PQNC',
-  guest: 'Guest Service',
-  it: 'IT Support',
+  issues: 'Issues',
+  tasks: 'Tasks',
+  approvals: 'Approvals',
+  maintenance: 'Maintenance',
+  cmms: 'CMMS',
+  assets: 'Asset Purchase',
+  procurement: 'Procurement',
+  training: 'Training',
+  marketing: 'Marketing',
+  qa: 'QA & Compliance',
+  'guest-service': 'Guest Service',
+  'it-support': 'IT Support',
   analytics: 'Analytics',
   reports: 'Reports',
+  'master-data': 'Master Data',
+  users: 'Users & Roles',
   settings: 'Settings',
   notifications: 'Notification Center',
 }
@@ -194,7 +201,7 @@ export function TopNav({ currentPage }: TopNavProps) {
           <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-popover shadow-lg py-1 z-50">
             <div className="px-3 py-2 border-b border-border">
               <p className="text-xs font-semibold truncate">{currentUser?.name ?? '—'}</p>
-              <p className="text-[11px] text-muted-foreground capitalize">{currentUser?.role ?? ''}</p>
+              <p className="text-[11px] text-muted-foreground capitalize">{currentUser?.role_name ?? ''}</p>
             </div>
             <button className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
               <User className="size-3.5" /> Profile

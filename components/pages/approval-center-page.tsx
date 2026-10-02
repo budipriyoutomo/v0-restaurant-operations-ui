@@ -39,7 +39,7 @@ export function ApprovalCenterPage() {
 
   // Only manager/admin can hold an approval step, so those are the valid delegates.
   const delegateCandidates = allUsers.filter(
-    (u) => u.is_active && (u.role === 'manager' || u.role === 'admin') && u.id !== currentUser?.id,
+    (u) => u.is_active && (u.approval_tier === 'manager' || u.approval_tier === 'admin') && u.id !== currentUser?.id,
   )
 
   const syncSelected = (id: string) => {
@@ -55,7 +55,7 @@ export function ApprovalCenterPage() {
     try {
       // Send the target's role too, so the active step's required role matches
       // the delegate and they are actually able to decide it.
-      await delegateApproval(selectedApproval.id, { toUserId: target.id, toRole: target.role })
+      await delegateApproval(selectedApproval.id, { toUserId: target.id, toRole: target.approval_tier })
       syncSelected(selectedApproval.id)
       setDelegateTo('')
       toast.success(`Didelegasikan ke ${target.name}.`)
@@ -121,7 +121,12 @@ export function ApprovalCenterPage() {
       )
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e)
-      toast.error(message.includes('403') ? 'Not authorised to decide this step.' : 'Failed to process decision.')
+      const detail = message.match(/"detail":\s*"([^"]+)"/)?.[1]
+      toast.error(
+        message.includes('API 403')
+          ? 'Not authorised to decide this step.'
+          : `Failed to process decision${detail ? `: ${detail}` : '.'}`,
+      )
     } finally {
       setIsDeciding(false)
     }
@@ -134,7 +139,7 @@ export function ApprovalCenterPage() {
           <h1 className="text-3xl font-bold">Approval Center</h1>
           <p className="text-sm text-muted-foreground mt-1">Review and approve requests - Centralized approval inbox</p>
         </div>
-        {can.manageUsers && (
+        {can.runSystemJobs && (
           <button
             onClick={handleEscalate}
             disabled={isEscalating}
@@ -408,7 +413,7 @@ export function ApprovalCenterPage() {
                 const activeStep = selectedApproval.steps.length > 0
                   ? selectedApproval.steps.find(s => s.stepOrder === selectedApproval.currentStepOrder)
                   : null
-                const userRole = currentUser?.role
+                const userRole = currentUser?.approval_tier
                 const canDecideStep = can.approve && (
                   activeStep == null || activeStep.approverRole === userRole
                 )
@@ -482,7 +487,7 @@ export function ApprovalCenterPage() {
                           >
                             <option value="">— pilih approver —</option>
                             {delegateCandidates.map((u) => (
-                              <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                              <option key={u.id} value={u.id}>{u.name} ({u.role_name})</option>
                             ))}
                           </select>
                           <button

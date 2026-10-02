@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X, CheckSquare, CheckCircle2, Sparkles, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { newKey } from '@/lib/offline-queue'
 import { CATEGORY_DEFAULTS, CreateIssueInput, IssueCategory, Priority, Asset } from '@/lib/types'
 
 interface CreateIssueDialogProps {
@@ -45,6 +46,9 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
   const [generateWorkOrder, setGenerateWorkOrder] = useState(false)
   const [touchedToggles, setTouchedToggles] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // One Idempotency-Key per opening: a double submit or a retry after a lost
+  // response replays the same create instead of making a second Issue.
+  const [idempotencyKey, setIdempotencyKey] = useState(newKey)
 
   const isMaintenance = form.category === 'Maintenance'
 
@@ -66,6 +70,7 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
       setGenerateWorkOrder(false)
       setTouchedToggles(false)
       setIsSubmitting(false)
+      setIdempotencyKey(newKey())
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -106,6 +111,7 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
         assetId: isMaintenance && generateWorkOrder && form.assetId ? form.assetId : undefined,
         estimatedCost: isMaintenance && generateWorkOrder && form.estimatedCost
           ? Math.round(Number(form.estimatedCost)) : undefined,
+        idempotencyKey,
       })
       onOpenChange(false)
     } finally {

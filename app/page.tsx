@@ -7,33 +7,35 @@ import { api, authToken } from '@/lib/api-client'
 import { User } from '@/lib/types'
 import { usePermissions } from '@/lib/permissions'
 
-// ── In-scope pages (fully functional) ────────────────────────────────────────
+import { LoginPage }               from '@/components/pages/login-page'
+
+// ── Operations ────────────────────────────────────────────────────────────────
 import { ExecutiveDashboardPage } from '@/components/pages/executive-dashboard-page'
 import { IssuesListPage }          from '@/components/pages/issues-list-page'
 import { TaskCenterPage }          from '@/components/pages/task-center-page'
 import { ApprovalCenterPage }      from '@/components/pages/approval-center-page'
-import { MasterDataPage }          from '@/components/pages/master-data-page'
-import { AnalyticsDashboardPage }  from '@/components/pages/analytics-page-new'
-import { ReportsPage }             from '@/components/pages/reports-page'
-import { LoginPage }               from '@/components/pages/login-page'
 
-// ── Connected — pending real backend data (Phase 2) ───────────────────────────
+// ── Operations modules ────────────────────────────────────────────────────────
+// Maintenance = outlet queue of maintenance Issues; CMMS = assets, work orders,
+// PM and parts; Assets = asset purchase requests; QA = outlet audit checklists
+// (Todo-Pilot §7); Guest Service = guest complaints + recovery + KPIs (§8).
+// IT Support is a saved view of IssuesListPage (Todo-Pilot §6).
 import { MaintenanceModulePage }   from '@/components/pages/maintenance-module-page'
+import { CMMSPage }                from '@/components/pages/cmms-page'
+import { AssetsPage }              from '@/components/pages/assets-page'
+import { ProcurementPage }         from '@/components/pages/procurement-page'
+import { TrainingPage }            from '@/components/pages/training-page'
+import { MarketingPage }           from '@/components/pages/marketing-page'
 import { QAPage }                  from '@/components/pages/qa-page'
 import { GuestPage }               from '@/components/pages/guest-page'
+
+// ── Insights & system ─────────────────────────────────────────────────────────
+import { AnalyticsDashboardPage }  from '@/components/pages/analytics-page-new'
+import { ReportsPage }             from '@/components/pages/reports-page'
+import { MasterDataPage }          from '@/components/pages/master-data-page'
+import { UsersPage }               from '@/components/pages/users-page'
 import { NotificationsPage }       from '@/components/pages/notifications-page'
-
-// ── Phase 3: System modules ───────────────────────────────────────────────────
-import { UsersPage }    from '@/components/pages/users-page'
-import { SettingsPage } from '@/components/pages/settings-page'
-
-// ── Phase 4: New full modules ─────────────────────────────────────────────────
-import { ProcurementPage } from '@/components/pages/procurement-page'
-import { TrainingPage }    from '@/components/pages/training-page'
-import { MarketingPage }   from '@/components/pages/marketing-page'
-import { ITSupportPage }   from '@/components/pages/it-support-page'
-import { AssetsPage }      from '@/components/pages/assets-page'
-import { CMMSPage }        from '@/components/pages/cmms-page'
+import { SettingsPage }            from '@/components/pages/settings-page'
 
 export default function Page() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -94,28 +96,31 @@ export default function Page() {
     }
 
     switch (currentPage) {
-      // ── Active modules ──────────────────────────────────────────────────
-      case 'dashboard':   return <ExecutiveDashboardPage />
-      case 'issues':      return <IssuesListPage />
-      case 'tasks':       return <TaskCenterPage />
-      case 'approvals':   return <ApprovalCenterPage />
-      case 'master-data': return <MasterDataPage />
-      case 'analytics':   return <AnalyticsDashboardPage />
-      case 'reports':     return <ReportsPage />
+      // ── Operations ──────────────────────────────────────────────────────
+      case 'dashboard':     return <ExecutiveDashboardPage />
+      case 'issues':        return <IssuesListPage key="issues" />
+      case 'tasks':         return <TaskCenterPage />
+      case 'approvals':     return <ApprovalCenterPage />
 
-      // ── Coming Soon modules ─────────────────────────────────────────────
+      // ── Operations modules ──────────────────────────────────────────────
       case 'maintenance':   return <MaintenanceModulePage />
+      case 'cmms':          return <CMMSPage />
+      case 'assets':        return <AssetsPage />
+      case 'procurement':   return <ProcurementPage />
+      case 'training':      return <TrainingPage />
+      case 'marketing':     return <MarketingPage />
       case 'qa':            return <QAPage />
       case 'guest-service': return <GuestPage />
+      // Saved Issue views — keyed so filters/drawer reset when switching views.
+      case 'it-support':    return <IssuesListPage key={currentPage} view={currentPage} />
+
+      // ── Insights & system ───────────────────────────────────────────────
+      case 'analytics':     return <AnalyticsDashboardPage />
+      case 'reports':       return <ReportsPage />
+      case 'master-data':   return <MasterDataPage />
+      case 'users':         return <UsersPage />
       case 'notifications': return <NotificationsPage />
-      case 'procurement': return <ProcurementPage />
-      case 'training':    return <TrainingPage />
-      case 'marketing':   return <MarketingPage />
-      case 'it-support':  return <ITSupportPage />
-      case 'assets':      return <AssetsPage />
-      case 'cmms':        return <CMMSPage />
-      case 'users':    return <UsersPage />
-      case 'settings': return <SettingsPage />
+      case 'settings':      return <SettingsPage />
 
       default:
         return <ExecutiveDashboardPage />

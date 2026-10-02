@@ -8,8 +8,11 @@ import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { TrainingProgram, TrainingProgramStatus, CreateTrainingProgramInput } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
+import { ParticipantsDrawer } from '@/components/training/participants-drawer'
+import { AttendanceRecap } from '@/components/training/attendance-recap'
+import { placesLeft } from '@/lib/training'
 
-type Tab = 'sessions' | 'approvals' | 'programs'
+type Tab = 'sessions' | 'approvals' | 'programs' | 'attendance'
 
 const STATUS_COLORS: Record<TrainingProgramStatus, string> = {
   scheduled:  'bg-blue-100 text-blue-700',
@@ -22,6 +25,7 @@ export function TrainingPage() {
   const {
     issues, approvals, outlets, pics, createIssue,
     trainingPrograms, trainingLoading, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram,
+    loadTrainingPrograms,
   } = useIssueStore()
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
@@ -30,6 +34,10 @@ export function TrainingPage() {
   const [tab, setTab] = useState<Tab>('sessions')
   const [showProgramForm, setShowProgramForm] = useState(false)
   const [editingProgram, setEditingProgram] = useState<TrainingProgram | null>(null)
+  // Participants drawer + attendance recap (Todo-Pilot §9)
+  const [participantsOf, setParticipantsOf] = useState<string | null>(null)
+  const [recapKey, setRecapKey] = useState(0)
+  const participantsProgram = trainingPrograms.find((p) => p.id === participantsOf) ?? null
 
   const sessions   = issues.filter(i => i.category === 'Training')
   const approvalsT = approvals.filter(a => a.type === 'training')
@@ -79,6 +87,7 @@ export function TrainingPage() {
           { id: 'sessions',  label: `Training Sessions (${sessions.length})` },
           { id: 'approvals', label: `Approvals (${approvalsT.length})` },
           { id: 'programs',  label: `Programs (${trainingPrograms.length})` },
+          { id: 'attendance', label: 'Attendance' },
         ] as const).map(t => (
           <button
             key={t.id}
@@ -155,6 +164,18 @@ export function TrainingPage() {
           onEdit={p => { setEditingProgram(p); setShowProgramForm(true) }}
           onDelete={deleteTrainingProgram}
           onStatusChange={(id, status) => updateTrainingProgram(id, { status })}
+          onParticipants={(p) => setParticipantsOf(p.id)}
+        />
+      )}
+
+      {tab === 'attendance' && <AttendanceRecap refreshKey={recapKey} />}
+
+      {participantsProgram && (
+        <ParticipantsDrawer
+          program={participantsProgram}
+          canManage={can.manageTraining}
+          onClose={() => setParticipantsOf(null)}
+          onChanged={() => { loadTrainingPrograms(); setRecapKey((k) => k + 1) }}
         />
       )}
 
@@ -189,13 +210,14 @@ export function TrainingPage() {
 // ---------------------------------------------------------------------------
 // Programs list
 // ---------------------------------------------------------------------------
-function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusChange }: {
+function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusChange, onParticipants }: {
   programs: TrainingProgram[]
   loading: boolean
   canManage: boolean
   onEdit: (p: TrainingProgram) => void
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: TrainingProgramStatus) => void
+  onParticipants: (p: TrainingProgram) => void
 }) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -233,8 +255,16 @@ function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusC
             {p.outlet && <p>Outlet: {p.outlet}</p>}
             {p.scheduled_date && <p>Scheduled: {p.scheduled_date}</p>}
             {p.duration_hours != null && <p>Duration: {p.duration_hours}h</p>}
-            {p.max_participants && <p>Max participants: {p.max_participants}</p>}
           </div>
+          <button onClick={() => onParticipants(p)}
+            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md border border-border text-xs hover:bg-muted/50">
+            <span className="flex items-center gap-1.5 font-medium"><Users className="size-3.5" /> Participants</span>
+            <span className="text-muted-foreground">
+              {p.enrolled_count}{p.max_participants ? ` / ${p.max_participants}` : ''}
+              {placesLeft(p.max_participants, p.enrolled_count) === 0 && <span className="ml-1 text-amber-600 font-semibold">full</span>}
+              {p.attended_count > 0 && <span className="ml-1">· {p.attended_count} attended</span>}
+            </span>
+          </button>
           {canManage && (
             <div className="pt-1 border-t border-border">
               <select

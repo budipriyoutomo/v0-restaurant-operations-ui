@@ -85,7 +85,7 @@ export function PartsInventoryPanel() {
             </span>
           )}
         </div>
-        {can.manageAssets && (
+        {can.manageCMMS && (
           <button
             onClick={() => setShowForm((v) => !v)}
             className="flex items-center gap-1.5 px-2.5 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
@@ -96,7 +96,7 @@ export function PartsInventoryPanel() {
         )}
       </div>
 
-      {showForm && can.manageAssets && (
+      {showForm && can.manageCMMS && (
         <div className="mb-4 rounded-lg border border-border bg-muted/20 p-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">SKU</span>
@@ -166,14 +166,14 @@ export function PartsInventoryPanel() {
                   <td className="py-2 font-semibold">{p.name}</td>
                   <td className="py-2 text-right text-muted-foreground">{fmtRp(p.unitCost)}</td>
                   <td className="py-2 text-right">
-                    <button onClick={() => can.manageAssets && restock(p.id, p.stockQty)}
-                      className={cn('font-semibold', p.lowStock ? 'text-warning' : 'text-foreground', can.manageAssets && 'hover:underline')}>
+                    <button onClick={() => can.manageCMMS && restock(p.id, p.stockQty)}
+                      className={cn('font-semibold', p.lowStock ? 'text-warning' : 'text-foreground', can.manageCMMS && 'hover:underline')}>
                       {p.stockQty} {p.unit}
                     </button>
                   </td>
                   <td className="py-2 text-right text-muted-foreground">{p.reorderLevel}</td>
                   <td className="py-2 text-right">
-                    {can.manageAssets && (
+                    {can.manageCMMS && (
                       <button onClick={() => handleDelete(p.id, p.name)}
                         className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Hapus">
                         <Trash2 className="size-3.5" />
