@@ -102,7 +102,7 @@ async function mutateOrQueue<T>(spec: MutateSpec): Promise<T> {
   const enqueue = () => queue.enqueue({
     id: key, method: spec.method, path: spec.path, kind,
     body: spec.body, formParts: spec.formParts, file: spec.file, fileName: spec.fileName,
-    label: spec.label,
+    label: spec.label, owner: queue.tokenOwner(authToken.get()) ?? undefined,
   })
 
   if (!queue.isOnline()) {
@@ -140,12 +140,18 @@ async function mutateOrQueue<T>(spec: MutateSpec): Promise<T> {
   return res.json() as Promise<T>
 }
 
-/** Flush the queue now, and whenever the browser comes back online. Call once. */
-export function initOfflineSync(onChange?: (pending: number) => void): void {
+let onlineListenerAdded = false
+
+/** Flush the queue now, and whenever the browser comes back online. Safe to
+ *  call on every mount (e.g. each login): the listener is registered once. */
+export function initOfflineSync(): void {
   if (typeof window === 'undefined') return
+  queue.setOwnerSource(() => queue.tokenOwner(authToken.get()))
   const doFlush = () => queue.flush(BASE_URL, authToken.get()).catch(() => {})
-  window.addEventListener('online', doFlush)
-  if (onChange) queue.subscribe(onChange)
+  if (!onlineListenerAdded) {
+    window.addEventListener('online', doFlush)
+    onlineListenerAdded = true
+  }
   doFlush()
 }
 

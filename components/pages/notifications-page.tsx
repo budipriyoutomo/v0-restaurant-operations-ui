@@ -5,6 +5,7 @@ import { Bell, CheckCheck, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { AppNotification, NotificationType } from '@/lib/types'
+import { formatNotificationTime } from '@/lib/notifications'
 
 type NotifConfig = { dot: string; bg: string; label: string }
 
@@ -13,19 +14,6 @@ const TYPE_CONFIG: Record<NotificationType, NotifConfig> = {
   warning:  { dot: 'bg-warning',     bg: 'bg-warning/5 border-warning/20',         label: 'Warning'  },
   info:     { dot: 'bg-primary',     bg: 'bg-primary/5 border-primary/10',         label: 'Info'     },
   success:  { dot: 'bg-success',     bg: 'bg-success/5 border-success/20',         label: 'Success'  },
-}
-
-function formatTime(iso: string): string {
-  try {
-    const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
-    if (diffMin < 1)  return 'Just now'
-    if (diffMin < 60) return `${diffMin}m ago`
-    const h = Math.floor(diffMin / 60)
-    if (h < 24) return `${h}h ago`
-    return new Date(iso).toLocaleDateString()
-  } catch {
-    return iso
-  }
 }
 
 function NotifCard({ n, onRead }: { n: AppNotification; onRead: (id: string) => void }) {
@@ -45,7 +33,7 @@ function NotifCard({ n, onRead }: { n: AppNotification; onRead: (id: string) => 
           <p className={cn('text-sm font-semibold leading-snug', isUnread ? 'text-foreground' : 'text-muted-foreground')}>
             {n.title}
           </p>
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0">{formatTime(n.created_at)}</span>
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0">{formatNotificationTime(n.created_at)}</span>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{n.message}</p>
       </div>

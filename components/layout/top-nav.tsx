@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Bell, Search, ChevronDown, Settings, LogOut, User, Sun, Moon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { useMyOutlets } from '@/lib/permissions'
+import { formatNotificationTime } from '@/lib/notifications'
 
 const pageLabels: Record<string, string> = {
   dashboard: 'Executive Dashboard',
@@ -31,14 +32,17 @@ const pageLabels: Record<string, string> = {
 interface TopNavProps {
   currentPage: string
   sidebarCollapsed: boolean
+  onNavigate: (page: string) => void
 }
 
-export function TopNav({ currentPage }: TopNavProps) {
-  const { currentUser, logout } = useIssueStore()
+export function TopNav({ currentPage, onNavigate }: TopNavProps) {
+  const {
+    currentUser, logout,
+    notifications, unreadCount, loadNotifications, markNotificationRead, markAllNotificationsRead,
+  } = useIssueStore()
 
   // Only the outlets this user is scoped to (admins get all) — Tier 4.
   const outlets = useMyOutlets()
-  const notifications:{ id: string; title: string; message: string; time: string; type: string; read: boolean }[] = []
 
   const [outletOpen, setOutletOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -46,7 +50,12 @@ export function TopNav({ currentPage }: TopNavProps) {
   // null = "all outlets I can see" rather than a single branch.
   const [selectedOutlet, setSelectedOutlet] = useState<typeof outlets[number] | null>(null)
   const [darkMode, setDarkMode] = useState(false)
-  const unreadCount = notifications.filter((n) => !n.read).length
+
+  // Keep the bell's badge fresh without a page reload.
+  useEffect(() => {
+    const t = setInterval(() => loadNotifications(), 60_000)
+    return () => clearInterval(t)
+  }, [loadNotifications])
 
   const userInitials = currentUser
     ? currentUser.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -146,14 +155,17 @@ export function TopNav({ currentPage }: TopNavProps) {
       {/* Notifications */}
       <div className="relative">
         <button
-          onClick={() => { setNotifOpen(!notifOpen); setOutletOpen(false); setProfileOpen(false) }}
+          onClick={() => {
+            if (!notifOpen) loadNotifications()
+            setNotifOpen(!notifOpen); setOutletOpen(false); setProfileOpen(false)
+          }}
           className="relative size-7 rounded-md border border-border flex items-center justify-center hover:bg-accent transition-colors"
           aria-label="Notifications"
         >
           <Bell className="size-3.5" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 size-3.5 rounded-full bg-destructive text-[9px] text-white font-bold flex items-center justify-center">
-              {unreadCount}
+              {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </button>
@@ -161,11 +173,27 @@ export function TopNav({ currentPage }: TopNavProps) {
           <div className="absolute right-0 top-full mt-1 w-80 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
             <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
               <span className="text-sm font-semibold">Notifications</span>
-              <span className="text-xs text-muted-foreground">{unreadCount} unread</span>
+              {unreadCount > 0 ? (
+                <button
+                  onClick={() => markAllNotificationsRead().catch(() => {})}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Mark all read ({unreadCount})
+                </button>
+              ) : (
+                <span className="text-xs text-muted-foreground">All caught up</span>
+              )}
             </div>
             <div className="max-h-72 overflow-y-auto divide-y divide-border">
-              {notifications.map((n) => (
-                <div key={n.id} className={cn('px-3 py-2.5 hover:bg-accent transition-colors', !n.read && 'bg-primary/5')}>
+              {notifications.length === 0 && (
+                <p className="px-3 py-6 text-center text-xs text-muted-foreground">No notifications yet</p>
+              )}
+              {notifications.slice(0, 10).map((n) => (
+                <div
+                  key={n.id}
+                  onClick={() => { if (!n.read_at) markNotificationRead(n.id).catch(() => {}) }}
+                  className={cn('px-3 py-2.5 hover:bg-accent transition-colors cursor-pointer', !n.read_at && 'bg-primary/5')}
+                >
                   <div className="flex items-start gap-2">
                     <span className={cn(
                       'mt-0.5 size-1.5 rounded-full flex-shrink-0',
@@ -176,12 +204,18 @@ export function TopNav({ currentPage }: TopNavProps) {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-foreground truncate">{n.title}</p>
                       <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">{n.message}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">{n.time}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{formatNotificationTime(n.created_at)}</p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+            <button
+              onClick={() => { setNotifOpen(false); onNavigate('notifications') }}
+              className="w-full px-3 py-2 border-t border-border text-xs text-primary hover:bg-accent transition-colors"
+            >
+              View all notifications
+            </button>
           </div>
         )}
       </div>
@@ -202,11 +236,20 @@ export function TopNav({ currentPage }: TopNavProps) {
             <div className="px-3 py-2 border-b border-border">
               <p className="text-xs font-semibold truncate">{currentUser?.name ?? '—'}</p>
               <p className="text-[11px] text-muted-foreground capitalize">{currentUser?.role_name ?? ''}</p>
+              {currentUser?.company_name && (
+                <p className="text-[11px] text-muted-foreground truncate">{currentUser.company_name}</p>
+              )}
             </div>
-            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+            <button
+              onClick={() => { setProfileOpen(false); onNavigate('settings') }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            >
               <User className="size-3.5" /> Profile
             </button>
-            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+            <button
+              onClick={() => { setProfileOpen(false); onNavigate('settings') }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            >
               <Settings className="size-3.5" /> Settings
             </button>
             <button

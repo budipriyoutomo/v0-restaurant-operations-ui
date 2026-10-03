@@ -278,6 +278,10 @@ export interface User {
   all_outlets: boolean
   effective_outlet_ids: string[]
   whatsapp_number?: string | null   // normalised digits, e.g. 6281234567890 (Todo-Pilot §4)
+  // Tenant (Todo-Pilot §11). Platform admins have no company and see only the Platform page.
+  company_id?: string | null
+  company_name?: string | null
+  is_platform_admin?: boolean
 }
 
 export interface RoleDef {

@@ -13,3 +13,7 @@ __v0_jsx-dev-runtime.ts
 node_modules
 .next/
 .DS_Store
+# Playwright (Todo-Pilot §12)
+.next-e2e/
+test-results/
+playwright-report/

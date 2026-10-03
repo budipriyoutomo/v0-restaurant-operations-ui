@@ -10,6 +10,7 @@ import { Issue, IssueStatus, Priority } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateWorkOrderDialog } from '@/components/dialogs/create-work-order-dialog'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
+import { approvalThresholdsByOutlet } from '@/lib/outlet-threshold'
 
 // Theme-aware status presentation — matches the Task Center kanban.
 const STATUS_META: Record<IssueStatus, { label: string; dot: string; accent: string; ring: string }> = {
@@ -383,6 +384,7 @@ export function MaintenanceModulePage() {
         onOpenChange={setShowReport}
         defaultCategory="Maintenance"
         outlets={myOutlets.map((o) => o.name)}
+        approvalThresholds={approvalThresholdsByOutlet(myOutlets)}
         assignees={['Unassigned', ...pics.map((p) => p.name)]}
         assets={assets}
         onSubmit={async (input) => { await createIssue(input) }}

@@ -33,7 +33,7 @@ export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
         badges={badges}
       />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <TopNav currentPage={currentPage} sidebarCollapsed={sidebarCollapsed} />
+        <TopNav currentPage={currentPage} sidebarCollapsed={sidebarCollapsed} onNavigate={onNavigate} />
         <OfflineStatusBar />
         <main className="flex-1 overflow-y-auto bg-background">
           {children}

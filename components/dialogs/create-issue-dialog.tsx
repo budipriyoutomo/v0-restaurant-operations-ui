@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { X, CheckSquare, CheckCircle2, Sparkles, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { apiErrorMessage } from '@/lib/api-client'
 import { newKey } from '@/lib/offline-queue'
 import { CATEGORY_DEFAULTS, CreateIssueInput, IssueCategory, Priority, Asset } from '@/lib/types'
 
@@ -17,6 +18,9 @@ interface CreateIssueDialogProps {
   assets?: Asset[]
   /** Pre-select a category and lock the selector */
   defaultCategory?: IssueCategory
+  /** Effective WO approval threshold (IDR) per outlet name (Todo-Pilot §5).
+   *  Outlets not listed use DEFAULT_APPROVAL_THRESHOLD. */
+  approvalThresholds?: Record<string, number>
   onSubmit: (input: CreateIssueInput) => Promise<void> | void
 }
 
@@ -25,7 +29,13 @@ const CATEGORIES: IssueCategory[] = [
 ]
 const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'critical']
 
-export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, assets, defaultCategory, onSubmit }: CreateIssueDialogProps) {
+// Mirrors backend settings.APPROVAL_THRESHOLD_DEFAULT; the backend decides.
+export const DEFAULT_APPROVAL_THRESHOLD = 1_000_000
+
+const rupiah = (n: number) => `Rp ${n.toLocaleString('id-ID')}`
+
+export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, assets, defaultCategory, approvalThresholds, onSubmit }: CreateIssueDialogProps) {
+  const id = useId()
   const outletOptions   = outlets ?? []
   const assigneeOptions = assignees && assignees.length > 0 ? assignees : ['Unassigned']
 
@@ -46,11 +56,18 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
   const [generateWorkOrder, setGenerateWorkOrder] = useState(false)
   const [touchedToggles, setTouchedToggles] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // State updates are async: two submits in the same tick both see
+  // isSubmitting === false. The ref closes that window.
+  const submittingRef = useRef(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   // One Idempotency-Key per opening: a double submit or a retry after a lost
   // response replays the same create instead of making a second Issue.
   const [idempotencyKey, setIdempotencyKey] = useState(newKey)
 
   const isMaintenance = form.category === 'Maintenance'
+  const threshold = approvalThresholds?.[form.outlet] ?? DEFAULT_APPROVAL_THRESHOLD
+  // Strictly above, like backend work_order_service.needs_approval.
+  const needsApproval = form.estimatedCost !== '' && Number(form.estimatedCost) > threshold
 
   // Reset form when dialog opens, using current outlet/assignee options
   useEffect(() => {
@@ -70,6 +87,7 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
       setGenerateWorkOrder(false)
       setTouchedToggles(false)
       setIsSubmitting(false)
+      setSubmitError(null)
       setIdempotencyKey(newKey())
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -93,8 +111,10 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isComplete || isSubmitting) return
+    if (!isComplete || submittingRef.current) return
+    submittingRef.current = true
     setIsSubmitting(true)
+    setSubmitError(null)
     try {
       await onSubmit({
         title: form.title,
@@ -114,7 +134,11 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
         idempotencyKey,
       })
       onOpenChange(false)
+    } catch (err) {
+      // Stay open with everything typed; a retry reuses the same idempotency key.
+      setSubmitError(apiErrorMessage(err, 'Failed to create issue.'))
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
@@ -128,6 +152,8 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
           <h2 className="text-lg font-bold">New Issue</h2>
           <button
+            type="button"
+            aria-label="Close"
             onClick={() => !isSubmitting && onOpenChange(false)}
             className="p-1 hover:bg-muted rounded-md transition-colors"
           >
@@ -138,9 +164,9 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Title */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Title <span className="text-destructive">*</span></label>
+            <label htmlFor={`${id}-title`} className="block text-sm font-semibold mb-1.5">Title <span className="text-destructive">*</span></label>
             <input
-              type="text" name="title" placeholder="Brief description of the issue"
+              id={`${id}-title`} type="text" name="title" placeholder="Brief description of the issue"
               value={form.title} onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
@@ -148,9 +174,9 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Description <span className="text-destructive">*</span></label>
+            <label htmlFor={`${id}-description`} className="block text-sm font-semibold mb-1.5">Description <span className="text-destructive">*</span></label>
             <textarea
-              name="description" placeholder="Detailed explanation of the issue"
+              id={`${id}-description`} name="description" placeholder="Detailed explanation of the issue"
               value={form.description} onChange={handleChange} rows={3}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
             />
@@ -158,7 +184,7 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
 
           {/* Outlet */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">
+            <label htmlFor={`${id}-outlet`} className="block text-sm font-semibold mb-1.5">
               Outlet
               {outlets && outlets.length === 0 && (
                 <span className="ml-2 text-xs font-normal text-muted-foreground">(add outlets in Master Data)</span>
@@ -166,12 +192,12 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
             </label>
             {outletOptions.length === 0 ? (
               <input
-                type="text" name="outlet" placeholder="Enter outlet name"
+                id={`${id}-outlet`} type="text" name="outlet" placeholder="Enter outlet name"
                 value={form.outlet} onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             ) : (
-              <select name="outlet" value={form.outlet} onChange={handleChange}
+              <select id={`${id}-outlet`} name="outlet" value={form.outlet} onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
                 {outletOptions.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -180,13 +206,14 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
 
           {/* Category */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Category</label>
+            <label htmlFor={`${id}-category`} className="block text-sm font-semibold mb-1.5">Category</label>
             {defaultCategory ? (
-              <div className="w-full px-3 py-2 rounded-md border border-border bg-muted/40 text-sm text-muted-foreground">
+              <div id={`${id}-category`} role="textbox" aria-readonly="true"
+                className="w-full px-3 py-2 rounded-md border border-border bg-muted/40 text-sm text-muted-foreground">
                 {defaultCategory}
               </div>
             ) : (
-              <select name="category" value={form.category} onChange={handleChange}
+              <select id={`${id}-category`} name="category" value={form.category} onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -195,8 +222,8 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
 
           {/* Priority */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Priority</label>
-            <select name="priority" value={form.priority} onChange={handleChange}
+            <label htmlFor={`${id}-priority`} className="block text-sm font-semibold mb-1.5">Priority</label>
+            <select id={`${id}-priority`} name="priority" value={form.priority} onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
               {PRIORITIES.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
             </select>
@@ -204,13 +231,13 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
 
           {/* Assign To */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">
+            <label htmlFor={`${id}-assignee`} className="block text-sm font-semibold mb-1.5">
               Assign To
               {assignees && assignees.length === 0 && (
                 <span className="ml-2 text-xs font-normal text-muted-foreground">(add PICs in Master Data)</span>
               )}
             </label>
-            <select name="assignee" value={form.assignee} onChange={handleChange}
+            <select id={`${id}-assignee`} name="assignee" value={form.assignee} onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
               {assigneeOptions.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
@@ -218,9 +245,9 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
 
           {/* Due Date */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Due Date <span className="text-destructive">*</span></label>
+            <label htmlFor={`${id}-dueDate`} className="block text-sm font-semibold mb-1.5">Due Date <span className="text-destructive">*</span></label>
             <input
-              type="date" name="dueDate" value={form.dueDate} onChange={handleChange}
+              id={`${id}-dueDate`} type="date" name="dueDate" value={form.dueDate} onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
@@ -264,7 +291,7 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
                       <Wrench className="size-3.5" /> Create Work Order (CMMS)
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Generates a corrective WO in the CMMS module. If estimated cost &gt; Rp 1.000.000, an approval will be required.
+                      Generates a corrective WO in the CMMS module. If estimated cost &gt; {rupiah(threshold)} ({form.outlet || 'this outlet'}), an approval will be required.
                     </p>
                   </div>
                 </label>
@@ -272,9 +299,10 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
                 {generateWorkOrder && (
                   <div className="space-y-3 pl-4 border-l-2 border-primary/30">
                     <div>
-                      <label className="block text-sm font-semibold mb-1.5">Asset</label>
+                      <label htmlFor={`${id}-asset`} className="block text-sm font-semibold mb-1.5">Asset</label>
                       {assets && assets.length > 0 ? (
                         <select
+                          id={`${id}-asset`}
                           name="assetId"
                           value={form.assetId}
                           onChange={handleChange}
@@ -297,8 +325,9 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
                       )}
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold mb-1.5">Estimated Cost (Rp)</label>
+                      <label htmlFor={`${id}-estimatedCost`} className="block text-sm font-semibold mb-1.5">Estimated Cost (Rp)</label>
                       <input
+                        id={`${id}-estimatedCost`}
                         type="number"
                         name="estimatedCost"
                         placeholder="e.g. 1500000"
@@ -306,9 +335,9 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
                         onChange={handleChange}
                         className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                       />
-                      {Number(form.estimatedCost) > 1_000_000 && (
+                      {needsApproval && (
                         <p className="text-xs text-amber-600 mt-1">
-                          ⚠ Above Rp 1.000.000 — 2-step approval will be created automatically.
+                          ⚠ Above {rupiah(threshold)} — 2-step approval will be created automatically.
                         </p>
                       )}
                     </div>
@@ -334,8 +363,9 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
 
             {generateApproval && (
               <div>
-                <label className="block text-sm font-semibold mb-1.5">Estimated Amount in IDR (optional)</label>
+                <label htmlFor={`${id}-approvalAmount`} className="block text-sm font-semibold mb-1.5">Estimated Amount in IDR (optional)</label>
                 <input
+                  id={`${id}-approvalAmount`}
                   type="number" name="approvalAmount" placeholder="e.g. 12000000"
                   value={form.approvalAmount} onChange={handleChange}
                   className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -343,6 +373,12 @@ export function CreateIssueDialog({ open, onOpenChange, outlets, assignees, asse
               </div>
             )}
           </div>
+
+          {submitError && (
+            <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {submitError}
+            </p>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-4 border-t border-border">

@@ -24,7 +24,7 @@ export function OfflineStatusBar() {
     const off = () => setOnline(false)
     window.addEventListener('online', on)
     window.addEventListener('offline', off)
-    initOfflineSync(setPending)
+    initOfflineSync()
     const unsub = subscribe(setPending)
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); unsub() }
   }, [])

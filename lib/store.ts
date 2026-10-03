@@ -268,42 +268,12 @@ interface IssueCoreState {
 }
 
 // ---------------------------------------------------------------------------
-// Store implementation
+// Session data — the initial state, and what logout() resets to. One object
+// so a new slice can't be forgotten on logout: loadAll skips modules the next
+// user can't read, so a leftover slice would leak the previous session's data.
 // ---------------------------------------------------------------------------
 
-export const useIssueStore = create<IssueCoreState>((set, get) => ({
-  // -------------------------------------------------------------------------
-  // Auth
-  // -------------------------------------------------------------------------
-  currentUser:  null,
-  authLoading:  false,
-  authError:    null,
-
-  login: async (email, password) => {
-    set({ authLoading: true, authError: null })
-    try {
-      const { access_token } = await api.post<{ access_token: string; token_type: string; expires_in: number }>(
-        '/api/auth/login',
-        { email, password }
-      )
-      authToken.set(access_token)
-      const user = await api.get<User>('/api/auth/me')
-      set({ currentUser: user, authLoading: false })
-    } catch (e) {
-      authToken.clear()
-      set({ currentUser: null, authLoading: false, authError: String(e).replace('Error: API 401 /api/auth/login: ', '') })
-      throw e
-    }
-  },
-
-  logout: () => {
-    authToken.clear()
-    set({ currentUser: null, issues: [], tasks: [], approvals: [], outlets: [], categories: [], pics: [] })
-  },
-
-  // -------------------------------------------------------------------------
-  // Issue core + master data initial state
-  // -------------------------------------------------------------------------
+const EMPTY_DATA = {
   issues:    [],
   tasks:     [],
   approvals: [],
@@ -354,6 +324,44 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
   trainingLoading:    false,
   campaigns:          [],
   campaignsLoading:   false,
+} satisfies Partial<IssueCoreState>
+
+// ---------------------------------------------------------------------------
+// Store implementation
+// ---------------------------------------------------------------------------
+
+export const useIssueStore = create<IssueCoreState>((set, get) => ({
+  // -------------------------------------------------------------------------
+  // Auth
+  // -------------------------------------------------------------------------
+  currentUser:  null,
+  authLoading:  false,
+  authError:    null,
+
+  login: async (email, password) => {
+    set({ authLoading: true, authError: null })
+    try {
+      const { access_token } = await api.post<{ access_token: string; token_type: string; expires_in: number }>(
+        '/api/auth/login',
+        { email, password }
+      )
+      authToken.set(access_token)
+      const user = await api.get<User>('/api/auth/me')
+      set({ currentUser: user, authLoading: false })
+    } catch (e) {
+      authToken.clear()
+      // The server's reason: wrong credentials (401) or an inactive company (403, Todo-Pilot §11).
+      set({ currentUser: null, authLoading: false, authError: apiErrorMessage(e, 'Sign-in failed.') })
+      throw e
+    }
+  },
+
+  logout: () => {
+    authToken.clear()
+    set({ currentUser: null, ...EMPTY_DATA })
+  },
+
+  ...EMPTY_DATA,
 
   // -------------------------------------------------------------------------
   // loadAll — initial hydration from the API (issue core + master data)
@@ -413,10 +421,13 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
 
   markNotificationRead: async (id) => {
     const updated = await api.patch<AppNotification>(`/api/notifications/${id}/read`, {})
-    set((state) => ({
-      notifications: state.notifications.map(n => n.id === id ? updated : n),
-      unreadCount: Math.max(0, state.unreadCount - 1),
-    }))
+    set((state) => {
+      const wasUnread = state.notifications.some(n => n.id === id && !n.read_at)
+      return {
+        notifications: state.notifications.map(n => n.id === id ? updated : n),
+        unreadCount: wasUnread ? Math.max(0, state.unreadCount - 1) : state.unreadCount,
+      }
+    })
   },
 
   markAllNotificationsRead: async () => {
@@ -719,12 +730,17 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
             i.id === updated.issueId ? { ...i, status: 'waiting' as Issue['status'] } : i
           )
         : state.issues,
-      // If final approved, update linked WO status in local cache
-      workOrders: updated.status === 'approved'
-        ? state.workOrders.map((wo) =>
-            wo.approvalId === updated.id ? { ...wo, status: 'in-progress' as WorkOrderStatus } : wo
-          )
-        : state.workOrders,
+      // Mirror backend _sync_linked_work_order: a final decision moves the WO
+      // that was waiting on this approval — approved → in-progress,
+      // rejected → cancelled. WOs already finished are left alone.
+      workOrders: updated.status === 'pending'
+        ? state.workOrders
+        : state.workOrders.map((wo) =>
+            wo.approvalId === updated.id && wo.requiresApproval &&
+            wo.status !== 'completed' && wo.status !== 'cancelled'
+              ? { ...wo, status: (updated.status === 'approved' ? 'in-progress' : 'cancelled') as WorkOrderStatus }
+              : wo
+          ),
     }))
     // A final decision changes the Issue's status and/or closureBlockers.
     if (updated.status !== 'pending' && updated.issueId) {

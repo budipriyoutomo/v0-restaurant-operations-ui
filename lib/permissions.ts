@@ -1,8 +1,5 @@
 import { useIssueStore } from './store'
-import { hasPermission } from './access'
-
-// Pages every signed-in user can open regardless of role.
-const ALWAYS_VISIBLE = new Set(['notifications'])
+import { canViewPage as canViewPageFor, hasPermission } from './access'
 
 /**
  * Outlets the current user may act on.
@@ -71,7 +68,7 @@ export function usePermissions() {
   } as const
 
   function canViewPage(page: string): boolean {
-    return ALWAYS_VISIBLE.has(page) || view(page)
+    return canViewPageFor(currentUser, page)
   }
 
   return { role, can, canViewPage }

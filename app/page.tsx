@@ -8,6 +8,7 @@ import { User } from '@/lib/types'
 import { usePermissions } from '@/lib/permissions'
 
 import { LoginPage }               from '@/components/pages/login-page'
+import { PlatformPage }            from '@/components/pages/platform-page'
 
 // ── Operations ────────────────────────────────────────────────────────────────
 import { ExecutiveDashboardPage } from '@/components/pages/executive-dashboard-page'
@@ -66,7 +67,8 @@ export default function Page() {
 
   // Load all data once the user is authenticated.
   useEffect(() => {
-    if (currentUser) loadAll()
+    // Platform admins have no company: every company endpoint would refuse them.
+    if (currentUser && !currentUser.is_platform_admin) loadAll()
   }, [currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Waiting for session restore check on first load
@@ -81,6 +83,11 @@ export default function Page() {
   // Not authenticated — show login
   if (!currentUser) {
     return <LoginPage />
+  }
+
+  // SaaS operator (Todo-Pilot §11): companies only, no business modules.
+  if (currentUser.is_platform_admin) {
+    return <PlatformPage />
   }
 
   const renderPage = () => {

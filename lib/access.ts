@@ -23,6 +23,16 @@ export function hasAnyPermission(
   return modules.some((m) => hasPermission(user, m, level))
 }
 
+// Pages every signed-in user can open regardless of role. Settings only holds
+// the user's own preferences (/api/auth/me/*); the `settings` module permission
+// still gates company-wide system jobs (can.runSystemJobs).
+const ALWAYS_VISIBLE = new Set(['notifications', 'settings'])
+
+// Page ids are module keys.
+export function canViewPage(user: Pick<User, 'permissions'> | null | undefined, page: string): boolean {
+  return ALWAYS_VISIBLE.has(page) || hasPermission(user, page)
+}
+
 // Endpoint read rules — keep in sync with require_permission() in the routers.
 export const READS = {
   issues:       ['issues', 'dashboard', 'maintenance', 'qa', 'guest-service', 'it-support'],

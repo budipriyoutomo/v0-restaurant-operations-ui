@@ -40,16 +40,15 @@ export function LoginPage() {
           {/* Error */}
           {authError && (
             <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-              {authError.includes('401') || authError.includes('Invalid')
-                ? 'Invalid email or password.'
-                : authError}
+              {authError.includes('Invalid') ? 'Invalid email or password.' : authError}
             </div>
           )}
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Email</label>
+            <label htmlFor="login-email" className="block text-sm font-semibold mb-1.5">Email</label>
             <input
+              id="login-email"
               type="email"
               autoComplete="email"
               placeholder="you@example.com"
@@ -62,9 +61,10 @@ export function LoginPage() {
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Password</label>
+            <label htmlFor="login-password" className="block text-sm font-semibold mb-1.5">Password</label>
             <div className="relative">
               <input
+                id="login-password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 placeholder="••••••••"
@@ -74,6 +74,7 @@ export function LoginPage() {
                 className="w-full px-3 py-2 pr-10 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60"
               />
               <button
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPassword((v) => !v)}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Plus, AlertTriangle, X, CheckSquare, CheckCircle2, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Lock, Ban, RotateCcw, RefreshCw } from 'lucide-react'
+import { Search, Plus, AlertTriangle, X, CheckSquare, CheckCircle2, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Lock, Ban, RotateCcw, RefreshCw, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
@@ -9,6 +9,7 @@ import { apiErrorMessage } from '@/lib/api-client'
 import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { Issue, IssueCategory, IssueStatus } from '@/lib/types'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
+import { approvalThresholdsByOutlet } from '@/lib/outlet-threshold'
 
 const PAGE_SIZE = 12
 
@@ -30,7 +31,7 @@ const CATEGORIES: IssueCategory[] = [
 export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   const viewDef = view ? ISSUE_VIEWS[view] : undefined
   const {
-    issues, tasks, approvals, outlets, pics, assets, createIssue, updateIssueStatus,
+    issues, tasks, approvals, workOrders, outlets, pics, assets, createIssue, updateIssueStatus,
     cancelIssue, reopenIssue, reviseApproval,
   } = useIssueStore()
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
@@ -74,6 +75,8 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
 
   const linkedTasks = selectedIssue ? tasks.filter((t) => t.issueId === selectedIssue.id) : []
   const linkedApproval = selectedIssue ? approvals.find((a) => a.issueId === selectedIssue.id) : undefined
+  // Only loaded for roles that can read CMMS; the closure blockers list still names it otherwise.
+  const linkedWorkOrders = selectedIssue ? workOrders.filter((w) => w.issueId === selectedIssue.id) : []
 
   const handleCreate = async (input: Parameters<typeof createIssue>[0]) => {
     const created = await createIssue(input)
@@ -368,7 +371,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                 </div>
               </div>
 
-              {(linkedTasks.length > 0 || linkedApproval) && (
+              {(linkedTasks.length > 0 || linkedApproval || linkedWorkOrders.length > 0) && (
                 <div className="space-y-3 pb-6 border-b border-border">
                   <p className="text-sm font-semibold flex items-center gap-1.5">
                     <Sparkles className="size-3.5 text-primary" /> Linked Records
@@ -397,6 +400,15 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                       </span>
                     </div>
                   )}
+                  {linkedWorkOrders.map((wo) => (
+                    <div key={wo.id} className="flex items-center justify-between p-2.5 rounded-md bg-muted/30 border border-border">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Wrench className="size-3.5 text-blue-600 flex-shrink-0" />
+                        <span className="text-xs font-mono font-bold text-primary truncate">{wo.number}</span>
+                      </div>
+                      <StatusBadge status={wo.status} />
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -540,6 +552,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
         open={createOpen}
         onOpenChange={setCreateOpen}
         outlets={myOutlets.map((o) => o.name)}
+        approvalThresholds={approvalThresholdsByOutlet(myOutlets)}
         assignees={['Unassigned', ...pics.map((p) => p.name)]}
         assets={assets}
         defaultCategory={viewDef?.category}

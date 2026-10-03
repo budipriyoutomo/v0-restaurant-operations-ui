@@ -27,6 +27,7 @@ export interface QueuedMutation {
   file?: Blob                      // for form (the photo)
   fileName?: string
   label: string                   // human summary for the status UI
+  owner?: string                   // user id (JWT sub) that queued it; absent on pre-owner items
   createdAt: number
   attempts: number
 }
@@ -68,14 +69,26 @@ export function newKey(): string {
 type Listener = (count: number) => void
 const listeners = new Set<Listener>()
 
+// Who is signed in, so the count only shows work this session can sync.
+// Set by initOfflineSync(); until then nothing owned is counted.
+let ownerSource: () => string | null = () => null
+
+export function setOwnerSource(fn: () => string | null): void {
+  ownerSource = fn
+}
+
+async function pendingCount(): Promise<number> {
+  return pendingFor(await listPending(), ownerSource()).length
+}
+
 async function notify() {
-  const items = await listPending()
-  listeners.forEach((l) => l(items.length))
+  const count = await pendingCount()
+  listeners.forEach((l) => l(count))
 }
 
 export function subscribe(l: Listener): () => void {
   listeners.add(l)
-  listPending().then((items) => l(items.length)).catch(() => l(0))
+  pendingCount().then(l).catch(() => l(0))
   return () => listeners.delete(l)
 }
 
@@ -124,12 +137,52 @@ function buildRequest(m: QueuedMutation, baseUrl: string, token: string | null):
   return [`${baseUrl}${m.path}`, { method: m.method, headers, body }]
 }
 
+// ---------------------------------------------------------------------------
+// Replay rules — pure, so they are unit-tested without IndexedDB.
+// ---------------------------------------------------------------------------
+
+/** User id (JWT `sub`) of a token, or null. Decoded only, never verified —
+ *  it just tags queued work; the server still authenticates the replay. */
+export function tokenOwner(token: string | null): string | null {
+  const payload = token?.split('.')[1]
+  if (!payload) return null
+  try {
+    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const sub = JSON.parse(atob(b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), '='))).sub
+    return typeof sub === 'string' && sub ? sub : null
+  } catch {
+    return null
+  }
+}
+
+/** Replay an item only under the session of the user who queued it — a
+ *  colleague signing in on the same tablet must not send it as themselves. */
+export function belongsTo(m: Pick<QueuedMutation, 'owner'>, owner: string | null): boolean {
+  return m.owner === undefined || m.owner === owner
+}
+
+/** What to do with a queued item after its replay got `status`:
+ *  sent — done; drop — a business rejection that will never succeed;
+ *  stop — keep it and everything after it (expired session, rate limit, 5xx). */
+/** The queued items `owner`'s session may replay (and so should be shown). */
+export function pendingFor<T extends Pick<QueuedMutation, 'owner'>>(items: T[], owner: string | null): T[] {
+  return items.filter((m) => belongsTo(m, owner))
+}
+
+export function replayOutcome(status: number): 'sent' | 'drop' | 'stop' {
+  if (status >= 200 && status < 300) return 'sent'
+  if (status === 401 || status === 408 || status === 429) return 'stop'
+  if (status >= 400 && status < 500) return 'drop'
+  return 'stop'
+}
+
 let flushing = false
 
 /**
- * Replay every queued mutation in order. Stops on the first network failure
- * (still offline) and leaves the rest queued. A 4xx (business rejection) drops
- * the item — replaying it forever would wedge the queue.
+ * Replay the current user's queued mutations in order. Stops on the first
+ * network failure (still offline), expired session or server error and leaves
+ * the rest queued. A business rejection (other 4xx) drops the item — replaying
+ * it forever would wedge the queue.
  */
 export async function flush(baseUrl: string, token: string | null): Promise<{ sent: number; failed: number }> {
   if (flushing) return { sent: 0, failed: 0 }
@@ -137,7 +190,8 @@ export async function flush(baseUrl: string, token: string | null): Promise<{ se
   let sent = 0
   let failed = 0
   try {
-    const items = await listPending()
+    const owner = tokenOwner(token)
+    const items = pendingFor(await listPending(), owner)
     for (const m of items) {
       const [url, init] = buildRequest(m, baseUrl, token)
       let res: Response
@@ -148,16 +202,20 @@ export async function flush(baseUrl: string, token: string | null): Promise<{ se
         failed = items.length - sent
         break
       }
-      if (res.ok || (res.status >= 400 && res.status < 500)) {
-        // Success, or a client error that will never succeed on replay
-        // (e.g. the WO was completed meanwhile). Either way, stop retrying it.
+      const outcome = replayOutcome(res.status)
+      if (outcome === 'sent') {
         await remove(m.id)
-        if (res.ok) sent += 1
-        else failed += 1
-      } else {
-        // 5xx — transient server issue; keep for the next flush.
-        await bumpAttempts(m)
+        sent += 1
+      } else if (outcome === 'drop') {
+        // A client error that will never succeed on replay (e.g. the WO was
+        // completed meanwhile). Stop retrying it.
+        await remove(m.id)
         failed += 1
+      } else {
+        // Expired session (401 — the work is still valid, keep it for after
+        // re-login), rate limit or 5xx: keep this and everything after it.
+        await bumpAttempts(m)
+        failed = items.length - sent
         break
       }
     }
