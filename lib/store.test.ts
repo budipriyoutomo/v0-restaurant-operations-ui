@@ -5,17 +5,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./api-client', async (importOriginal) => ({
   apiErrorMessage: (await importOriginal<typeof import('./api-client')>()).apiErrorMessage,
-  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn(), mutateOrQueue: vi.fn() },
   authToken: { get: () => null, set: vi.fn(), clear: vi.fn() },
 }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
+import { toast } from 'sonner'
 import { api } from './api-client'
 import { useIssueStore } from './store'
 import type { ApprovalRequest, Asset, Issue, User, WorkOrder } from './types'
 
 const mocked = api as unknown as Record<'get' | 'post' | 'patch' | 'delete', ReturnType<typeof vi.fn>>
 const initial = useIssueStore.getState()
+const COUNTS = { issuesInProgress: 1, tasksActive: 0, approvalsPending: 0 }
+
+/** GET routes for one issue's derived records (Todo-Pilot §22: never the whole lists). */
+function children(id: string, over: { tasks?: unknown[]; approvals?: unknown[]; workOrders?: unknown[] } = {}) {
+  return {
+    [`/api/tasks?issue_id=${id}`]: over.tasks ?? [],
+    [`/api/approvals?issue_id=${id}`]: over.approvals ?? [],
+    [`/api/work-orders?issue_id=${id}`]: over.workOrders ?? [],
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -83,7 +94,7 @@ const input = {
 describe('createIssue', () => {
   it('posts the issue and sends the Idempotency-Key header when given', async () => {
     mocked.post.mockResolvedValue(issue())
-    serveGets({ '/api/tasks': [], '/api/approvals': [], '/api/work-orders': [] })
+    serveGets({ ...children('iss-1'), '/api/counts': COUNTS })
 
     await useIssueStore.getState().createIssue({ ...input, idempotencyKey: 'key-1' })
 
@@ -94,9 +105,16 @@ describe('createIssue', () => {
     expect(headers).toEqual({ 'Idempotency-Key': 'key-1' })
   })
 
+  it('sends the picked assignee as a user id (Todo-Pilot §17)', async () => {
+    mocked.post.mockResolvedValue(issue())
+    serveGets({ ...children('iss-1'), '/api/counts': COUNTS })
+    await useIssueStore.getState().createIssue({ ...input, assignee: 'Budi', assigneeUserId: 'u-budi' })
+    expect(mocked.post.mock.calls[0][1]).toMatchObject({ assignee: 'Budi', assigneeUserId: 'u-budi' })
+  })
+
   it('sends no extra header without a key', async () => {
     mocked.post.mockResolvedValue(issue())
-    serveGets({ '/api/tasks': [], '/api/approvals': [], '/api/work-orders': [] })
+    serveGets({ ...children('iss-1'), '/api/counts': COUNTS })
     await useIssueStore.getState().createIssue(input)
     expect(mocked.post.mock.calls[0][2]).toBeUndefined()
   })
@@ -104,7 +122,7 @@ describe('createIssue', () => {
   it('prepends the issue and picks up the generated approval and work order', async () => {
     useIssueStore.setState({ issues: [issue({ id: 'old', number: 'ISS-OLD' })] })
     mocked.post.mockResolvedValue(issue({ approvalId: 'apr-1', workOrderId: 'wo-1' }))
-    serveGets({ '/api/tasks': [], '/api/approvals': [approval()], '/api/work-orders': [wo()] })
+    serveGets({ ...children('iss-1', { approvals: [approval()], workOrders: [wo()] }), '/api/counts': COUNTS })
 
     const created = await useIssueStore.getState().createIssue(input)
 
@@ -118,19 +136,19 @@ describe('createIssue', () => {
   it('a replayed request (same idempotency key → same issue) does not duplicate it', async () => {
     useIssueStore.setState({ issues: [issue()] })
     mocked.post.mockResolvedValue(issue())
-    serveGets({ '/api/tasks': [], '/api/approvals': [], '/api/work-orders': [] })
+    serveGets({ ...children('iss-1'), '/api/counts': COUNTS })
     await useIssueStore.getState().createIssue({ ...input, idempotencyKey: 'key-1' })
     expect(useIssueStore.getState().issues).toHaveLength(1)
   })
 
-  it('only re-reads the lists the user may read', async () => {
+  it('only re-reads the lists the user may read — and only this issue\'s records', async () => {
     useIssueStore.setState({ currentUser: user({ issues: 'manage' }), tasks: [], workOrders: [wo({ id: 'cached' })] })
     mocked.post.mockResolvedValue(issue())
-    serveGets({})                                            // any GET would throw
+    serveGets({ '/api/counts': COUNTS })                      // any other GET would throw
 
     await useIssueStore.getState().createIssue(input)
 
-    expect(mocked.get).not.toHaveBeenCalled()
+    expect(mocked.get.mock.calls.map(([p]) => p)).toEqual(['/api/counts'])
     expect(useIssueStore.getState().workOrders.map((w) => w.id)).toEqual(['cached'])
   })
 
@@ -169,7 +187,8 @@ describe('decideApproval', () => {
     const s = useIssueStore.getState()
     expect(s.approvals[0].currentStepOrder).toBe(2)
     expect(s.workOrders[0].status).toBe('on-hold')
-    expect(mocked.get).not.toHaveBeenCalled()             // the Issue did not change
+    // the Issue did not change (only the menu badges are refreshed)
+    expect(mocked.get.mock.calls.filter(([p]) => String(p).startsWith('/api/issues'))).toEqual([])
   })
 
   it('final approval starts the linked work order and re-reads the issue', async () => {
@@ -209,7 +228,7 @@ describe('decideApproval', () => {
     useIssueStore.setState({ approvals: [approval({ issueId: null, issueNumber: null, purchaseRequestId: 'pr-1' })] })
     mocked.patch.mockResolvedValue(approval({ status: 'approved', issueId: null, issueNumber: null }))
     await useIssueStore.getState().decideApproval('apr-1', 'approved')
-    expect(mocked.get).not.toHaveBeenCalled()
+    expect(mocked.get.mock.calls.filter(([p]) => String(p).startsWith('/api/issues'))).toEqual([])
   })
 
   it('a refused decision (e.g. not your step) rejects and changes nothing', async () => {
@@ -362,5 +381,241 @@ describe('markNotificationRead', () => {
     mocked.patch.mockResolvedValue(read)
     await useIssueStore.getState().markNotificationRead('n1')
     expect(useIssueStore.getState().unreadCount).toBe(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// bulkCloseIssues — "Siap ditutup" (Todo-Pilot §18 / UX-5, Option A)
+// ---------------------------------------------------------------------------
+
+describe('bulkCloseIssues', () => {
+  it('posts the ids and puts the closed issues in the cache, leaving failures as they were', async () => {
+    const a = issue({ id: 'a', readyToClose: true })
+    const b = issue({ id: 'b', number: 'ISS-2026-00002', readyToClose: true })
+    useIssueStore.setState({ currentUser: user(), issues: [a, b] })
+    const closedA = { ...a, status: 'closed', readyToClose: false }
+    const failure = { id: 'b', number: 'ISS-2026-00002', reason: 'Issue cannot be closed while…' }
+    mocked.post.mockResolvedValue({ closed: [closedA], failed: [failure] })
+
+    const result = await useIssueStore.getState().bulkCloseIssues(['a', 'b'])
+
+    expect(mocked.post).toHaveBeenCalledWith('/api/issues/bulk-close', { ids: ['a', 'b'] })
+    expect(result).toEqual({ closed: [closedA], failed: [failure] })
+    expect(useIssueStore.getState().issues).toEqual([closedA, b])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Assignees are users (Todo-Pilot §17 / UX-4)
+// ---------------------------------------------------------------------------
+
+describe('assignees', () => {
+  const budi = { id: 'u-budi', name: 'Budi', role_name: 'Technician', approval_tier: 'staff' }
+
+  it('loads the assignable users of an outlet once and caches them', async () => {
+    useIssueStore.setState({ currentUser: user(), assignableUsers: {} })
+    mocked.get.mockResolvedValue([budi])
+    await useIssueStore.getState().loadAssignableUsers('Jakarta')
+    await useIssueStore.getState().loadAssignableUsers('Jakarta')
+    expect(mocked.get).toHaveBeenCalledTimes(1)
+    expect(mocked.get).toHaveBeenCalledWith('/api/auth/users/assignable?outlet=Jakarta')
+    expect(useIssueStore.getState().assignableUsers.Jakarta).toEqual([budi])
+  })
+
+  it('assigns an issue to a user, or unassigns it', async () => {
+    useIssueStore.setState({ currentUser: user(), issues: [issue()] })
+    const assigned = issue({ assignee: 'Budi', assigneeUserId: 'u-budi' })
+    mocked.patch.mockResolvedValue(assigned)
+    await useIssueStore.getState().assignIssue('iss-1', 'u-budi')
+    expect(mocked.patch).toHaveBeenLastCalledWith('/api/issues/iss-1', { assigneeUserId: 'u-budi' })
+    expect(useIssueStore.getState().issues[0]).toEqual(assigned)
+
+    mocked.patch.mockResolvedValue(issue())
+    await useIssueStore.getState().assignIssue('iss-1', null)
+    expect(mocked.patch).toHaveBeenLastCalledWith('/api/issues/iss-1', { assignee: 'Unassigned' })
+  })
+
+  it('assigns a work order and a task', async () => {
+    useIssueStore.setState({ currentUser: user(), workOrders: [wo()], tasks: [{ id: 't1', assignee: 'Unassigned' } as never] })
+    mocked.patch.mockResolvedValueOnce(wo({ assignee: 'Budi', assigneeUserId: 'u-budi' } as never))
+    await useIssueStore.getState().assignWorkOrder('wo-1', 'u-budi')
+    expect(mocked.patch).toHaveBeenLastCalledWith('/api/work-orders/wo-1', { assigneeUserId: 'u-budi' })
+    expect(useIssueStore.getState().workOrders[0]).toMatchObject({ assigneeUserId: 'u-budi' })
+
+    mocked.patch.mockResolvedValueOnce({ id: 't1', assignee: 'Budi', assigneeUserId: 'u-budi' })
+    await useIssueStore.getState().assignTask('t1', 'u-budi')
+    expect(mocked.patch).toHaveBeenLastCalledWith('/api/tasks/t1', { assigneeUserId: 'u-budi' })
+    expect(useIssueStore.getState().tasks[0]).toMatchObject({ assigneeUserId: 'u-budi' })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// uploadIssuePhoto (Todo-Pilot §20) — through the offline queue
+// ---------------------------------------------------------------------------
+
+describe('uploadIssuePhoto', () => {
+  it('queues the photo upload so it survives a no-signal room', async () => {
+    const queued = (api as unknown as { mutateOrQueue: ReturnType<typeof vi.fn> }).mutateOrQueue
+    queued.mockResolvedValue({ id: 'p1' })
+    const file = new File(['x'], 'kompor.jpg', { type: 'image/jpeg' })
+
+    await useIssueStore.getState().uploadIssuePhoto('iss-1', file, 'Api mati')
+
+    expect(queued).toHaveBeenCalledWith(expect.objectContaining({
+      method: 'POST', path: '/api/issues/iss-1/photos', file, fileName: 'kompor.jpg',
+      formParts: [{ field: 'caption', value: 'Api mati' }],
+    }))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Loading on outlet connections (Todo-Pilot §22 / UX-9)
+// ---------------------------------------------------------------------------
+
+describe('loadAll — only what every screen needs', () => {
+  it('loads counts, master data and notifications — no list of issues, tasks, approvals or other modules', async () => {
+    useIssueStore.setState({
+      currentUser: user({ issues: 'manage', tasks: 'manage', approvals: 'manage', cmms: 'manage', assets: 'manage',
+        vendors: 'manage', training: 'manage', campaigns: 'manage', users: 'manage', reports: 'view' }),
+    })
+    mocked.get.mockImplementation(async (p: string) => (p === '/api/counts' ? COUNTS : []))
+
+    await useIssueStore.getState().loadAll()
+
+    const paths = mocked.get.mock.calls.map(([p]) => String(p).split('?')[0])
+    expect(paths).toEqual(expect.arrayContaining(['/api/counts', '/api/outlets']))
+    for (const lazy of ['/api/issues', '/api/tasks', '/api/approvals', '/api/work-orders', '/api/assets', '/api/vendors',
+      '/api/training-programs', '/api/campaigns', '/api/auth/users', '/api/audit-logs']) {
+      expect(paths).not.toContain(lazy)
+    }
+    expect(useIssueStore.getState().counts).toEqual(COUNTS)
+  })
+
+  it('pages that aggregate everything load the full lists on demand', async () => {
+    serveGets({ '/api/issues': [issue()], '/api/tasks': [], '/api/approvals': [approval()] })
+    await useIssueStore.getState().ensureLoaded('core')
+    expect(useIssueStore.getState().issues.map((i) => i.id)).toEqual(['iss-1'])
+    expect(useIssueStore.getState().approvals.map((a) => a.id)).toEqual(['apr-1'])
+  })
+})
+
+describe('server lists (Todo-Pilot §22)', () => {
+  it('fetchIssue reads one issue into the cache; unknown → null', async () => {
+    useIssueStore.setState({ issues: [issue({ id: 'other', number: 'ISS-9' })] })
+    mocked.get.mockImplementation(async (p: string) => {
+      if (p === '/api/issues/iss-1') return issue()
+      throw new Error('API 404 /api/issues/x: {"detail":"Issue not found"}')
+    })
+    expect((await useIssueStore.getState().fetchIssue('iss-1'))?.id).toBe('iss-1')
+    expect(useIssueStore.getState().issues.map((i) => i.id).sort()).toEqual(['iss-1', 'other'])
+    expect(await useIssueStore.getState().fetchIssue('nope')).toBeNull()
+  })
+
+  it('upserting a page keeps the rest of the cache', () => {
+    useIssueStore.setState({ issues: [issue({ id: 'a', title: 'old' }), issue({ id: 'b' })] })
+    useIssueStore.getState().upsertIssues([issue({ id: 'a', title: 'new' }), issue({ id: 'c' })])
+    const byId = Object.fromEntries(useIssueStore.getState().issues.map((i) => [i.id, i.title]))
+    expect(byId).toEqual({ a: 'new', b: 'Kompor rusak', c: 'Kompor rusak' })
+  })
+
+  it('a change bumps the list version so lists on screen refetch, and refreshes the badges', async () => {
+    mocked.post.mockResolvedValue(issue())
+    serveGets({ ...children('iss-1'), '/api/counts': { ...COUNTS, issuesInProgress: 7 } })
+    const before = useIssueStore.getState().listVersion
+    await useIssueStore.getState().createIssue(input)
+    expect(useIssueStore.getState().listVersion).toBeGreaterThan(before)
+    await vi.waitFor(() => expect(useIssueStore.getState().counts?.issuesInProgress).toBe(7))
+  })
+
+  it('cancelling re-reads only that issue\'s tasks, approval and work orders', async () => {
+    mocked.post.mockResolvedValue(issue({ status: 'cancelled' }))
+    serveGets({ ...children('iss-1', { tasks: [{ id: 't1', issueId: 'iss-1', status: 'cancelled' }] }), '/api/counts': COUNTS })
+    await useIssueStore.getState().cancelIssue('iss-1', 'dobel')
+    expect(mocked.get).not.toHaveBeenCalledWith('/api/tasks')
+    expect(useIssueStore.getState().tasks.map((t) => t.id)).toEqual(['t1'])
+  })
+})
+
+describe('ensureLoaded', () => {
+  it('loads a module the first time a page needs it, and only once', async () => {
+    serveGets({ '/api/assets': [asset()], '/api/work-orders': [wo()] })
+
+    await useIssueStore.getState().ensureLoaded('cmms')
+    await useIssueStore.getState().ensureLoaded('cmms')
+
+    expect(useIssueStore.getState().workOrders).toHaveLength(1)
+    expect(mocked.get.mock.calls.filter(([p]) => p === '/api/work-orders')).toHaveLength(1)
+  })
+
+  it('logout forgets what was loaded, so the next user loads their own', async () => {
+    serveGets({ '/api/assets': [], '/api/work-orders': [] })
+    await useIssueStore.getState().ensureLoaded('cmms')
+    useIssueStore.getState().logout()
+    useIssueStore.setState({ currentUser: user() })
+
+    await useIssueStore.getState().ensureLoaded('cmms')
+
+    expect(mocked.get.mock.calls.filter(([p]) => p === '/api/work-orders')).toHaveLength(2)
+  })
+
+  it('tries again after a failed load', async () => {
+    mocked.get.mockRejectedValueOnce(new Error('offline')).mockResolvedValue([])
+    await useIssueStore.getState().ensureLoaded('vendors')
+    await useIssueStore.getState().ensureLoaded('vendors')
+    expect(mocked.get.mock.calls.filter(([p]) => String(p).startsWith('/api/vendors'))).toHaveLength(2)
+  })
+})
+
+describe('a failed update re-reads only that record', () => {
+  it('issue status: GET /api/issues/{id}, not the whole list', async () => {
+    useIssueStore.setState({ issues: [issue()] })
+    mocked.patch.mockRejectedValue(new Error('409'))
+    serveGets({ '/api/issues/iss-1': issue({ status: 'open' }) })
+
+    useIssueStore.getState().updateIssueStatus('iss-1', 'closed')
+    await vi.waitFor(() => expect(mocked.get).toHaveBeenCalledWith('/api/issues/iss-1'))
+
+    expect(mocked.get).not.toHaveBeenCalledWith('/api/issues')
+    expect(useIssueStore.getState().issues[0].status).toBe('open')
+  })
+
+  it('task status: re-reads the task and its issue', async () => {
+    const task = { id: 'tsk-1', issueId: 'iss-1', status: 'open' }
+    useIssueStore.setState({ issues: [issue()], tasks: [task] as never })
+    mocked.patch.mockRejectedValue(new Error('409'))
+    serveGets({ '/api/tasks/tsk-1': task, '/api/issues/iss-1': issue() })
+
+    useIssueStore.getState().updateTaskStatus('tsk-1', 'closed')
+    await vi.waitFor(() => expect(mocked.get).toHaveBeenCalledWith('/api/tasks/tsk-1'))
+
+    expect(mocked.get).not.toHaveBeenCalledWith('/api/tasks')
+    expect(useIssueStore.getState().tasks[0].status).toBe('open')
+  })
+})
+
+describe('loadAll — sync time and failed refreshes', () => {
+  it('records when the data was last synced', async () => {
+    mocked.get.mockResolvedValue([])
+    await useIssueStore.getState().loadAll()
+    expect(Date.parse(useIssueStore.getState().lastSyncedAt ?? '')).not.toBeNaN()
+  })
+
+  it('a failed refresh keeps what is on screen instead of an error page', async () => {
+    useIssueStore.setState({ issues: [issue()], lastSyncedAt: '2026-10-14T05:00:00.000Z' })
+    mocked.get.mockRejectedValue(new Error('offline'))
+
+    await useIssueStore.getState().loadAll()
+
+    const s = useIssueStore.getState()
+    expect(s.issues).toHaveLength(1)
+    expect(s.error).toBeNull()
+    expect(s.lastSyncedAt).toBe('2026-10-14T05:00:00.000Z')
+    expect(toast.error).toHaveBeenCalled()
+  })
+
+  it('the very first load failing still reports the error', async () => {
+    mocked.get.mockRejectedValue(new Error('offline'))
+    await useIssueStore.getState().loadAll()
+    expect(useIssueStore.getState().error).toMatch(/offline/)
   })
 })

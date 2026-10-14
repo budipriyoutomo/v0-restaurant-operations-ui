@@ -1,6 +1,8 @@
 // QA audit screen rules (Todo-Pilot §7). Pure — unit-tested in qa-audit.test.ts.
 // Must match backend/app/services/qa_audit_service.py (compute_score,
 // submit_problems): the server stays the authority, this only previews.
+import { translate } from './i18n/translate'
+import type { Locale } from './i18n/locale'
 import type { QAAuditFinding } from './types'
 
 type FindingLike = Pick<QAAuditFinding, 'title' | 'result' | 'weight' | 'requiresPhoto' | 'photos'>
@@ -15,11 +17,11 @@ export function previewScore(findings: FindingLike[]): number | null {
 }
 
 /** Why the audit cannot be submitted yet — same wording as the API's 409. */
-export function submitProblems(findings: FindingLike[]): string[] {
+export function submitProblems(findings: FindingLike[], locale: Locale = 'en'): string[] {
   const problems: string[] = []
   for (const f of findings) {
-    if (!f.result) problems.push(`${f.title}: not answered`)
-    else if (f.requiresPhoto && f.result !== 'na' && f.photos.length === 0) problems.push(`${f.title}: photo required`)
+    if (!f.result) problems.push(translate(locale, 'qaRunner.notAnswered', { title: f.title }))
+    else if (f.requiresPhoto && f.result !== 'na' && f.photos.length === 0) problems.push(translate(locale, 'qaRunner.photoRequired', { title: f.title }))
   }
   return problems
 }

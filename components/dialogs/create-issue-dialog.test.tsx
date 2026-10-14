@@ -4,6 +4,14 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { CreateIssueDialog } from './create-issue-dialog'
 import type { Asset, CreateIssueInput } from '@/lib/types'
+import { useIssueStore } from '@/lib/store'
+
+// The assignee picker lists users of the chosen outlet (Todo-Pilot §17).
+const budi = { id: 'u-budi', name: 'Budi', role_name: 'Technician', approval_tier: 'staff' }
+useIssueStore.setState({
+  assignableUsers: { Jakarta: [budi], Bandung: [] },
+  loadAssignableUsers: async () => [budi],
+})
 
 const assets = [{ id: 'as-1', name: 'Kompor Utama', number: 'AST-001' }] as Asset[]
 
@@ -12,7 +20,7 @@ function setup(props: Partial<React.ComponentProps<typeof CreateIssueDialog>> = 
   const onOpenChange = vi.fn()
   const utils = render(
     <CreateIssueDialog open onOpenChange={onOpenChange} outlets={['Jakarta', 'Bandung']}
-      assignees={['Unassigned', 'Budi']} assets={assets} onSubmit={onSubmit} {...props} />,
+      assets={assets} onSubmit={onSubmit} {...props} />,
   )
   return { ...utils, onSubmit, onOpenChange, user: userEvent.setup() }
 }
@@ -151,5 +159,154 @@ describe('CreateIssueDialog', () => {
       await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2))
       expect(onSubmit.mock.calls[1][0].idempotencyKey).not.toBe(onSubmit.mock.calls[0][0].idempotencyKey)
     })
+  })
+
+  it('assigns to a user of the outlet and sends their id (Todo-Pilot §17)', async () => {
+    const { user, onSubmit } = setup()
+    await fillRequired(user)
+    await user.selectOptions(screen.getByLabelText(/assign to/i), 'u-budi')
+    await user.click(screen.getByRole('button', { name: 'Create Issue' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ assignee: 'Budi', assigneeUserId: 'u-budi' })
+  })
+
+  it('changing outlet drops an assignee who cannot work there', async () => {
+    const { user, onSubmit } = setup()
+    await fillRequired(user)
+    await user.selectOptions(screen.getByLabelText(/assign to/i), 'u-budi')
+    await user.selectOptions(screen.getByLabelText(/outlet/i), 'Bandung')
+    await user.click(screen.getByRole('button', { name: 'Create Issue' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ assignee: 'Unassigned', assigneeUserId: null })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Quick report (Todo-Pilot §20 / UX-7): staff report a problem in seconds —
+// title, category, photo. No due date, toggles, cost or assignee.
+// ---------------------------------------------------------------------------
+
+describe('quick report mode (Todo-Pilot §20)', () => {
+  const created = { id: 'iss-9', number: 'ISS-2026-00009' }
+
+  function quick(props: Partial<React.ComponentProps<typeof CreateIssueDialog>> = {}) {
+    const onUploadPhoto = vi.fn().mockResolvedValue({ id: 'p1' })
+    const utils = setup({ quick: true, outlets: ['Jakarta'], onUploadPhoto, ...props })
+    utils.onSubmit.mockResolvedValue(created as never)
+    return { ...utils, onUploadPhoto }
+  }
+
+  it('hides the advanced options', () => {
+    quick()
+    for (const label of [/assign to/i, /due date/i, /create work order/i, /send for approval/i, /create task/i]) {
+      expect(screen.queryByLabelText(label)).not.toBeInTheDocument()
+    }
+  })
+
+  it('picks the only outlet automatically and shows big category buttons', () => {
+    quick()
+    expect(screen.queryByRole('combobox', { name: /outlet/i })).not.toBeInTheDocument()
+    expect(screen.getByText('Jakarta')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Maintenance' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'IT Support' })).toBeInTheDocument()
+  })
+
+  it('without any outlet says who to ask instead of offering free text', () => {
+    quick({ outlets: [] })
+    expect(screen.getByRole('alert')).toHaveTextContent(/not assigned to an outlet/i)
+    expect(screen.queryByRole('textbox', { name: /outlet/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send report' })).toBeDisabled()
+  })
+
+  it('sends with only a title — no due date needed — and shows the issue number', async () => {
+    const { user, onSubmit, onOpenChange } = quick()
+    await user.type(screen.getByLabelText(/title/i), 'Wastafel bocor')
+    await user.click(screen.getByRole('radio', { name: 'Other' }))
+    await user.click(screen.getByRole('button', { name: 'Send report' }))
+
+    expect(await screen.findByText(/ISS-2026-00009/)).toBeInTheDocument()
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      title: 'Wastafel bocor', outlet: 'Jakarta', category: 'Other', priority: 'medium', dueDate: '',
+      assignee: 'Unassigned', assigneeUserId: null, generateWorkOrder: false, generateApproval: false,
+    })
+    expect(screen.queryByText(/whatsapp/i)).not.toBeInTheDocument()
+  })
+
+  it('promises a WhatsApp update only to users who opted in', async () => {
+    const { user } = quick({ whatsappOptIn: true })
+    await user.type(screen.getByLabelText(/title/i), 'Wastafel bocor')
+    await user.click(screen.getByRole('button', { name: 'Send report' }))
+    expect(await screen.findByText(/we.ll keep you posted on whatsapp/i)).toBeInTheDocument()
+  })
+
+  it('uploads the photo to the new issue', async () => {
+    const { user, onUploadPhoto } = quick()
+    const photo = new File(['x'], 'bocor.jpg', { type: 'image/jpeg' })
+    await user.type(screen.getByLabelText(/title/i), 'Wastafel bocor')
+    await user.upload(screen.getByLabelText(/photo/i), photo)
+    await user.click(screen.getByRole('button', { name: 'Send report' }))
+    await screen.findByText(/ISS-2026-00009/)
+    expect(onUploadPhoto).toHaveBeenCalledWith('iss-9', photo)
+  })
+
+  it('says a queued photo will upload later — the report is still sent', async () => {
+    const { QueuedError } = await import('@/lib/api-client')
+    const { user, onUploadPhoto } = quick()
+    onUploadPhoto.mockRejectedValueOnce(new QueuedError('Foto laporan'))
+    await user.type(screen.getByLabelText(/title/i), 'Wastafel bocor')
+    await user.upload(screen.getByLabelText(/photo/i), new File(['x'], 'a.jpg', { type: 'image/jpeg' }))
+    await user.click(screen.getByRole('button', { name: 'Send report' }))
+    expect(await screen.findByText(/photo will upload when there is signal/i)).toBeInTheDocument()
+  })
+
+  it('"Report another" starts a fresh report', async () => {
+    const { user } = quick()
+    await user.type(screen.getByLabelText(/title/i), 'Wastafel bocor')
+    await user.click(screen.getByRole('button', { name: 'Send report' }))
+    await user.click(await screen.findByRole('button', { name: 'Report another' }))
+    expect(screen.getByLabelText(/title/i)).toHaveValue('')
+  })
+
+  it('a scanned asset QR fills the outlet and the description', async () => {
+    const asset = { id: 'as-7', name: 'Freezer 2', number: 'AST-007', outlet: 'Bandung' } as Asset
+    const resolveQr = vi.fn().mockResolvedValue({ asset, activeWorkOrderId: null, openWorkOrderCount: 0 })
+    const { user, onSubmit } = quick({ outlets: ['Jakarta', 'Bandung'], resolveQr })
+    await user.click(screen.getByRole('button', { name: /scan asset qr/i }))
+    await user.type(screen.getByPlaceholderText(/code from the sticker/i), 'tok-7')
+    await user.click(screen.getByRole('button', { name: 'Open' }))
+    await waitFor(() => expect(resolveQr).toHaveBeenCalledWith('tok-7'))
+    expect(screen.getByLabelText(/outlet/i)).toHaveValue('Bandung')
+    expect(screen.getByLabelText(/description/i)).toHaveValue('Freezer 2 (AST-007): ')
+    await user.type(screen.getByLabelText(/title/i), 'Tidak dingin')
+    await user.click(screen.getByRole('button', { name: 'Send report' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ outlet: 'Bandung', category: 'Maintenance' })
+  })
+})
+
+describe('full form extras (Todo-Pilot §20)', () => {
+  it('a scanned asset QR picks the work-order asset', async () => {
+    const asset = { id: 'as-1', name: 'Kompor Utama', number: 'AST-001', outlet: 'Bandung' } as Asset
+    const resolveQr = vi.fn().mockResolvedValue({ asset, activeWorkOrderId: null, openWorkOrderCount: 0 })
+    const { user } = setup({ resolveQr })
+    await user.click(screen.getByRole('button', { name: /scan asset qr/i }))
+    await user.type(screen.getByPlaceholderText(/code from the sticker/i), 'tok-1')
+    await user.click(screen.getByRole('button', { name: 'Open' }))
+    await waitFor(() => expect(screen.getByLabelText(/^asset$/i)).toHaveValue('as-1'))
+    expect(screen.getByLabelText(/create work order/i)).toBeChecked()
+    expect(screen.getByLabelText(/outlet/i)).toHaveValue('Bandung')
+  })
+
+  it('still closes after creating, uploading the photo first', async () => {
+    const onUploadPhoto = vi.fn().mockResolvedValue({ id: 'p1' })
+    const { user, onSubmit, onOpenChange } = setup({ onUploadPhoto })
+    onSubmit.mockResolvedValue({ id: 'iss-3', number: 'ISS-3' } as never)
+    await fillRequired(user)
+    const photo = new File(['x'], 'k.jpg', { type: 'image/jpeg' })
+    await user.upload(screen.getByLabelText(/photo/i), photo)
+    await user.click(screen.getByRole('button', { name: 'Create Issue' }))
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
+    expect(onUploadPhoto).toHaveBeenCalledWith('iss-3', photo)
   })
 })

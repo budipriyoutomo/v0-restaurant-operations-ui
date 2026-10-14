@@ -10,11 +10,13 @@ import { apiErrorMessage } from '@/lib/api-client'
 import { scoreTone } from '@/lib/qa-audit'
 import { qaApi } from '@/lib/qa-audit-api'
 import type { QAScores } from '@/lib/types'
+import { useT } from '@/lib/i18n'
 import { TONE_CLASS } from './tone'
 
 const LINE_COLORS = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d']
 
 export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?: number; compact?: boolean }) {
+  const { t, date } = useT()
   const [data, setData] = useState<QAScores | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,9 +25,9 @@ export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?
   }, [refreshKey])
 
   if (error) return <p className="text-xs text-destructive">{error}</p>
-  if (!data) return <p className="text-xs text-muted-foreground">Loading QA scores…</p>
+  if (!data) return <p className="text-xs text-muted-foreground">{t('qaScores.loading')}</p>
   if (data.outlets.length === 0) {
-    return <p className="text-sm text-muted-foreground py-6 text-center">No submitted audits in the last 6 months.</p>
+    return <p className="text-sm text-muted-foreground py-6 text-center">{t('qaScores.empty')}</p>
   }
 
   // Recharts wants one row per month with a key per outlet.
@@ -42,10 +44,10 @@ export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-              <th className="text-left px-3 py-2 font-semibold">Outlet</th>
-              <th className="text-right px-3 py-2 font-semibold">Latest</th>
-              <th className="text-right px-3 py-2 font-semibold hidden sm:table-cell">Audits</th>
-              <th className="text-right px-3 py-2 font-semibold">Repeats</th>
+              <th className="text-left px-3 py-2 font-semibold">{t('common.outlet')}</th>
+              <th className="text-right px-3 py-2 font-semibold">{t('qaScores.latest')}</th>
+              <th className="text-right px-3 py-2 font-semibold hidden sm:table-cell">{t('qaScores.audits')}</th>
+              <th className="text-right px-3 py-2 font-semibold">{t('qaScores.repeats')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -53,7 +55,7 @@ export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?
               <tr key={o.outlet}>
                 <td className="px-3 py-2">
                   <p className="font-medium">{o.outlet}</p>
-                  <p className="text-[11px] text-muted-foreground">{o.latestDate}</p>
+                  <p className="text-[11px] text-muted-foreground">{date(o.latestDate)}</p>
                 </td>
                 <td className={cn('px-3 py-2 text-right font-bold', TONE_CLASS[scoreTone(o.latestScore)])}>
                   {o.latestScore ?? '—'}
@@ -61,7 +63,7 @@ export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?
                 <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{o.audits}</td>
                 <td className="px-3 py-2 text-right">
                   {o.repeatFindings > 0
-                    ? <span className="inline-flex items-center gap-1 text-orange-600 font-semibold"><Repeat className="size-3" />{o.repeatFindings}</span>
+                    ? <span className="inline-flex items-center gap-1 text-orange-700 font-semibold"><Repeat className="size-3" />{o.repeatFindings}</span>
                     : <span className="text-muted-foreground">0</span>}
                 </td>
               </tr>
@@ -71,7 +73,7 @@ export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?
       </div>
 
       <div className={cn('rounded-xl border border-border bg-card p-3', !compact && 'lg:col-span-3')}>
-        <p className="text-xs font-semibold mb-2">Monthly average score</p>
+        <p className="text-xs font-semibold mb-2">{t('qaScores.monthly')}</p>
         <ResponsiveContainer width="100%" height={compact ? 180 : 240}>
           <LineChart data={chartRows}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />

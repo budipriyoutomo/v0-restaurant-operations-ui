@@ -3,7 +3,9 @@
 import { Download, FileText, CheckSquare, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useIssueStore } from '@/lib/store'
+import { useT } from '@/lib/i18n'
 import { ApprovalRequest, Issue, Task } from '@/lib/types'
+import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 
 // ── CSV helpers ──────────────────────────────────────────────────────────────
 
@@ -36,20 +38,29 @@ function todayString(): string {
 
 // ── Export functions ─────────────────────────────────────────────────────────
 
-function exportIssues(issues: Issue[]) {
-  const headers = ['Number', 'Title', 'Outlet', 'Category', 'Priority', 'Status', 'Assignee', 'Due Date', 'Created Date', 'SLA Breach', 'Task Count', 'Has Approval']
+// Column keys: header text = t('reports.col.<key>') in the user's language (Todo-Pilot §16).
+type ColKey = 'number' | 'title' | 'outlet' | 'category' | 'priority' | 'status' | 'assignee' | 'dueDate' | 'createdDate'
+  | 'slaBreach' | 'taskCount' | 'hasApproval' | 'issueNumber' | 'description' | 'type' | 'requester' | 'amount' | 'requestedDate'
+type T = ReturnType<typeof useT>['t']
+const ISSUE_COLS: ColKey[] = ['number', 'title', 'outlet', 'category', 'priority', 'status', 'assignee', 'dueDate', 'createdDate', 'slaBreach', 'taskCount', 'hasApproval']
+const TASK_COLS: ColKey[] = ['number', 'title', 'issueNumber', 'outlet', 'priority', 'status', 'assignee', 'dueDate', 'description']
+const APPROVAL_COLS: ColKey[] = ['number', 'title', 'type', 'requester', 'outlet', 'amount', 'status', 'requestedDate', 'issueNumber']
+const headersOf = (cols: ColKey[], t: T) => cols.map((c) => t(`reports.col.${c}`))
+
+function exportIssues(issues: Issue[], t: T) {
+  const headers = headersOf(ISSUE_COLS, t)
   const rows = issues.map((i) => [
     i.number, i.title, i.outlet, i.category, i.priority, i.status,
     i.assignee, i.dueDate ?? '', i.createdDate,
-    i.slaBreach ? 'Yes' : 'No',
+    i.slaBreach ? t('reports.yes') : t('reports.no'),
     String(i.taskIds.length),
-    i.approvalId ? 'Yes' : 'No',
+    i.approvalId ? t('reports.yes') : t('reports.no'),
   ])
   downloadCSV(buildCSV(headers, rows), `issues_${todayString()}.csv`)
 }
 
-function exportTasks(tasks: Task[]) {
-  const headers = ['Number', 'Title', 'Issue Number', 'Outlet', 'Priority', 'Status', 'Assignee', 'Due Date', 'Description']
+function exportTasks(tasks: Task[], t: T) {
+  const headers = headersOf(TASK_COLS, t)
   const rows = tasks.map((t) => [
     t.number, t.title, t.issueNumber, t.outlet, t.priority,
     t.status, t.assignee, t.dueDate ?? '', t.description,
@@ -57,8 +68,8 @@ function exportTasks(tasks: Task[]) {
   downloadCSV(buildCSV(headers, rows), `tasks_${todayString()}.csv`)
 }
 
-function exportApprovals(approvals: ApprovalRequest[]) {
-  const headers = ['Number', 'Title', 'Type', 'Requester', 'Outlet', 'Amount', 'Status', 'Requested Date', 'Issue Number']
+function exportApprovals(approvals: ApprovalRequest[], t: T) {
+  const headers = headersOf(APPROVAL_COLS, t)
   const rows = approvals.map((a) => [
     a.number, a.title, a.type, a.requester, a.outlet,
     // amount is an INTEGER rupiah value — CSV cells are strings
@@ -79,13 +90,14 @@ interface ReportCardProps {
 }
 
 function ReportCard({ icon, title, description, count, label, onExport }: ReportCardProps) {
+  const { t } = useT()
   const handleExport = () => {
     if (count === 0) {
-      toast.error(`No ${label} to export.`)
+      toast.error(t('reports.nothing', { label }))
       return
     }
     onExport()
-    toast.success(`Exported ${count} ${label} to CSV.`)
+    toast.success(t('reports.exported', { count, label }))
   }
 
   return (
@@ -104,14 +116,14 @@ function ReportCard({ icon, title, description, count, label, onExport }: Report
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-border">
-        <span className="text-xs text-muted-foreground">{count} record{count !== 1 ? 's' : ''} available</span>
+        <span className="text-xs text-muted-foreground">{t('reports.available', { count })}</span>
         <button
           onClick={handleExport}
           disabled={count === 0}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Download className="size-3.5" />
-          Export CSV
+          {t('reports.export')}
         </button>
       </div>
     </div>
@@ -119,68 +131,59 @@ function ReportCard({ icon, title, description, count, label, onExport }: Report
 }
 
 export function ReportsPage() {
+  // Aggregates every issue/task/approval: loads them all when opened (Todo-Pilot §22)
+  useEnsureLoaded('core')
   const { issues, tasks, approvals } = useIssueStore()
+  const { t } = useT()
 
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Reports</h1>
-        <p className="text-sm text-muted-foreground mt-1">Export operational data as CSV files</p>
+        <h1 className="text-3xl font-bold">{t('reports.title')}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t('reports.subtitle')}</p>
       </div>
 
       {/* Info banner */}
       <div className="flex items-start gap-3 p-4 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
         <FileText className="size-4 mt-0.5 flex-shrink-0 text-primary" />
-        <p>
-          All exports are generated from live data and include a UTF-8 BOM for compatibility with Microsoft Excel.
-          Dates are in <span className="font-mono text-foreground">YYYY-MM-DD</span> format.
-        </p>
+        <p>{t('reports.bomNote')}</p>
       </div>
 
       {/* Export cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         <ReportCard
           icon={<FileText className="size-5" />}
-          title="Issues"
-          description="All operational issues with status, priority, outlet, category, and linked records"
+          title={t('reports.issuesTitle')}
+          description={t('reports.issuesDesc')}
           count={issues.length}
-          label="issues"
-          onExport={() => exportIssues(issues)}
+          label={t('reports.issuesLabel')}
+          onExport={() => exportIssues(issues, t)}
         />
         <ReportCard
           icon={<CheckSquare className="size-5" />}
-          title="Tasks"
-          description="All tasks auto-generated from issues with assignee, priority, and status"
+          title={t('reports.tasksTitle')}
+          description={t('reports.tasksDesc')}
           count={tasks.length}
-          label="tasks"
-          onExport={() => exportTasks(tasks)}
+          label={t('reports.tasksLabel')}
+          onExport={() => exportTasks(tasks, t)}
         />
         <ReportCard
           icon={<CheckCircle2 className="size-5" />}
-          title="Approvals"
-          description="All approval requests with type, requester, amount, and decision status"
+          title={t('reports.approvalsTitle')}
+          description={t('reports.approvalsDesc')}
           count={approvals.length}
-          label="approvals"
-          onExport={() => exportApprovals(approvals)}
+          label={t('reports.approvalsLabel')}
+          onExport={() => exportApprovals(approvals, t)}
         />
       </div>
 
       {/* Column reference */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          {
-            title: 'Issues CSV columns',
-            columns: ['Number', 'Title', 'Outlet', 'Category', 'Priority', 'Status', 'Assignee', 'Due Date', 'Created Date', 'SLA Breach', 'Task Count', 'Has Approval'],
-          },
-          {
-            title: 'Tasks CSV columns',
-            columns: ['Number', 'Title', 'Issue Number', 'Outlet', 'Priority', 'Status', 'Assignee', 'Due Date', 'Description'],
-          },
-          {
-            title: 'Approvals CSV columns',
-            columns: ['Number', 'Title', 'Type', 'Requester', 'Outlet', 'Amount', 'Status', 'Requested Date', 'Issue Number'],
-          },
+          { title: t('reports.columnsOf', { name: t('reports.issuesTitle') }), columns: headersOf(ISSUE_COLS, t) },
+          { title: t('reports.columnsOf', { name: t('reports.tasksTitle') }), columns: headersOf(TASK_COLS, t) },
+          { title: t('reports.columnsOf', { name: t('reports.approvalsTitle') }), columns: headersOf(APPROVAL_COLS, t) },
         ].map(({ title, columns }) => (
           <div key={title} className="p-4 rounded-lg border border-border bg-background">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{title}</p>

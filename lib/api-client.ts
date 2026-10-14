@@ -168,8 +168,22 @@ export function apiErrorMessage(e: unknown, fallback = 'Request failed.'): strin
   return e.message
 }
 
+/** A page of a list plus the full size from X-Total-Count (Todo-Pilot §22). */
+async function getPage<T>(path: string): Promise<{ items: T[]; total: number }> {
+  const res = await fetch(`${BASE_URL}${path}`, { headers: buildHeaders() })
+  if (!res.ok) {
+    if (res.status === 401) authToken.clear()
+    const text = await res.text().catch(() => res.statusText)
+    throw new Error(`API ${res.status} ${path}: ${text}`)
+  }
+  const items = (await res.json()) as T[]
+  const header = res.headers.get('X-Total-Count')
+  return { items, total: header !== null ? Number(header) : items.length }
+}
+
 export const api = {
   get:    <T>(path: string)                => request<T>(path),
+  getPage,
   post:   <T>(path: string, body: unknown, headers?: Record<string, string>) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(body), headers }),
   patch:  <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH',  body: JSON.stringify(body) }),

@@ -6,7 +6,9 @@ import { toast } from 'sonner'
 import { useIssueStore } from '@/lib/store'
 import { usePermissions } from '@/lib/permissions'
 import { CreatePartInput } from '@/lib/types'
+import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
+import { formatMoney } from '@/lib/money'
 
 const EMPTY: CreatePartInput = {
   sku: '', name: '', category: 'General', unit: 'pcs',
@@ -14,12 +16,13 @@ const EMPTY: CreatePartInput = {
 }
 
 function fmtRp(v: number): string {
-  return 'Rp ' + (v ?? 0).toLocaleString('id-ID')
+  return formatMoney(v ?? 0)
 }
 
 export function PartsInventoryPanel() {
   const { parts, partsLoading, loadParts, createPart, updatePart, deletePart } = useIssueStore()
   const { can } = usePermissions()
+  const { t } = useT()
 
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -30,12 +33,12 @@ export function PartsInventoryPanel() {
   const lowCount = parts.filter((p) => p.lowStock && p.isActive).length
 
   async function handleSave() {
-    if (!form.sku.trim()) return toast.error('SKU wajib diisi')
-    if (!form.name.trim()) return toast.error('Nama part wajib diisi')
+    if (!form.sku.trim()) return toast.error(t('parts.skuRequired'))
+    if (!form.name.trim()) return toast.error(t('parts.nameRequired'))
     setSaving(true)
     try {
       await createPart(form)
-      toast.success('Part ditambahkan')
+      toast.success(t('parts.added'))
       setForm(EMPTY)
       setShowForm(false)
     } catch (e) {
@@ -46,23 +49,23 @@ export function PartsInventoryPanel() {
   }
 
   async function restock(id: string, current: number) {
-    const val = prompt('Set jumlah stok baru:', String(current))
+    const val = prompt(t('parts.setStock'), String(current))
     if (val === null) return
     const n = Number(val)
-    if (Number.isNaN(n) || n < 0) return toast.error('Jumlah tidak valid')
+    if (Number.isNaN(n) || n < 0) return toast.error(t('parts.badQty'))
     try {
       await updatePart(id, { stockQty: n })
-      toast.success('Stok diperbarui')
+      toast.success(t('parts.stockUpdated'))
     } catch (e) {
       toast.error(String(e))
     }
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Hapus part "${name}"?`)) return
+    if (!confirm(t('parts.confirmDelete', { name }))) return
     try {
       await deletePart(id)
-      toast.success('Part dihapus')
+      toast.success(t('parts.deleted'))
     } catch (e) {
       toast.error(String(e))
     }
@@ -74,14 +77,14 @@ export function PartsInventoryPanel() {
         <div className="flex items-center gap-2">
           <Package className="size-4 text-primary" />
           <div>
-            <h3 className="text-sm font-semibold">Spare Parts & Inventory</h3>
+            <h3 className="text-sm font-semibold">{t('parts.title')}</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Stok suku cadang — konsumsi di work order mengurangi stok & mengisi parts_cost otomatis
+              {t('parts.subtitle')}
             </p>
           </div>
           {lowCount > 0 && (
             <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold border bg-warning/15 text-warning border-warning/30">
-              <AlertTriangle className="size-3" /> {lowCount} stok menipis
+              <AlertTriangle className="size-3" /> {t('parts.lowStock', { count: lowCount })}
             </span>
           )}
         </div>
@@ -91,7 +94,7 @@ export function PartsInventoryPanel() {
             className="flex items-center gap-1.5 px-2.5 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
           >
             {showForm ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
-            {showForm ? 'Tutup' : 'Part baru'}
+            {showForm ? t('common.close') : t('parts.newPart')}
           </button>
         )}
       </div>
@@ -99,34 +102,34 @@ export function PartsInventoryPanel() {
       {showForm && can.manageCMMS && (
         <div className="mb-4 rounded-lg border border-border bg-muted/20 p-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold text-muted-foreground">SKU</span>
+            <span className="font-semibold text-muted-foreground">{t('parts.sku')}</span>
             <input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })}
               className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
           </label>
           <label className="flex flex-col gap-1 text-xs sm:col-span-2">
-            <span className="font-semibold text-muted-foreground">Nama</span>
+            <span className="font-semibold text-muted-foreground">{t('parts.name')}</span>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
           </label>
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold text-muted-foreground">Satuan</span>
+            <span className="font-semibold text-muted-foreground">{t('parts.unit')}</span>
             <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
               className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
           </label>
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold text-muted-foreground">Harga satuan (IDR)</span>
+            <span className="font-semibold text-muted-foreground">{t('parts.unitCost')}</span>
             <input type="number" min={0} value={form.unitCost}
               onChange={(e) => setForm({ ...form, unitCost: Number(e.target.value) })}
               className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
           </label>
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold text-muted-foreground">Stok awal</span>
+            <span className="font-semibold text-muted-foreground">{t('parts.initialStock')}</span>
             <input type="number" min={0} value={form.stockQty}
               onChange={(e) => setForm({ ...form, stockQty: Number(e.target.value) })}
               className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
           </label>
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold text-muted-foreground">Batas reorder</span>
+            <span className="font-semibold text-muted-foreground">{t('parts.reorderLevel')}</span>
             <input type="number" min={0} value={form.reorderLevel}
               onChange={(e) => setForm({ ...form, reorderLevel: Number(e.target.value) })}
               className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
@@ -134,28 +137,28 @@ export function PartsInventoryPanel() {
           <div className="flex items-end justify-end sm:col-span-1">
             <button onClick={handleSave} disabled={saving}
               className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
-              {saving && <Loader2 className="size-3.5 animate-spin" />} Simpan
+              {saving && <Loader2 className="size-3.5 animate-spin" />} {t('common.save')}
             </button>
           </div>
         </div>
       )}
 
       {partsLoading ? (
-        <p className="text-xs text-muted-foreground text-center py-6">Memuat inventory…</p>
+        <p className="text-xs text-muted-foreground text-center py-6">{t('parts.loading')}</p>
       ) : parts.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-10 text-xs text-muted-foreground">
-          Belum ada suku cadang.
+          {t('parts.empty')}
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left py-2 font-semibold">SKU</th>
-                <th className="text-left py-2 font-semibold">Nama</th>
-                <th className="text-right py-2 font-semibold">Harga</th>
-                <th className="text-right py-2 font-semibold">Stok</th>
-                <th className="text-right py-2 font-semibold">Reorder</th>
+                <th className="text-left py-2 font-semibold">{t('parts.sku')}</th>
+                <th className="text-left py-2 font-semibold">{t('parts.name')}</th>
+                <th className="text-right py-2 font-semibold">{t('parts.price')}</th>
+                <th className="text-right py-2 font-semibold">{t('parts.stock')}</th>
+                <th className="text-right py-2 font-semibold">{t('parts.reorder')}</th>
                 <th className="py-2" />
               </tr>
             </thead>
@@ -175,7 +178,7 @@ export function PartsInventoryPanel() {
                   <td className="py-2 text-right">
                     {can.manageCMMS && (
                       <button onClick={() => handleDelete(p.id, p.name)}
-                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Hapus">
+                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title={t('common.delete')} aria-label={t('common.delete')}>
                         <Trash2 className="size-3.5" />
                       </button>
                     )}

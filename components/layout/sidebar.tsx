@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { usePermissions } from '@/lib/permissions'
+import { useT, type MessageKey } from '@/lib/i18n'
 import {
   LayoutDashboard,
   AlertCircle,
@@ -25,11 +26,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Utensils,
+  ListChecks,
 } from 'lucide-react'
 
 interface NavItem {
-  id: string
-  label: string
+  id: string               // page id; label = t('nav.<id>')
   icon: React.ElementType
   group: string
   badgeKey?: 'issues' | 'tasks' | 'approvals' | 'notifications'
@@ -37,43 +38,44 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   // OPERATIONS - Core workflow
-  { id: 'dashboard',   label: 'Executive Dashboard', icon: LayoutDashboard, group: 'operations' },
-  { id: 'issues',      label: 'Issues',               icon: AlertCircle,     group: 'operations', badgeKey: 'issues' },
-  { id: 'tasks',       label: 'Tasks',                icon: CheckSquare,     group: 'operations', badgeKey: 'tasks' },
-  { id: 'approvals',   label: 'Approvals',            icon: CheckCircle2,    group: 'operations', badgeKey: 'approvals' },
+  { id: 'my-work',     icon: ListChecks,      group: 'operations' },   // Todo-Pilot §19
+  { id: 'dashboard',   icon: LayoutDashboard, group: 'operations' },
+  { id: 'issues',      icon: AlertCircle,     group: 'operations', badgeKey: 'issues' },
+  { id: 'tasks',       icon: CheckSquare,     group: 'operations', badgeKey: 'tasks' },
+  { id: 'approvals',   icon: CheckCircle2,    group: 'operations', badgeKey: 'approvals' },
 
   // OPERATIONS MODULES - Execution domains (Todo-Pilot §6)
   //   Maintenance = outlet queue of maintenance issues · CMMS = equipment, WOs, PM, parts
   //   Asset Purchase = requests to buy/replace assets
-  { id: 'maintenance',  label: 'Maintenance',    icon: Wrench,               group: 'modules' },
-  { id: 'cmms',         label: 'CMMS',           icon: Gauge,                group: 'modules' },
-  { id: 'assets',       label: 'Asset Purchase', icon: Package,              group: 'modules' },
-  { id: 'procurement',  label: 'Procurement',    icon: ShoppingCart,         group: 'modules' },
-  { id: 'training',     label: 'Training',       icon: BookOpen,             group: 'modules' },
-  { id: 'marketing',    label: 'Marketing',      icon: Megaphone,            group: 'modules' },
-  { id: 'qa',           label: 'QA & Compliance',icon: Shield,               group: 'modules' },
-  { id: 'guest-service',label: 'Guest Service',  icon: MessageSquareWarning, group: 'modules' },
+  { id: 'maintenance',  icon: Wrench,               group: 'modules' },
+  { id: 'cmms',         icon: Gauge,                group: 'modules' },
+  { id: 'assets',       icon: Package,              group: 'modules' },
+  { id: 'procurement',  icon: ShoppingCart,         group: 'modules' },
+  { id: 'training',     icon: BookOpen,             group: 'modules' },
+  { id: 'marketing',    icon: Megaphone,            group: 'modules' },
+  { id: 'qa',           icon: Shield,               group: 'modules' },
+  { id: 'guest-service',icon: MessageSquareWarning, group: 'modules' },
 
   // ISSUE VIEWS - the Issues list pinned to one category
-  { id: 'it-support',   label: 'IT Support',     icon: Monitor,              group: 'views' },
+  { id: 'it-support',   icon: Monitor,              group: 'views' },
 
   // INSIGHTS - Analytics & reporting
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'insights' },
-  { id: 'reports',   label: 'Reports',   icon: FileText,  group: 'insights' },
+  { id: 'analytics', icon: BarChart3, group: 'insights' },
+  { id: 'reports',   icon: FileText,  group: 'insights' },
 
   // SYSTEM - Configuration & admin
-  { id: 'master-data',   label: 'Master Data',   icon: Database, group: 'system' },
-  { id: 'users',         label: 'Users & Roles', icon: Users,    group: 'system' },
-  { id: 'notifications', label: 'Notifications', icon: Bell,     group: 'system', badgeKey: 'notifications' },
-  { id: 'settings',      label: 'Settings',      icon: Settings, group: 'system' },
+  { id: 'master-data',   icon: Database, group: 'system' },
+  { id: 'users',         icon: Users,    group: 'system' },
+  { id: 'notifications', icon: Bell,     group: 'system', badgeKey: 'notifications' },
+  { id: 'settings',      icon: Settings, group: 'system' },
 ]
 
-const groups: { id: string; label: string }[] = [
-  { id: 'operations', label: 'Operations' },
-  { id: 'modules', label: 'Operations Modules' },
-  { id: 'views', label: 'Issue Views' },
-  { id: 'insights', label: 'Insights' },
-  { id: 'system', label: 'System' },
+const groups: { id: string }[] = [   // label = t('navGroup.<id>')
+  { id: 'operations' },
+  { id: 'modules' },
+  { id: 'views' },
+  { id: 'insights' },
+  { id: 'system' },
 ]
 
 export interface SidebarBadges {
@@ -89,16 +91,28 @@ interface SidebarProps {
   currentPage: string
   onNavigate: (page: string) => void
   badges?: SidebarBadges
+  // Phones (< md): the sidebar is an off-canvas menu opened from the top bar
+  // instead of a column eating 2/3 of a 360px screen (Todo-Pilot §15).
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }
 
-export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges, mobileOpen = false, onMobileClose }: SidebarProps) {
   const { canViewPage } = usePermissions()
+  const { t } = useT()
 
   return (
+    <>
+    {mobileOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={onMobileClose} aria-hidden="true" />}
     <aside
       className={cn(
-        'relative flex flex-col border-r border-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out flex-shrink-0',
-        collapsed ? 'w-14' : 'w-56'
+        'flex flex-col border-r border-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out flex-shrink-0',
+        // phone: fixed drawer, hidden until opened
+        'fixed inset-y-0 left-0 z-50 w-64 shadow-lg',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full invisible',
+        // md+: the usual column
+        'md:visible md:relative md:inset-auto md:z-auto md:translate-x-0 md:shadow-none',
+        collapsed ? 'md:w-14' : 'md:w-56'
       )}
     >
       {/* Brand */}
@@ -109,7 +123,7 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges }
         {!collapsed && (
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground leading-none truncate">RestaurantOps</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">Enterprise Platform</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">{t('shell.platform')}</p>
           </div>
         )}
       </div>
@@ -122,7 +136,7 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges }
             <div key={group.id} className="mb-1">
               {!collapsed && (
                 <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  {group.label}
+                  {t(`navGroup.${group.id}` as MessageKey)}
                 </p>
               )}
               {groupItems.filter((item) => canViewPage(item.id)).map((item) => {
@@ -135,7 +149,7 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges }
                   <button
                     key={item.id}
                     onClick={() => onNavigate(item.id)}
-                    title={collapsed ? item.label : undefined}
+                    title={collapsed ? t(`nav.${item.id}` as MessageKey) : undefined}
                     className={cn(
                       'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors relative group',
                       collapsed && 'justify-center px-0',
@@ -158,7 +172,7 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges }
 
                     {!collapsed && (
                       <>
-                        <span className="flex-1 text-left truncate">{item.label}</span>
+                        <span className="flex-1 text-left truncate">{t(`nav.${item.id}` as MessageKey)}</span>
                         {showBadge && (
                           <span className="text-[10px] font-semibold bg-primary text-primary-foreground rounded-full min-w-[18px] px-1.5 py-0.5 leading-none text-center">
                             {count > 99 ? '99+' : count}
@@ -177,11 +191,12 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges }
       {/* Collapse toggle */}
       <button
         onClick={onToggle}
-        className="absolute -right-3 top-16 z-10 size-6 rounded-full border border-border bg-background flex items-center justify-center shadow-sm hover:bg-accent transition-colors"
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="hidden md:flex absolute -right-3 top-16 z-10 size-6 rounded-full border border-border bg-background flex items-center justify-center shadow-sm hover:bg-accent transition-colors"
+        aria-label={collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')}
       >
         {collapsed ? <ChevronRight className="size-3" /> : <ChevronLeft className="size-3" />}
       </button>
     </aside>
+    </>
   )
 }

@@ -1,13 +1,15 @@
-// Relative time for a notification's created_at ("5m ago", "3h ago", then a date).
-export function formatNotificationTime(iso: string, now: number = Date.now()): string {
-  try {
-    const diffMin = Math.floor((now - new Date(iso).getTime()) / 60000)
-    if (diffMin < 1)  return 'Just now'
-    if (diffMin < 60) return `${diffMin}m ago`
-    const h = Math.floor(diffMin / 60)
-    if (h < 24) return `${h}h ago`
-    return new Date(iso).toLocaleDateString()
-  } catch {
-    return iso
-  }
+import type { AppNotification } from './types'
+import { notificationPath } from './routes'
+
+
+// Click on a notification (bell or inbox): mark it read and open the record it
+// is about, if it has a route — Todo-Pilot §14 / UX-1. Returns whether it opened.
+export function openNotification(
+  n: Pick<AppNotification, 'id' | 'read_at' | 'entity_type' | 'entity_id'>,
+  { markRead, go }: { markRead: (id: string) => unknown; go: (path: string) => void },
+): boolean {
+  if (!n.read_at) markRead(n.id)
+  const path = notificationPath(n.entity_type, n.entity_id)
+  if (path) go(path)
+  return path !== null
 }

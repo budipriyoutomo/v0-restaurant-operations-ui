@@ -1,25 +1,16 @@
 // Campaign screen rules (Todo-Pilot §10). Pure — tested in campaign.test.ts.
+import { translate } from './i18n/translate'
+import type { Locale } from './i18n/locale'
 
-/** Integer major units → "Rp 5.000.000" / "RM 5,000" / "USD 1,200". */
-export function formatMoney(amount: number | null, currency: string): string {
-  if (amount === null) return '—'
-  if (currency === 'IDR') return 'Rp ' + amount.toLocaleString('id-ID')
-  const prefix = currency === 'MYR' ? 'RM' : currency
-  return `${prefix} ${amount.toLocaleString('en-US')}`
-}
+// Money formatting lives in lib/money.ts (Todo-Pilot §26); re-exported for existing callers.
+export { formatMoney, parseMoneyInput } from './money'
 
-/** "Rp 5.000.000" / "5000000" from an input box → 5000000; empty → null. */
-export function parseMoneyInput(raw: string): number | null {
-  const digits = raw.replace(/\D/g, '')
-  return digits ? Number(digits) : null
-}
-
-export function budgetBar(budget: number | null, actual: number | null): { fill: number; over: boolean; label: string } {
-  if (!budget) return { fill: 0, over: false, label: 'No budget set' }
-  if (actual === null) return { fill: 0, over: false, label: 'No spend recorded' }
+export function budgetBar(budget: number | null, actual: number | null, locale: Locale = 'en'): { fill: number; over: boolean; label: string } {
+  if (!budget) return { fill: 0, over: false, label: translate(locale, 'campaignMoney.noBudget') }
+  if (actual === null) return { fill: 0, over: false, label: translate(locale, 'campaignMoney.noSpend') }
   const pct = Math.round((actual * 1000) / budget) / 10
   const over = actual > budget
-  return { fill: Math.min(100, pct), over, label: over ? `${pct}% used — over budget` : `${pct}% used` }
+  return { fill: Math.min(100, pct), over, label: translate(locale, over ? 'campaignMoney.usedOver' : 'campaignMoney.used', { pct }) }
 }
 
 export function upliftLabel(pct: number | null): string {

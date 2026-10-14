@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Edit2, Trash2, Search, Filter, Loader2, Mail, Phone } from 'lucide-react'
+import { Plus, Edit2, Trash2, Search, Loader2, Mail, Phone } from 'lucide-react'
 import { toast } from 'sonner'
 import { NewOutletDialog } from '@/components/dialogs/new-outlet-dialog'
 import { NewCategoryDialog } from '@/components/dialogs/new-category-dialog'
@@ -9,15 +9,18 @@ import { NewPICDialog } from '@/components/dialogs/new-pic-dialog'
 import { ApprovalPolicyPanel } from '@/components/master-data/approval-policy-panel'
 import { useIssueStore } from '@/lib/store'
 import { MasterCategory, Outlet, OutletStatus, PIC } from '@/lib/types'
+import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
+import { formatMoney } from '@/lib/money'
 
-const statusColors: Record<OutletStatus, { bg: string; text: string; badge: string }> = {
-  operational: { bg: 'bg-success/20', text: 'text-success', badge: 'Operational' },
-  warning:     { bg: 'bg-warning/20',  text: 'text-warning',  badge: 'Warning' },
-  critical:    { bg: 'bg-destructive/20', text: 'text-destructive', badge: 'Critical' },
+const statusColors: Record<OutletStatus, { bg: string; text: string }> = {
+  operational: { bg: 'bg-success/20', text: 'text-success' },
+  warning:     { bg: 'bg-warning/20',  text: 'text-warning' },
+  critical:    { bg: 'bg-destructive/20', text: 'text-destructive' },
 }
 
 export function MasterDataPage() {
+  const { t, label } = useT()
   const {
     outlets, categories, pics, masterDataLoading, approvalPolicies,
     createOutlet, updateOutlet, deleteOutlet,
@@ -57,32 +60,32 @@ export function MasterDataPage() {
   // Handlers — delegate all persistence to store
   // -------------------------------------------------------------------------
   const handleDeleteOutlet = async (id: string, name: string) => {
-    const tid = toast.loading(`Deleting outlet "${name}"…`)
+    const tid = toast.loading(t('masterData.deleting', { kind: t('masterData.kind.outlet'), name }))
     try {
       await deleteOutlet(id)
-      toast.success(`Outlet "${name}" deleted.`, { id: tid })
+      toast.success(t('masterData.deleted', { kind: t('masterData.kind.outlet'), name }), { id: tid })
     } catch {
-      toast.error('Failed to delete outlet. It may be in use.', { id: tid })
+      toast.error(t('masterData.deleteFailedInUse', { kind: t('masterData.kind.outlet') }), { id: tid })
     }
   }
 
   const handleDeleteCategory = async (id: string, name: string) => {
-    const tid = toast.loading(`Deleting category "${name}"…`)
+    const tid = toast.loading(t('masterData.deleting', { kind: t('masterData.kind.category'), name }))
     try {
       await deleteCategory(id)
-      toast.success(`Category "${name}" deleted.`, { id: tid })
+      toast.success(t('masterData.deleted', { kind: t('masterData.kind.category'), name }), { id: tid })
     } catch {
-      toast.error('Failed to delete category. It may be in use.', { id: tid })
+      toast.error(t('masterData.deleteFailedInUse', { kind: t('masterData.kind.category') }), { id: tid })
     }
   }
 
   const handleDeletePIC = async (id: string, name: string) => {
-    const tid = toast.loading(`Deleting PIC "${name}"…`)
+    const tid = toast.loading(t('masterData.deleting', { kind: t('masterData.kind.pic'), name }))
     try {
       await deletePIC(id)
-      toast.success(`PIC "${name}" deleted.`, { id: tid })
+      toast.success(t('masterData.deleted', { kind: t('masterData.kind.pic'), name }), { id: tid })
     } catch {
-      toast.error('Failed to delete PIC.', { id: tid })
+      toast.error(t('masterData.deleteFailed', { kind: t('masterData.kind.pic') }), { id: tid })
     }
   }
 
@@ -108,8 +111,8 @@ export function MasterDataPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Master Data</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage outlets, categories and PICs</p>
+          <h1 className="text-3xl font-bold">{t('masterData.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('masterData.subtitle')}</p>
         </div>
         {activeTab !== 'policies' && (
           <button
@@ -121,7 +124,7 @@ export function MasterDataPage() {
             className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
           >
             <Plus className="size-4" />
-            New {activeTab === 'outlets' ? 'Outlet' : activeTab === 'categories' ? 'Category' : 'PIC'}
+            {t(`masterData.new.${activeTab}`)}
           </button>
         )}
       </div>
@@ -133,15 +136,13 @@ export function MasterDataPage() {
             : tab === 'categories' ? categories.length
             : tab === 'pics' ? pics.length
             : approvalPolicies.length
-          const label = tab === 'pics' ? 'PIC'
-            : tab === 'policies' ? 'Approval Policies'
-            : tab.charAt(0).toUpperCase() + tab.slice(1)
+          const label = t(`masterData.tab.${tab}`)
           return (
             <button
               key={tab}
               onClick={() => switchTab(tab)}
               className={cn(
-                'px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize',
+                'px-4 py-3 text-sm font-semibold border-b-2 transition-colors',
                 activeTab === tab
                   ? 'border-primary text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -160,16 +161,13 @@ export function MasterDataPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder={`Search ${activeTab}...`}
+            placeholder={t(`masterData.search.${activeTab as 'outlets' | 'categories' | 'pics'}`)}
+            aria-label={t('common.search')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-md border border-border hover:bg-muted/50 transition-colors font-medium text-sm">
-          <Filter className="size-4" />
-          Filter
-        </button>
       </div>
       )}
 
@@ -177,7 +175,7 @@ export function MasterDataPage() {
       {masterDataLoading && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
           <Loader2 className="size-4 animate-spin" />
-          Loading...
+          {t('common.loading')}
         </div>
       )}
 
@@ -190,18 +188,18 @@ export function MasterDataPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="px-6 py-3 text-left text-sm font-semibold">Outlet Name</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold">Code</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold">Approval Threshold</th>
-                  <th className="px-6 py-3 text-right text-sm font-semibold">Actions</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold">{t('masterData.outletName')}</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold">{t('masterData.code')}</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold">{t('common.status')}</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold">{t('masterData.threshold')}</th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold">{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredOutlets.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
-                      No outlets found
+                      {t('masterData.noOutlets')}
                     </td>
                   </tr>
                 ) : (
@@ -219,16 +217,16 @@ export function MasterDataPage() {
                           statusColors[outlet.status].bg,
                           statusColors[outlet.status].text
                         )}>
-                          {statusColors[outlet.status].badge}
+                          {label('outletStatus', outlet.status)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">
                         {outlet.approvalThreshold == null ? (
                           <span className="text-muted-foreground">
-                            Rp {outlet.approvalThresholdDefault.toLocaleString('id-ID')} (default)
+                            {formatMoney(outlet.approvalThresholdDefault)} {t('masterData.default')}
                           </span>
                         ) : (
-                          <span>Rp {outlet.approvalThreshold.toLocaleString('id-ID')}</span>
+                          <span>{formatMoney(outlet.approvalThreshold)}</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -236,14 +234,14 @@ export function MasterDataPage() {
                           <button
                             onClick={() => setOutletDialog({ open: true, data: outlet })}
                             className="p-1.5 hover:bg-accent rounded-md transition-colors"
-                            title="Edit"
+                            title={t('common.edit')} aria-label={t('common.edit')}
                           >
                             <Edit2 className="size-4 text-muted-foreground hover:text-foreground" />
                           </button>
                           <button
                             onClick={() => handleDeleteOutlet(outlet.id, outlet.name)}
                             className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors"
-                            title="Delete"
+                            title={t('common.delete')} aria-label={t('common.delete')}
                           >
                             <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
                           </button>
@@ -265,7 +263,7 @@ export function MasterDataPage() {
         <div className="space-y-4">
           {filteredCategories.length === 0 ? (
             <div className="p-12 rounded-lg border border-border text-center">
-              <p className="text-muted-foreground">No categories found</p>
+              <p className="text-muted-foreground">{t('masterData.noCategories')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -280,9 +278,9 @@ export function MasterDataPage() {
                         <h3 className="font-bold text-foreground">{category.name}</h3>
                         <span className={cn(
                           'text-[10px] font-semibold px-2 py-0.5 rounded-full',
-                          category.type === 'operations' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                          category.type === 'operations' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-800'
                         )}>
-                          {category.type === 'operations' ? 'Operations' : 'Maintenance'}
+                          {category.type === 'operations' ? t('masterData.typeOperations') : t('masterData.typeMaintenance')}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">{category.description}</p>
@@ -291,14 +289,14 @@ export function MasterDataPage() {
                       <button
                         onClick={() => setCategoryDialog({ open: true, data: category })}
                         className="p-1.5 hover:bg-accent rounded-md transition-colors"
-                        title="Edit"
+                        title={t('common.edit')} aria-label={t('common.edit')}
                       >
                         <Edit2 className="size-4 text-muted-foreground hover:text-foreground" />
                       </button>
                       <button
                         onClick={() => handleDeleteCategory(category.id, category.name)}
                         className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors"
-                        title="Delete"
+                        title={t('common.delete')} aria-label={t('common.delete')}
                       >
                         <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
                       </button>
@@ -318,7 +316,7 @@ export function MasterDataPage() {
         <div className="space-y-4">
           {filteredPics.length === 0 ? (
             <div className="p-12 rounded-lg border border-border text-center">
-              <p className="text-muted-foreground">No PICs found</p>
+              <p className="text-muted-foreground">{t('masterData.noPics')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -336,14 +334,14 @@ export function MasterDataPage() {
                       <button
                         onClick={() => setPicDialog({ open: true, data: pic })}
                         className="p-1.5 hover:bg-accent rounded-md transition-colors"
-                        title="Edit"
+                        title={t('common.edit')} aria-label={t('common.edit')}
                       >
                         <Edit2 className="size-4 text-muted-foreground hover:text-foreground" />
                       </button>
                       <button
                         onClick={() => handleDeletePIC(pic.id, pic.name)}
                         className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors"
-                        title="Delete"
+                        title={t('common.delete')} aria-label={t('common.delete')}
                       >
                         <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
                       </button>
@@ -366,10 +364,10 @@ export function MasterDataPage() {
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Assigned Categories</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">{t('masterData.assignedCategories')}</p>
                     <div className="flex flex-wrap gap-2">
                       {pic.categories.length === 0 ? (
-                        <p className="text-sm text-muted-foreground italic">No categories assigned</p>
+                        <p className="text-sm text-muted-foreground italic">{t('masterData.noAssigned')}</p>
                       ) : (
                         pic.categories.map((catId) => {
                           const type = getCategoryType(catId)
@@ -380,7 +378,7 @@ export function MasterDataPage() {
                                 'text-xs font-semibold px-2.5 py-1 rounded-full',
                                 type === 'operations'
                                   ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-orange-100 text-orange-700'
+                                  : 'bg-orange-100 text-orange-800'
                               )}
                             >
                               {getCategoryName(catId)}
@@ -412,10 +410,10 @@ export function MasterDataPage() {
         onSubmit={async (data) => {
           if (outletDialog.data) {
             await updateOutlet(outletDialog.data.id, data)
-            toast.success(`Outlet "${data.name}" updated.`)
+            toast.success(t('masterData.updated', { kind: t('masterData.kind.outlet'), name: data.name }))
           } else {
             await createOutlet(data)
-            toast.success(`Outlet "${data.name}" created.`)
+            toast.success(t('masterData.created', { kind: t('masterData.kind.outlet'), name: data.name }))
           }
         }}
       />
@@ -427,10 +425,10 @@ export function MasterDataPage() {
         onSubmit={async (data) => {
           if (categoryDialog.data) {
             await updateCategory(categoryDialog.data.id, data)
-            toast.success(`Category "${data.name}" updated.`)
+            toast.success(t('masterData.updated', { kind: t('masterData.kind.category'), name: data.name }))
           } else {
             await createCategory(data)
-            toast.success(`Category "${data.name}" created.`)
+            toast.success(t('masterData.created', { kind: t('masterData.kind.category'), name: data.name }))
           }
         }}
       />
@@ -443,10 +441,10 @@ export function MasterDataPage() {
         onSubmit={async (data) => {
           if (picDialog.data) {
             await updatePIC(picDialog.data.id, data)
-            toast.success(`PIC "${data.name}" updated.`)
+            toast.success(t('masterData.updated', { kind: t('masterData.kind.pic'), name: data.name }))
           } else {
             await createPIC(data)
-            toast.success(`PIC "${data.name}" created.`)
+            toast.success(t('masterData.created', { kind: t('masterData.kind.pic'), name: data.name }))
           }
         }}
       />

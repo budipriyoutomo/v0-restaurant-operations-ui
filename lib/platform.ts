@@ -1,3 +1,5 @@
+import { translate } from './i18n/translate'
+import type { Locale } from './i18n/locale'
 // Platform admin — managing customer companies (Todo-Pilot §11).
 // Pure helpers; API calls live in platform-api.ts.
 
@@ -19,13 +21,13 @@ export function slugify(name: string): string {
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
-export function validateNewCompany(form: NewCompanyForm): NewCompanyErrors {
+export function validateNewCompany(form: NewCompanyForm, locale: Locale = 'en'): NewCompanyErrors {
   const errors: NewCompanyErrors = {}
-  if (!form.name.trim()) errors.name = 'Company name is required'
-  if (!form.adminName.trim()) errors.adminName = 'Admin name is required'
-  if (!EMAIL.test(form.adminEmail.trim())) errors.adminEmail = 'Enter a valid email address'
+  if (!form.name.trim()) errors.name = translate(locale, 'platformRules.name')
+  if (!form.adminName.trim()) errors.adminName = translate(locale, 'platformRules.adminName')
+  if (!EMAIL.test(form.adminEmail.trim())) errors.adminEmail = translate(locale, 'platformRules.email')
   if (form.adminPassword && form.adminPassword.length < 10) {
-    errors.adminPassword = 'At least 10 characters, or leave empty to generate one'
+    errors.adminPassword = translate(locale, 'platformRules.password')
   }
   return errors
 }

@@ -6,11 +6,16 @@ import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { useMyOutlets } from '@/lib/permissions'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
+import { useT } from '@/lib/i18n'
+import { navigate } from '@/lib/use-route'
+import { recordPath } from '@/lib/routes'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
+import { formatMoney } from '@/lib/money'
+import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 
 type Tab = 'requests' | 'approvals'
 
-const rp = (n: number) => 'Rp ' + (n ?? 0).toLocaleString('id-ID')
+const rp = (n: number) => formatMoney(n ?? 0)
 
 // ---------------------------------------------------------------------------
 // Asset Purchase — requests to buy/replace an asset and their approvals.
@@ -18,11 +23,14 @@ const rp = (n: number) => 'Rp ' + (n ?? 0).toLocaleString('id-ID')
 // side only.
 // ---------------------------------------------------------------------------
 export function AssetsPage() {
+  // Aggregates every issue/task/approval: loads them all when opened (Todo-Pilot §22)
+  useEnsureLoaded('core')
   const { issues, approvals, pics, createIssue } = useIssueStore()
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState<Tab>('requests')
+  const { t, label, date } = useT()
 
   const requests   = issues.filter((i) => i.category === 'Asset Purchase')
   const approvalsA = approvals.filter((a) => a.type === 'asset-purchase')
@@ -35,8 +43,8 @@ export function AssetsPage() {
   }
 
   const tabDefs: { id: Tab; label: string; count: number }[] = [
-    { id: 'requests',        label: 'Asset Requests',  count: requests.length },
-    { id: 'approvals',       label: 'Approvals',        count: approvalsA.length },
+    { id: 'requests',  label: t('assetsPage.tabRequests'),  count: requests.length },
+    { id: 'approvals', label: t('assetsPage.tabApprovals'), count: approvalsA.length },
   ]
 
   return (
@@ -44,38 +52,38 @@ export function AssetsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Asset Purchase</h1>
+          <h1 className="text-3xl font-bold">{t('assetsPage.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Requests to buy or replace an asset, and their approvals. Registered equipment, work orders and PM are in CMMS.
+            {t('assetsPage.subtitle')}
           </p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
         >
-          <Plus className="size-4" /> New Asset Request
+          <Plus className="size-4" /> {t('assetsPage.new')}
         </button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label="Total Requests"   value={purchaseStats.total}    color="text-foreground" />
-        <StatCard label="Pending Approval" value={purchaseStats.pending}  color="text-amber-600"  />
-        <StatCard label="Approved"         value={purchaseStats.approved} color="text-success"    />
-        <StatCard label="Rejected"         value={purchaseStats.rejected} color="text-destructive" />
+        <StatCard label={t('assetsPage.total')} value={purchaseStats.total}    color="text-foreground" />
+        <StatCard label={t('assetsPage.pending')} value={purchaseStats.pending}  color="text-amber-700"  />
+        <StatCard label={label('approvalStatus', 'approved')} value={purchaseStats.approved} color="text-success"    />
+        <StatCard label={label('approvalStatus', 'rejected')} value={purchaseStats.rejected} color="text-destructive" />
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
-        {tabDefs.map((t) => (
+        {tabDefs.map((td) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={td.id}
+            onClick={() => setTab(td.id)}
             className={cn(
               'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
-              tab === t.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
+              tab === td.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
-            {t.label} ({t.count})
+            {td.label} ({td.count})
           </button>
         ))}
       </div>
@@ -83,11 +91,11 @@ export function AssetsPage() {
       {/* Tab: Asset Requests */}
       {tab === 'requests' && (
         requests.length === 0 ? (
-          <EmptyState icon={Package} message="No asset requests" hint="Submit a request to purchase or replace an asset." />
+          <EmptyState icon={Package} message={t('assetsPage.noRequests')} hint={t('assetsPage.noRequestsHint')} />
         ) : (
           <div className="space-y-2">
             {requests.map((r) => (
-              <div key={r.id} className="p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4">
+              <button type="button" key={r.id} onClick={() => navigate(recordPath('issues', r.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[11px] font-mono text-muted-foreground">{r.number}</span>
@@ -98,12 +106,12 @@ export function AssetsPage() {
                   <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
                     <span>{r.outlet}</span>
                     <span>·</span>
-                    <span>{r.assignee || 'Unassigned'}</span>
-                    {r.dueDate && <><span>·</span><span>Needed by: {r.dueDate}</span></>}
+                    <span>{r.assignee || t('common.unassigned')}</span>
+                    {r.dueDate && <><span>·</span><span>{t('assetsPage.neededBy', { date: date(r.dueDate) })}</span></>}
                   </div>
                 </div>
                 <StatusBadge status={r.status} />
-              </div>
+              </button>
             ))}
           </div>
         )
@@ -112,31 +120,31 @@ export function AssetsPage() {
       {/* Tab: Approvals */}
       {tab === 'approvals' && (
         approvalsA.length === 0 ? (
-          <EmptyState icon={CheckCircle2} message="No asset purchase approvals" hint="Approvals appear when an asset request is submitted with approval enabled." />
+          <EmptyState icon={CheckCircle2} message={t('assetsPage.noApprovals')} hint={t('assetsPage.noApprovalsHint')} />
         ) : (
           <div className="space-y-2">
             {approvalsA.map((a) => (
-              <div key={a.id} className="p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4">
+              <button type="button" key={a.id} onClick={() => navigate(recordPath('approvals', a.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[11px] font-mono text-muted-foreground">{a.number}</span>
-                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-semibold text-muted-foreground">asset</span>
+                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-semibold text-muted-foreground">{t('assetsPage.assetTag')}</span>
                   </div>
                   <p className="text-sm font-semibold">{a.title}</p>
                   <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
                     <span>{a.outlet}</span>
                     <span>·</span>
-                    <span>By: {a.requester}</span>
+                    <span>{t('assetsPage.by', { name: a.requester })}</span>
                     {a.amount != null && <><span>·</span><span className="font-semibold text-foreground">{rp(a.amount)}</span></>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {a.status === 'pending'  && <Clock className="size-4 text-amber-500" />}
+                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700" />}
                   {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
                   {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
                   <StatusBadge status={a.status} />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )
@@ -147,7 +155,6 @@ export function AssetsPage() {
         onOpenChange={setShowCreate}
         defaultCategory="Asset Purchase"
         outlets={myOutlets.map((o) => o.name)}
-        assignees={['Unassigned', ...pics.map((p) => p.name)]}
         onSubmit={async (input) => { await createIssue(input) }}
       />
 

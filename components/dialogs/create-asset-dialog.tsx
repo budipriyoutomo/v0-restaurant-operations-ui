@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { AssetStatus, CreateAssetInput } from '@/lib/types'
+import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
 interface CreateAssetDialogProps {
   open: boolean
@@ -36,6 +38,8 @@ const defaultForm = {
 }
 
 export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: CreateAssetDialogProps) {
+  const id = useId()
+  const { t, label } = useT()
   const [form, setForm] = useState({ ...defaultForm, outlet: outlets[0] ?? '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -76,21 +80,26 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
       })
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create asset')
+      setError(err instanceof Error ? err.message : t('createAsset.failed'))
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalKeyboard(panelRef, () => { if (!isSubmitting) onOpenChange(false) }, open)
+
   if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="create-asset-title"
+        className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
-          <h2 className="text-lg font-bold">Register New Asset</h2>
-          <button onClick={() => !isSubmitting && onOpenChange(false)} className="p-1 hover:bg-muted rounded-md transition-colors">
+          <h2 id="create-asset-title" className="text-lg font-bold">{t('createAsset.title')}</h2>
+          <button onClick={() => !isSubmitting && onOpenChange(false)} aria-label={t('common.close')} className="p-1 hover:bg-muted rounded-md transition-colors">
             <X className="size-5 text-muted-foreground" />
           </button>
         </div>
@@ -102,9 +111,9 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
 
           {/* Name */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Asset Name <span className="text-destructive">*</span></label>
-            <input
-              type="text" name="name" placeholder="e.g. AC Unit Level 2 — Kitchen"
+            <label htmlFor={`${id}-name`} className="block text-sm font-semibold mb-1.5">{t('createAsset.name')} <span className="text-destructive">*</span></label>
+            <input id={`${id}-name`}
+              type="text" name="name" placeholder={t('createAsset.namePlaceholder')}
               value={form.name} onChange={handleChange} autoFocus
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
@@ -112,10 +121,10 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
 
           {/* Category — free text with datalist suggestions */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Category <span className="text-destructive">*</span></label>
-            <input
+            <label htmlFor={`${id}-category`} className="block text-sm font-semibold mb-1.5">{t('common.category')} <span className="text-destructive">*</span></label>
+            <input id={`${id}-category`}
               type="text" name="category" list="category-suggestions"
-              placeholder="e.g. AC Unit, Refrigerator…"
+              placeholder={t('createAsset.categoryPlaceholder')}
               value={form.category} onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
@@ -126,15 +135,15 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
 
           {/* Outlet */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Outlet <span className="text-destructive">*</span></label>
+            <label htmlFor={`${id}-outlet`} className="block text-sm font-semibold mb-1.5">{t('common.outlet')} <span className="text-destructive">*</span></label>
             {outlets.length > 0 ? (
-              <select name="outlet" value={form.outlet} onChange={handleChange}
+              <select id={`${id}-outlet`} name="outlet" value={form.outlet} onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
                 {outlets.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             ) : (
               <input
-                type="text" name="outlet" placeholder="Enter outlet name"
+                type="text" name="outlet" placeholder={t('createIssue.outletPlaceholder')}
                 value={form.outlet} onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
@@ -143,11 +152,11 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Status</label>
-            <select name="status" value={form.status} onChange={handleChange}
+            <label htmlFor={`${id}-status`} className="block text-sm font-semibold mb-1.5">{t('common.status')}</label>
+            <select id={`${id}-status`} name="status" value={form.status} onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
               {ASSET_STATUSES.map((s) => (
-                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                <option key={s} value={s}>{label('assetStatus', s)}</option>
               ))}
             </select>
           </div>
@@ -155,17 +164,17 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
           {/* Brand / Model — two columns */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-semibold mb-1.5">Brand</label>
-              <input
-                type="text" name="brand" placeholder="e.g. Daikin"
+              <label htmlFor={`${id}-brand`} className="block text-sm font-semibold mb-1.5">{t('asset.brand')}</label>
+              <input id={`${id}-brand`}
+                type="text" name="brand" placeholder={t('createAsset.brandPlaceholder')}
                 value={form.brand} onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold mb-1.5">Model</label>
-              <input
-                type="text" name="model" placeholder="e.g. FTKM25UV"
+              <label htmlFor={`${id}-model`} className="block text-sm font-semibold mb-1.5">{t('asset.model')}</label>
+              <input id={`${id}-model`}
+                type="text" name="model" placeholder={t('createAsset.modelPlaceholder')}
                 value={form.model} onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
@@ -174,9 +183,9 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
 
           {/* Serial Number */}
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Serial Number</label>
-            <input
-              type="text" name="serialNumber" placeholder="Manufacturer serial number"
+            <label htmlFor={`${id}-serialNumber`} className="block text-sm font-semibold mb-1.5">{t('asset.serial')}</label>
+            <input id={`${id}-serialNumber`}
+              type="text" name="serialNumber" placeholder={t('createAsset.serialPlaceholder')}
               value={form.serialNumber} onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
             />
@@ -184,27 +193,27 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
 
           {/* Dates — Install / Last PM / Next PM */}
           <div className="grid grid-cols-1 gap-3 pt-2 border-t border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-1">Maintenance Schedule</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-1">{t('createAsset.schedule')}</p>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">Install Date</label>
-                <input type="date" name="installDate" value={form.installDate} onChange={handleChange}
+                <label htmlFor={`${id}-installDate`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('asset.installDate')}</label>
+                <input id={`${id}-installDate`} type="date" name="installDate" value={form.installDate} onChange={handleChange}
                   className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">Last PM</label>
-                <input type="date" name="lastPM" value={form.lastPM} onChange={handleChange}
+                <label htmlFor={`${id}-lastPM`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('asset.lastPm')}</label>
+                <input id={`${id}-lastPM`} type="date" name="lastPM" value={form.lastPM} onChange={handleChange}
                   className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">Next PM</label>
-                <input type="date" name="nextPM" value={form.nextPM} onChange={handleChange}
+                <label htmlFor={`${id}-nextPM`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('asset.nextPm')}</label>
+                <input id={`${id}-nextPM`} type="date" name="nextPM" value={form.nextPM} onChange={handleChange}
                   className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold mb-1.5 text-muted-foreground">Nilai Beli / Purchase Cost (IDR)</label>
-              <input type="number" min={0} name="purchaseCost" placeholder="mis. 15000000 — untuk analitik repair-vs-replace"
+              <label htmlFor={`${id}-purchaseCost`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('createAsset.purchaseCost')}</label>
+              <input id={`${id}-purchaseCost`} type="number" min={0} name="purchaseCost" placeholder={t('createAsset.purchasePlaceholder')}
                 value={form.purchaseCost} onChange={handleChange}
                 className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
             </div>
@@ -216,7 +225,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
               type="button" onClick={() => !isSubmitting && onOpenChange(false)} disabled={isSubmitting}
               className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit" disabled={!isComplete || isSubmitting}
@@ -227,7 +236,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
                   : 'bg-muted text-muted-foreground cursor-not-allowed'
               )}
             >
-              {isSubmitting ? 'Registering…' : 'Register Asset'}
+              {isSubmitting ? t('createAsset.submitting') : t('createAsset.submit')}
             </button>
           </div>
         </form>

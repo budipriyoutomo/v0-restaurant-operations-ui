@@ -3,7 +3,7 @@
 // Run (or review) one QA audit — Todo-Pilot §7. Built for a phone in the
 // kitchen: big Pass / Fail / N/A buttons, camera capture, and every answer or
 // photo goes through the offline queue, so a dead zone never loses work.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { AlertTriangle, Camera, Check, Loader2, Minus, Repeat, Star, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -12,12 +12,14 @@ import { auditProgress, previewScore, scoreTone, submitProblems } from '@/lib/qa
 import { qaApi } from '@/lib/qa-audit-api'
 import type { QAAuditDetail, QAAuditFinding, QAAuditResult } from '@/lib/types'
 import { AuthedImage } from '@/components/shared/authed-image'
+import { useT } from '@/lib/i18n'
 import { TONE_CLASS } from './tone'
+import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
-const RESULT_BUTTONS: { value: QAAuditResult; label: string; icon: React.ElementType; active: string }[] = [
-  { value: 'pass', label: 'Pass', icon: Check, active: 'bg-emerald-600 text-white border-emerald-600' },
-  { value: 'fail', label: 'Fail', icon: X,     active: 'bg-red-600 text-white border-red-600' },
-  { value: 'na',   label: 'N/A',  icon: Minus, active: 'bg-slate-500 text-white border-slate-500' },
+const RESULT_BUTTONS: { value: QAAuditResult; icon: React.ElementType; active: string }[] = [
+  { value: 'pass', icon: Check, active: 'bg-emerald-600 text-white border-emerald-600' },
+  { value: 'fail', icon: X,     active: 'bg-red-600 text-white border-red-600' },
+  { value: 'na',   icon: Minus, active: 'bg-slate-500 text-white border-slate-500' },
 ]
 
 interface Props {
@@ -28,6 +30,7 @@ interface Props {
 }
 
 export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
+  const { t, date, locale } = useT()
   const [audit, setAudit] = useState<QAAuditDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -52,7 +55,7 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
 
   const progress = auditProgress(audit.findings)
   const score = audit.status === 'submitted' ? audit.score : previewScore(audit.findings)
-  const problems = submitProblems(findingsForRules)
+  const problems = submitProblems(findingsForRules, locale)
 
   const patchLocal = (id: string, patch: Partial<QAAuditFinding>) =>
     setAudit((a) => a && { ...a, findings: a.findings.map((f) => f.id === id ? { ...f, ...patch } : f) })
@@ -63,7 +66,7 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
       const updated = await qaApi.updateFinding(audit.id, finding.id, body)
       patchLocal(finding.id, { result: updated.result, notes: updated.notes })
     } catch (e) {
-      if (e instanceof QueuedError) toast.info('Offline — answer saved and will sync automatically.')
+      if (e instanceof QueuedError) toast.info(t('qaRunner.offlineAnswer'))
       else { toast.error(apiErrorMessage(e)); patchLocal(finding.id, { result: finding.result, notes: finding.notes }) }
     }
   }
@@ -75,8 +78,8 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
     } catch (e) {
       if (e instanceof QueuedError) {
         setQueuedPhotos((q) => ({ ...q, [finding.id]: (q[finding.id] ?? 0) + 1 }))
-        toast.info('Offline — photo queued and will upload automatically.')
-      } else toast.error(apiErrorMessage(e, 'Photo upload failed.'))
+        toast.info(t('qaRunner.offlinePhoto'))
+      } else toast.error(apiErrorMessage(e, t('qaRunner.photoFailed')))
     }
   }
 
@@ -86,7 +89,7 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
       const done = await qaApi.submit(audit.id)
       setAudit(done)
       const fails = done.failedCount
-      toast.success(fails ? `Audit submitted — ${fails} issue(s) raised for the failed items.` : 'Audit submitted — all clear.')
+      toast.success(fails ? t('qaRunner.submittedFails', { count: fails }) : t('qaRunner.submittedClear'))
       onChanged()
     } catch (e) {
       toast.error(apiErrorMessage(e))
@@ -96,7 +99,7 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
   }
 
   const discard = async () => {
-    if (!window.confirm(`Discard audit ${audit.number}? Answers and photos are deleted.`)) return
+    if (!window.confirm(t('qaRunner.discardConfirm', { number: audit.number }))) return
     try {
       await qaApi.discard(audit.id)
       onChanged()
@@ -109,7 +112,7 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
   // Group by category, keeping template order.
   const groups: { category: string; items: QAAuditFinding[] }[] = []
   for (const f of audit.findings) {
-    const cat = f.category || 'General'
+    const cat = f.category || t('qaRunner.general')
     const g = groups.find((x) => x.category === cat)
     if (g) g.items.push(f)
     else groups.push({ category: cat, items: [f] })
@@ -123,12 +126,12 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
           <div className="min-w-0">
             <p className="font-mono text-xs text-primary font-bold">{audit.number}</p>
             <h2 className="font-bold text-base leading-snug truncate">{audit.templateName}</h2>
-            <p className="text-xs text-muted-foreground">{audit.outlet} · {audit.auditDate} · {audit.auditor}</p>
+            <p className="text-xs text-muted-foreground">{audit.outlet} · {date(audit.auditDate)} · {audit.auditor}</p>
           </div>
           <div className="text-right flex-shrink-0">
             <p className={cn('text-2xl font-bold', TONE_CLASS[scoreTone(score)])}>{score === null ? '—' : `${score}`}</p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-              {audit.status === 'submitted' ? 'Score' : 'Preview'}
+              {audit.status === 'submitted' ? t('qaRunner.score') : t('qaRunner.preview')}
             </p>
           </div>
         </div>
@@ -163,20 +166,20 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
         <div className="sticky bottom-0 bg-background border-t border-border px-4 sm:px-6 py-3 space-y-2">
           {problems.length > 0 && (
             <details className="text-xs text-amber-800">
-              <summary className="cursor-pointer font-medium">{problems.length} item(s) still need attention</summary>
+              <summary className="cursor-pointer font-medium">{t('qaRunner.needAttention', { count: problems.length })}</summary>
               <ul className="mt-1 space-y-0.5 list-disc pl-4">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
             </details>
           )}
           <div className="flex gap-2">
             <button onClick={discard} className="flex items-center gap-1.5 px-3 h-10 rounded-md border border-border text-xs font-semibold hover:bg-muted/50">
-              <Trash2 className="size-3.5" /> Discard
+              <Trash2 className="size-3.5" /> {t('qaRunner.discard')}
             </button>
             <button
               onClick={submit}
               disabled={problems.length > 0 || submitting}
               className="flex-1 h-10 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50"
             >
-              {submitting ? 'Submitting…' : 'Submit audit'}
+              {submitting ? t('qaRunner.submitting') : t('qaRunner.submit')}
             </button>
           </div>
         </div>
@@ -193,6 +196,7 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
   onNotes: (n: string) => void
   onPhoto: (file: File) => void
 }) {
+  const { t, label } = useT()
   const [notes, setNotes] = useState(f.notes)
   useEffect(() => setNotes(f.notes), [f.notes])
   const needsPhoto = f.requiresPhoto && f.result !== 'na' && f.photos.length + queuedPhotos === 0
@@ -205,9 +209,9 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-snug">{f.title}</p>
         <div className="flex items-center gap-1 flex-shrink-0">
-          {f.isCritical && <Badge className="bg-red-100 text-red-700"><Star className="size-2.5" /> Critical</Badge>}
-          {f.requiresPhoto && <Badge className={needsPhoto ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground'}><Camera className="size-2.5" /> Photo</Badge>}
-          {f.isRepeat && <Badge className="bg-orange-100 text-orange-700"><Repeat className="size-2.5" /> Repeat</Badge>}
+          {f.isCritical && <Badge className="bg-red-100 text-red-700"><Star className="size-2.5" /> {t('qaRunner.critical')}</Badge>}
+          {f.requiresPhoto && <Badge className={needsPhoto ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground'}><Camera className="size-2.5" /> {t('qaRunner.photo')}</Badge>}
+          {f.isRepeat && <Badge className="bg-orange-100 text-orange-800"><Repeat className="size-2.5" /> {t('qaRunner.repeat')}</Badge>}
           <span className="text-[10px] text-muted-foreground">×{f.weight}</span>
         </div>
       </div>
@@ -228,7 +232,7 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
                 !editable && 'cursor-default',
               )}
             >
-              <Icon className="size-4" /> {b.label}
+              <Icon className="size-4" /> {label('qaResult', b.value)}
             </button>
           )
         })}
@@ -241,7 +245,8 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
           onChange={(e) => setNotes(e.target.value)}
           onBlur={() => onNotes(notes)}
           rows={f.result === 'fail' ? 2 : 1}
-          placeholder={f.result === 'fail' ? 'What is wrong? (goes into the issue)' : 'Notes (optional)'}
+          placeholder={f.result === 'fail' ? t('qaRunner.failNotes') : t('qaRunner.notes')}
+          aria-label={t('common.notes')}
           className="w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-sm disabled:opacity-70"
         />
       )}
@@ -252,12 +257,12 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
         ))}
         {queuedPhotos > 0 && (
           <span className="size-14 rounded-md border border-dashed border-border text-[10px] text-muted-foreground flex items-center justify-center text-center px-1">
-            {queuedPhotos} queued
+            {t('qaRunner.queued', { count: queuedPhotos })}
           </span>
         )}
         {editable && (
           <label className="size-14 rounded-md border border-dashed border-border flex flex-col items-center justify-center text-[10px] text-muted-foreground cursor-pointer hover:bg-muted/50">
-            <Camera className="size-4" /> Add
+            <Camera className="size-4" /> {t('qaRunner.addPhoto')}
             <input
               type="file" accept="image/*" capture="environment" className="hidden"
               onChange={(e) => { const file = e.target.files?.[0]; if (file) onPhoto(file); e.target.value = '' }}
@@ -266,7 +271,7 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
         )}
         {f.issueId && (
           <span className="text-[11px] text-red-700 flex items-center gap-1 ml-auto">
-            <AlertTriangle className="size-3" /> Issue raised
+            <AlertTriangle className="size-3" /> {t('qaRunner.issueRaised')}
           </span>
         )}
       </div>
@@ -279,11 +284,16 @@ function Badge({ className, children }: { className: string; children: React.Rea
 }
 
 function Shell({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  const { t } = useT()
+  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalKeyboard(panelRef, onClose)
+
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-full sm:max-w-xl bg-background border-l border-border shadow-lg z-50 overflow-y-auto">
-        <button onClick={onClose} className="absolute right-3 top-3 z-20 p-1 text-muted-foreground hover:text-foreground" aria-label="Close">
+      <div ref={panelRef} role="dialog" aria-modal="true" className="fixed inset-y-0 right-0 w-full sm:max-w-xl bg-background border-l border-border shadow-lg z-50 overflow-y-auto">
+        <button onClick={onClose} className="absolute right-3 top-3 z-20 p-1 text-muted-foreground hover:text-foreground" aria-label={t('common.close')}>
           <X className="size-5" />
         </button>
         {children}

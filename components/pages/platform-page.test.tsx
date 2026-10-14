@@ -8,9 +8,11 @@ const { logout, platformApi } = vi.hoisted(() => ({
   logout: vi.fn(),
   platformApi: { list: vi.fn(), create: vi.fn(), update: vi.fn() },
 }))
-vi.mock('@/lib/store', () => ({
-  useIssueStore: () => ({ currentUser: { name: 'Ops', email: 'ops@platform.id', is_platform_admin: true }, logout }),
-}))
+vi.mock('@/lib/store', () => {
+  const state = { currentUser: { name: 'Ops', email: 'ops@platform.id', is_platform_admin: true }, logout, locale: 'en' }
+  // Supports both useIssueStore() and useIssueStore(selector) (useT reads the locale).
+  return { useIssueStore: (sel?: (s: typeof state) => unknown) => (sel ? sel(state) : state) }
+})
 vi.mock('@/lib/platform-api', () => ({ platformApi }))
 
 import { PlatformPage } from './platform-page'

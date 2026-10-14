@@ -1,14 +1,18 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import {
   Users, UserPlus, Shield, Eye, EyeOff, Loader2, X, Trash2, ChevronDown,
   KeyRound, Plus, Pencil, Store, Lock, MessageCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore, RoleInput } from '@/lib/store'
+import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
+import { ListSkeleton } from '@/components/shared/skeleton'
 import { usePermissions } from '@/lib/permissions'
+import { translate, useT } from '@/lib/i18n'
 import { AccessLevel, ModuleDef, Outlet, RoleDef, User } from '@/lib/types'
+import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
 const SYSTEM_BADGES: Record<string, string> = {
   admin:   'bg-red-100 text-red-700',
@@ -17,7 +21,7 @@ const SYSTEM_BADGES: Record<string, string> = {
 }
 
 function roleBadge(key: string) {
-  return SYSTEM_BADGES[key] ?? 'bg-amber-100 text-amber-700'
+  return SYSTEM_BADGES[key] ?? 'bg-amber-100 text-amber-800'
 }
 
 function getInitials(name: string) {
@@ -37,6 +41,7 @@ function OutletChecklist({ outlets, selected, onChange, disabled }: {
   onChange: (ids: string[]) => void
   disabled?: boolean
 }) {
+  const { t } = useT()
   const set = new Set(selected)
   const toggle = (id: string) => {
     const next = new Set(set)
@@ -45,7 +50,7 @@ function OutletChecklist({ outlets, selected, onChange, disabled }: {
     onChange([...next])
   }
   if (outlets.length === 0) {
-    return <p className="text-xs text-muted-foreground">No outlets in master data yet.</p>
+    return <p className="text-xs text-muted-foreground">{t('users.noOutletsMaster')}</p>
   }
   return (
     <div className="grid grid-cols-2 gap-1.5">
@@ -63,17 +68,35 @@ function OutletChecklist({ outlets, selected, onChange, disabled }: {
   )
 }
 
-function outletSummary(user: User, outlets: Outlet[]) {
-  if (user.all_outlets) return 'All outlets'
+function outletSummary(user: User, outlets: Outlet[], t: ReturnType<typeof useT>['t']) {
+  if (user.all_outlets) return t('users.allOutlets')
   const names = outlets.filter(o => user.effective_outlet_ids.includes(o.id)).map(o => o.name)
-  if (names.length === 0) return 'No outlets'
+  if (names.length === 0) return t('users.noOutlets')
   return names.length > 2 ? `${names.slice(0, 2).join(', ')} +${names.length - 2}` : names.join(', ')
+}
+
+// Module and group names come from the backend registry (English); show the
+// dictionary's name when there is one (Todo-Pilot §16).
+function useModuleLabels() {
+  const { locale } = useT()
+  const moduleLabel = (m: { key: string; label: string }) => {
+    const k = `module.${m.key}`
+    const v = translate(locale, k as never)
+    return v === k ? m.label : v
+  }
+  const groupLabel = (g: string) => {
+    const k = `moduleGroup.${g}`
+    const v = translate(locale, k as never)
+    return v === k ? g : v
+  }
+  return { moduleLabel, groupLabel }
 }
 
 // ---------------------------------------------------------------------------
 // User card
 // ---------------------------------------------------------------------------
 function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUser: boolean; canManage: boolean }) {
+  const { t } = useT()
   const { updateUser, deleteUser, roles, outlets } = useIssueStore()
   const [roleLoading, setRoleLoading]     = useState(false)
   const [toggleLoading, setToggleLoading] = useState(false)
@@ -154,7 +177,7 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold truncate">{user.name}</p>
             {isCurrentUser && (
-              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">You</span>
+              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">{t('users.you')}</span>
             )}
           </div>
           <p className="text-xs text-muted-foreground truncate mt-0.5">{user.email}</p>
@@ -166,13 +189,13 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
               'text-[10px] px-1.5 py-0.5 rounded font-semibold',
               user.is_active ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
             )}>
-              {user.is_active ? 'Active' : 'Inactive'}
+              {user.is_active ? t('users.active') : t('users.inactive')}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
             <Store className="size-3" />
-            {outletSummary(user, outlets)}
-            {user.outlet_ids.length > 0 && <span className="text-amber-600 font-medium">(custom)</span>}
+            {outletSummary(user, outlets, t)}
+            {user.outlet_ids.length > 0 && <span className="text-amber-700 font-medium">{t('users.custom')}</span>}
           </p>
           {user.whatsapp_number && (
             <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
@@ -181,7 +204,7 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
           )}
         </div>
         {user.role === 'admin' && (
-          <Shield className="size-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <Shield className="size-4 text-red-600 flex-shrink-0 mt-0.5" />
         )}
       </div>
 
@@ -195,7 +218,8 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
             type="tel"
             value={waNumber}
             onChange={e => setWaNumber(e.target.value)}
-            placeholder="WhatsApp, e.g. 0812 3456 7890 (empty = remove)"
+            placeholder={t('users.waPlaceholder')}
+            aria-label={t('users.waNumber')}
             className="flex-1 h-7 px-2 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/50"
           />
           <button
@@ -203,7 +227,7 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
             disabled={waLoading}
             className="px-2 h-7 text-[11px] font-semibold rounded bg-primary text-primary-foreground disabled:opacity-50"
           >
-            {waLoading ? <Loader2 className="size-3 animate-spin" /> : 'Save'}
+            {waLoading ? <Loader2 className="size-3 animate-spin" /> : t('common.save')}
           </button>
         </div>
       )}
@@ -215,6 +239,7 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
             <select
               value={user.role}
               disabled={roleLoading}
+              aria-label={t('users.changeRole')}
               onChange={e => handleRoleChange(e.target.value)}
               className={cn(
                 'w-full appearance-none pl-2 pr-6 py-1 text-xs rounded border border-border bg-muted/20',
@@ -233,7 +258,8 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
 
           <button
             onClick={() => setShowWa(v => !v)}
-            title="WhatsApp number"
+            title={t('users.waNumber')}
+            aria-label={t('users.waNumber')}
             className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex-shrink-0"
           >
             <MessageCircle className="size-3.5" />
@@ -241,7 +267,8 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
 
           <button
             onClick={() => setShowOutlets(true)}
-            title="Outlet access"
+            title={t('users.outletAccess')}
+            aria-label={t('users.outletAccess')}
             className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex-shrink-0"
           >
             <Store className="size-3.5" />
@@ -258,11 +285,12 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
               toggleLoading && 'opacity-50 cursor-not-allowed'
             )}
           >
-            {toggleLoading ? <Loader2 className="size-3 animate-spin" /> : user.is_active ? 'Deactivate' : 'Activate'}
+            {toggleLoading ? <Loader2 className="size-3 animate-spin" /> : user.is_active ? t('users.deactivate') : t('users.activate')}
           </button>
 
           <button
             onClick={() => setShowDelete(true)}
+            aria-label={t('users.removeUser')}
             className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
           >
             <Trash2 className="size-3.5" />
@@ -272,20 +300,20 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
 
       {showDelete && (
         <div className="border-t border-border pt-2 space-y-2">
-          <p className="text-xs text-muted-foreground">Remove <strong>{user.name}</strong> from the system?</p>
+          <p className="text-xs text-muted-foreground">{t('users.removeConfirm', { name: user.name })}</p>
           <div className="flex gap-2">
             <button
               onClick={() => setShowDelete(false)}
               className="flex-1 py-1 text-xs rounded border border-border text-muted-foreground hover:bg-accent transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               onClick={handleDelete}
               disabled={deleteLoading}
               className="flex-1 py-1 text-xs rounded bg-destructive text-destructive-foreground font-semibold flex items-center justify-center gap-1 hover:bg-destructive/90 transition-colors"
             >
-              {deleteLoading ? <Loader2 className="size-3 animate-spin" /> : 'Remove'}
+              {deleteLoading ? <Loader2 className="size-3 animate-spin" /> : t('users.remove')}
             </button>
           </div>
         </div>
@@ -300,6 +328,7 @@ function UserCard({ user, isCurrentUser, canManage }: { user: User; isCurrentUse
 // User outlet override
 // ---------------------------------------------------------------------------
 function UserOutletsModal({ user, onClose }: { user: User; onClose: () => void }) {
+  const { t } = useT()
   const { updateUser, outlets, roles } = useIssueStore()
   const role = roles.find(r => r.key === user.role)
   const [custom, setCustom] = useState(user.outlet_ids.length > 0)
@@ -308,8 +337,8 @@ function UserOutletsModal({ user, onClose }: { user: User; onClose: () => void }
   const [error, setError] = useState<string | null>(null)
 
   const roleDefault = !role ? '—'
-    : role.all_outlets ? 'All outlets'
-    : outlets.filter(o => role.outlet_ids.includes(o.id)).map(o => o.name).join(', ') || 'No outlets'
+    : role.all_outlets ? t('users.allOutlets')
+    : outlets.filter(o => role.outlet_ids.includes(o.id)).map(o => o.name).join(', ') || t('users.noOutlets')
 
   const valid = !custom || selected.length > 0
 
@@ -327,25 +356,25 @@ function UserOutletsModal({ user, onClose }: { user: User; onClose: () => void }
   }
 
   return (
-    <Modal title={`Outlet access — ${user.name}`} onClose={onClose}>
+    <Modal title={t('users.outletAccessTitle', { name: user.name })} onClose={onClose}>
       <div className="space-y-4">
         {error && <ErrorBox>{error}</ErrorBox>}
         <label className="flex items-start gap-2 text-sm cursor-pointer">
           <input type="radio" className="mt-1" checked={!custom} onChange={() => setCustom(false)} />
           <span>
-            <span className="font-semibold">Follow role</span>
+            <span className="font-semibold">{t('users.followRole')}</span>
             <span className="block text-xs text-muted-foreground">{role?.name ?? user.role_name}: {roleDefault}</span>
           </span>
         </label>
         <label className="flex items-start gap-2 text-sm cursor-pointer">
           <input type="radio" className="mt-1" checked={custom} onChange={() => setCustom(true)} />
           <span>
-            <span className="font-semibold">Custom outlets for this user</span>
-            <span className="block text-xs text-muted-foreground">Replaces the role default for this user only.</span>
+            <span className="font-semibold">{t('users.customOutlets')}</span>
+            <span className="block text-xs text-muted-foreground">{t('users.customHint')}</span>
           </span>
         </label>
         {custom && <OutletChecklist outlets={outlets} selected={selected} onChange={setSelected} />}
-        <ModalActions onCancel={onClose} onSubmit={save} disabled={!valid} loading={saving} label="Save" />
+        <ModalActions onCancel={onClose} onSubmit={save} disabled={!valid} loading={saving} label={t('common.save')} />
       </div>
     </Modal>
   )
@@ -355,12 +384,14 @@ function UserOutletsModal({ user, onClose }: { user: User; onClose: () => void }
 // Roles tab
 // ---------------------------------------------------------------------------
 function RolesTab({ canManage }: { canManage: boolean }) {
+  const { t, label } = useT()
+  const { moduleLabel } = useModuleLabels()
   const { roles, modules, rolesLoading, outlets, deleteRole } = useIssueStore()
   const [editing, setEditing] = useState<RoleDef | 'new' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async (role: RoleDef) => {
-    if (!confirm(`Delete role "${role.name}"?`)) return
+    if (!confirm(t('users.deleteRoleConfirm', { name: role.name }))) return
     setError(null)
     try {
       await deleteRole(role.key)
@@ -377,14 +408,14 @@ function RolesTab({ canManage }: { canManage: boolean }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          A role sets which modules its users can open and which outlets&apos; data they see.
+          {t('users.rolesIntro')}
         </p>
         {canManage && (
           <button
             onClick={() => setEditing('new')}
             className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex-shrink-0"
           >
-            <Plus className="size-4" /> New Role
+            <Plus className="size-4" /> {t('users.newRole')}
           </button>
         )}
       </div>
@@ -394,8 +425,8 @@ function RolesTab({ canManage }: { canManage: boolean }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {roles.map(role => {
           const granted = modules.filter(m => (role.permissions[m.key] ?? 'none') !== 'none')
-          const outletText = role.all_outlets ? 'All outlets'
-            : outlets.filter(o => role.outlet_ids.includes(o.id)).map(o => o.name).join(', ') || 'No default outlets'
+          const outletText = role.all_outlets ? t('users.allOutlets')
+            : outlets.filter(o => role.outlet_ids.includes(o.id)).map(o => o.name).join(', ') || t('users.noDefaultOutlets')
           return (
             <div key={role.key} className="p-4 rounded-xl border border-border bg-card shadow-sm space-y-3">
               <div className="flex items-start gap-3">
@@ -408,13 +439,13 @@ function RolesTab({ canManage }: { canManage: boolean }) {
                     <code className="text-[10px] text-muted-foreground">{role.key}</code>
                     {role.is_system && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-semibold flex items-center gap-1">
-                        <Lock className="size-2.5" /> System
+                        <Lock className="size-2.5" /> {t('users.system')}
                       </span>
                     )}
                   </div>
                   {role.description && <p className="text-xs text-muted-foreground mt-0.5">{role.description}</p>}
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    {role.user_count} active user{role.user_count === 1 ? '' : 's'} · approves as <span className="font-medium">{role.approval_tier}</span>
+                    {t('users.roleUsers', { count: role.user_count })} <span className="font-medium">{label('tier', role.approval_tier)}</span>
                   </p>
                 </div>
                 {canManage && (
@@ -422,7 +453,8 @@ function RolesTab({ canManage }: { canManage: boolean }) {
                     <button
                       onClick={() => setEditing(role)}
                       className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent"
-                      title="Edit"
+                      title={t('common.edit')}
+                      aria-label={t('common.edit')}
                     >
                       <Pencil className="size-3.5" />
                     </button>
@@ -430,7 +462,8 @@ function RolesTab({ canManage }: { canManage: boolean }) {
                       <button
                         onClick={() => handleDelete(role)}
                         className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        title="Delete"
+                        title={t('common.delete')}
+                        aria-label={t('common.delete')}
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -442,13 +475,13 @@ function RolesTab({ canManage }: { canManage: boolean }) {
                 <Store className="size-3.5" /> {outletText}
               </p>
               <div className="flex flex-wrap gap-1">
-                {granted.length === 0 && <span className="text-xs text-muted-foreground">No module access</span>}
+                {granted.length === 0 && <span className="text-xs text-muted-foreground">{t('users.noModuleAccess')}</span>}
                 {granted.map(m => (
                   <span key={m.key} className={cn(
                     'text-[10px] px-1.5 py-0.5 rounded font-medium',
                     role.permissions[m.key] === 'manage' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
                   )}>
-                    {m.label}{role.permissions[m.key] === 'manage' ? ' ✎' : ''}
+                    {moduleLabel(m)}{role.permissions[m.key] === 'manage' ? ' ✎' : ''}
                   </span>
                 ))}
               </div>
@@ -456,7 +489,7 @@ function RolesTab({ canManage }: { canManage: boolean }) {
           )
         })}
       </div>
-      <p className="text-[11px] text-muted-foreground">✎ = can manage (create / edit / delete). Others are view-only.</p>
+      <p className="text-[11px] text-muted-foreground">{t('users.legend')}</p>
 
       {editing && (
         <RoleEditor
@@ -476,6 +509,8 @@ function RoleEditor({ role, modules, outlets, onClose }: {
   outlets: Outlet[]
   onClose: () => void
 }) {
+  const { t, label } = useT()
+  const { moduleLabel, groupLabel } = useModuleLabels()
   const { createRole, updateRole } = useIssueStore()
   const isNew = role === null
   const locked = role?.key === 'admin'   // backend refuses to restrict the admin role
@@ -488,6 +523,7 @@ function RoleEditor({ role, modules, outlets, onClose }: {
     all_outlets: role?.all_outlets ?? false,
     outlet_ids: role?.outlet_ids ?? [],
     approval_tier: role?.approval_tier ?? 'staff',
+    home_page: role?.home_page ?? 'my-work',
   }))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -517,7 +553,7 @@ function RoleEditor({ role, modules, outlets, onClose }: {
     try {
       const body = { ...form, outlet_ids: form.all_outlets ? [] : form.outlet_ids }
       if (isNew) await createRole({ ...body, key })
-      else if (locked) await updateRole(role.key, { name: form.name, description: form.description })
+      else if (locked) await updateRole(role.key, { name: form.name, description: form.description, home_page: form.home_page })
       else await updateRole(role.key, body)
       onClose()
     } catch (e) {
@@ -528,12 +564,12 @@ function RoleEditor({ role, modules, outlets, onClose }: {
   }
 
   return (
-    <Modal title={isNew ? 'New Role' : `Edit Role — ${role.name}`} onClose={onClose} wide>
+    <Modal title={isNew ? t('users.newRole') : t('users.editRole', { name: role.name })} onClose={onClose} wide>
       <div className="space-y-5">
         {error && <ErrorBox>{error}</ErrorBox>}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="Name">
+          <Field label={t('common.name')}>
             <input
               value={form.name}
               onChange={e => {
@@ -541,35 +577,44 @@ function RoleEditor({ role, modules, outlets, onClose }: {
                 setForm(f => ({ ...f, name }))
                 if (isNew) setKey(name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50))
               }}
-              placeholder="Area Manager"
+              placeholder={t('users.namePlaceholder')}
               className={inputCls}
             />
           </Field>
-          <Field label="Key" hint={isNew ? 'Used internally; cannot be changed later.' : undefined}>
+          <Field label={t('users.key')} hint={isNew ? t('users.keyHint') : undefined}>
             <input value={isNew ? key : role.key} disabled={!isNew} onChange={e => setKey(e.target.value)}
               placeholder="area-manager" className={cn(inputCls, !isNew && 'opacity-60')} />
           </Field>
         </div>
-        <Field label="Description">
+        <Field label={t('common.description')}>
           <input value={form.description ?? ''} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            placeholder="Covers several outlets in one region" className={inputCls} />
+            placeholder={t('users.descriptionPlaceholder')} className={inputCls} />
+        </Field>
+
+        {/* Landing page after sign-in (Todo-Pilot §19); only pages the role can open */}
+        <Field label={t('users.homePage')} hint={t('users.homePageHint')}>
+          <select value={form.home_page ?? 'my-work'} onChange={e => setForm(f => ({ ...f, home_page: e.target.value }))} className={inputCls}>
+            {['my-work', 'notifications', ...modules.map(m => m.key).filter(k => k !== 'vendors' && k !== 'budgets')]
+              .filter(k => locked || ['my-work', 'notifications', 'settings'].includes(k) || (form.permissions[k] ?? 'none') !== 'none')
+              .map(k => <option key={k} value={k}>{k === 'my-work' ? t('nav.my-work') : k === 'notifications' ? t('nav.notifications') : moduleLabel({ key: k, label: modules.find(m => m.key === k)?.label ?? k })}</option>)}
+          </select>
         </Field>
 
         {locked ? (
           <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-md p-3 flex items-center gap-2">
-            <Lock className="size-3.5" /> The Admin role always has full access to every module and outlet.
+            <Lock className="size-3.5" /> {t('users.adminLocked')}
           </p>
         ) : (
           <>
             {/* Module matrix */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold">Module access</p>
+                <p className="text-sm font-semibold">{t('users.moduleAccess')}</p>
                 <div className="flex gap-1">
                   {(['none', 'view', 'manage'] as const).map(l => (
                     <button key={l} type="button" onClick={() => setAll(l)}
-                      className="px-2 h-6 rounded border border-border text-[11px] text-muted-foreground hover:bg-accent capitalize">
-                      All {l}
+                      className="px-2 h-6 rounded border border-border text-[11px] text-muted-foreground hover:bg-accent">
+                      {t('users.allLevel', { level: label('access', l) })}
                     </button>
                   ))}
                 </div>
@@ -577,12 +622,12 @@ function RoleEditor({ role, modules, outlets, onClose }: {
               <div className="border border-border rounded-md divide-y divide-border">
                 {groups.map(([group, mods]) => (
                   <div key={group}>
-                    <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/30">{group}</p>
+                    <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/30">{groupLabel(group)}</p>
                     {mods.map(m => {
                       const level = form.permissions[m.key] ?? 'none'
                       return (
                         <div key={m.key} className="flex items-center justify-between px-3 py-1.5">
-                          <span className="text-sm">{m.label}</span>
+                          <span className="text-sm">{moduleLabel(m)}</span>
                           <div className="flex rounded-md border border-border overflow-hidden">
                             {(['none', 'view', 'manage'] as const).map(l => {
                               const disabled = l === 'manage' && !m.manageable
@@ -593,14 +638,14 @@ function RoleEditor({ role, modules, outlets, onClose }: {
                                   disabled={disabled}
                                   onClick={() => setLevel(m.key, l)}
                                   className={cn(
-                                    'px-2.5 h-6 text-[11px] capitalize transition-colors',
+                                    'px-2.5 h-6 text-[11px] transition-colors',
                                     level === l
                                       ? l === 'none' ? 'bg-muted text-foreground font-semibold' : 'bg-primary text-primary-foreground font-semibold'
                                       : 'text-muted-foreground hover:bg-accent',
                                     disabled && 'opacity-30 cursor-not-allowed hover:bg-transparent',
                                   )}
                                 >
-                                  {l}
+                                  {label('access', l)}
                                 </button>
                               )
                             })}
@@ -615,41 +660,40 @@ function RoleEditor({ role, modules, outlets, onClose }: {
 
             {/* Outlet access */}
             <div className="space-y-2">
-              <p className="text-sm font-semibold">Outlet data access</p>
+              <p className="text-sm font-semibold">{t('users.outletDataAccess')}</p>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="radio" checked={form.all_outlets} onChange={() => setForm(f => ({ ...f, all_outlets: true }))} />
-                All outlets
+                {t('users.allOutlets')}
               </label>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="radio" checked={!form.all_outlets} onChange={() => setForm(f => ({ ...f, all_outlets: false }))} />
-                Selected outlets only
+                {t('users.selectedOutlets')}
               </label>
               {!form.all_outlets && (
                 <>
                   <OutletChecklist outlets={outlets} selected={form.outlet_ids}
                     onChange={ids => setForm(f => ({ ...f, outlet_ids: ids }))} />
                   <p className="text-[11px] text-muted-foreground">
-                    Default for users with this role. A user can be given custom outlets on the Users tab.
-                    With none selected, users only see records shared across all outlets.
+                    {t('users.outletDefaultHint')}
                   </p>
                 </>
               )}
             </div>
 
             {/* Approval tier */}
-            <Field label="Approves as" hint="Which approval-workflow steps users with this role can decide.">
+            <Field label={t('users.approvesAs')} hint={t('users.approvesAsHint')}>
               <select value={form.approval_tier}
                 onChange={e => setForm(f => ({ ...f, approval_tier: e.target.value as RoleInput['approval_tier'] }))}
                 className={inputCls}>
-                <option value="staff">Staff</option>
-                <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
+                <option value="staff">{label('tier', 'staff')}</option>
+                <option value="manager">{label('tier', 'manager')}</option>
+                <option value="admin">{label('tier', 'admin')}</option>
               </select>
             </Field>
           </>
         )}
 
-        <ModalActions onCancel={onClose} onSubmit={save} disabled={!valid} loading={saving} label={isNew ? 'Create Role' : 'Save'} />
+        <ModalActions onCancel={onClose} onSubmit={save} disabled={!valid} loading={saving} label={isNew ? t('users.createRole') : t('common.save')} />
       </div>
     </Modal>
   )
@@ -659,6 +703,8 @@ function RoleEditor({ role, modules, outlets, onClose }: {
 // Main page
 // ---------------------------------------------------------------------------
 export function UsersPage() {
+  useEnsureLoaded('users', 'vendors')
+  const { t } = useT()
   const { allUsers, usersLoading, currentUser, roles, loadRoles } = useIssueStore()
   const { can } = usePermissions()
   const [tab, setTab] = useState<'users' | 'roles'>('users')
@@ -682,25 +728,25 @@ export function UsersPage() {
     <div className="p-6 space-y-6 max-w-5xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Users & Roles</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage team access, module permissions and outlet visibility</p>
+          <h1 className="text-3xl font-bold">{t('users.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('users.subtitle')}</p>
         </div>
         {can.manageUsers && tab === 'users' && (
           <button
             onClick={() => setShowInvite(true)}
             className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
           >
-            <UserPlus className="size-4" /> Invite User
+            <UserPlus className="size-4" /> {t('users.invite')}
           </button>
         )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Total Users', value: stats.total,  color: 'text-foreground' },
-          { label: 'Active',      value: stats.active, color: 'text-success' },
-          { label: 'Admins',      value: stats.admins, color: 'text-red-600' },
-          { label: 'Roles',       value: stats.roles,  color: 'text-purple-600' },
+          { label: t('users.totalUsers'), value: stats.total,  color: 'text-foreground' },
+          { label: t('users.active'),     value: stats.active, color: 'text-success' },
+          { label: t('users.admins'),     value: stats.admins, color: 'text-red-600' },
+          { label: t('users.roles'),      value: stats.roles,  color: 'text-purple-600' },
         ].map(s => (
           <div key={s.label} className="p-4 rounded-lg border border-border bg-muted/20">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{s.label}</p>
@@ -710,7 +756,7 @@ export function UsersPage() {
       </div>
 
       <div className="flex gap-1 border-b border-border">
-        {([['users', 'Users'], ['roles', 'Roles & Permissions']] as const).map(([id, label]) => (
+        {([['users', t('users.tabUsers')], ['roles', t('users.tabRoles')]] as const).map(([id, text]) => (
           <button
             key={id}
             onClick={() => setTab(id)}
@@ -719,7 +765,7 @@ export function UsersPage() {
               tab === id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
-            {label}
+            {text}
           </button>
         ))}
       </div>
@@ -727,8 +773,8 @@ export function UsersPage() {
       {tab === 'roles' ? <RolesTab canManage={can.manageUsers} /> : (
         <>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-medium text-muted-foreground">Role:</span>
-            {[{ key: null as string | null, name: 'All' }, ...roles].map(r => (
+            <span className="text-xs font-medium text-muted-foreground">{t('users.roleFilter')}</span>
+            {[{ key: null as string | null, name: t('common.all') }, ...roles].map(r => (
               <button
                 key={r.key ?? 'all'}
                 onClick={() => setFilterRole(r.key)}
@@ -751,20 +797,18 @@ export function UsersPage() {
                   : 'border-dashed border-border text-muted-foreground hover:bg-accent'
               )}
             >
-              {showInactive ? 'Hide Inactive' : 'Show Inactive'}
+              {showInactive ? t('users.hideInactive') : t('users.showInactive')}
             </button>
           </div>
 
           {usersLoading && allUsers.length === 0 ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            </div>
+            <ListSkeleton rows={4} className="p-0 sm:p-0" />
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <Users className="size-10 text-muted-foreground mb-4" />
-              <p className="text-sm font-medium">No users found</p>
+              <p className="text-sm font-medium">{t('users.noUsers')}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {filterRole ? 'No users with this role yet.' : 'Invite your first team member.'}
+                {filterRole ? t('users.noUsersRole') : t('users.inviteFirst')}
               </p>
             </div>
           ) : (
@@ -791,6 +835,7 @@ export function UsersPage() {
 // Invite modal
 // ---------------------------------------------------------------------------
 function InviteModal({ onClose }: { onClose: () => void }) {
+  const { t } = useT()
   const { inviteUser, roles } = useIssueStore()
   const [form, setForm] = useState({ name: '', email: '', role: 'staff', password: '' })
   const [showPw, setShowPw] = useState(false)
@@ -815,21 +860,21 @@ function InviteModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal title="Invite User" onClose={onClose}>
+    <Modal title={t('users.invite')} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <ErrorBox>{error}</ErrorBox>}
 
-        <Field label="Full Name">
+        <Field label={t('users.fullName')}>
           <input type="text" placeholder="Ahmad Razif" value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={inputCls} />
         </Field>
 
-        <Field label="Email">
+        <Field label={t('common.email')}>
           <input type="email" placeholder="ahmad@restaurant.com" value={form.email}
             onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputCls} />
         </Field>
 
-        <Field label="Role">
+        <Field label={t('common.role')}>
           <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className={inputCls}>
             {roles.map(r => (
               <option key={r.key} value={r.key}>{r.name}{r.description ? ` — ${r.description}` : ''}</option>
@@ -837,23 +882,24 @@ function InviteModal({ onClose }: { onClose: () => void }) {
           </select>
         </Field>
 
-        <Field label="Temporary Password" hint="User should change this on first login.">
+        <Field label={t('users.tempPassword')} hint={t('users.tempPasswordHint')}>
           <div className="relative">
             <input
               type={showPw ? 'text' : 'password'}
-              placeholder="Min. 6 characters"
+              placeholder={t('users.minChars')}
               value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
               className={cn(inputCls, 'pr-10')}
             />
             <button type="button" onClick={() => setShowPw(v => !v)}
+              aria-label={showPw ? t('login.hidePassword') : t('login.showPassword')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
               {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>
         </Field>
 
-        <ModalActions onCancel={onClose} submit disabled={!valid} loading={loading} label="Send Invite" />
+        <ModalActions onCancel={onClose} submit disabled={!valid} loading={loading} label={t('users.sendInvite')} />
       </form>
     </Modal>
   )
@@ -864,13 +910,14 @@ function InviteModal({ onClose }: { onClose: () => void }) {
 // ---------------------------------------------------------------------------
 const inputCls = 'w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50'
 
+// A wrapping <label> ties the text to the control inside (UX-13 accessibility).
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="block text-sm font-semibold mb-1.5">{label}</label>
+    <label className="block">
+      <span className="block text-sm font-semibold mb-1.5">{label}</span>
       {children}
-      {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
-    </div>
+      {hint && <span className="block text-[11px] text-muted-foreground mt-1">{hint}</span>}
+    </label>
   )
 }
 
@@ -883,15 +930,20 @@ function ErrorBox({ children }: { children: React.ReactNode }) {
 function Modal({ title, onClose, wide, children }: {
   title: string; onClose: () => void; wide?: boolean; children: React.ReactNode
 }) {
+  const { t } = useT()
+  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalKeyboard(panelRef, onClose)
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className={cn(
+      <div ref={panelRef} role="dialog" aria-modal="true" className={cn(
         'w-full bg-background rounded-2xl border border-border shadow-xl p-6 max-h-[90vh] overflow-y-auto',
         wide ? 'max-w-2xl' : 'max-w-md',
       )}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold">{title}</h2>
-          <button onClick={onClose} className="size-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors">
+          <button onClick={onClose} aria-label={t('common.close')} className="size-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors">
             <X className="size-4" />
           </button>
         </div>
@@ -909,12 +961,13 @@ function ModalActions({ onCancel, onSubmit, submit, disabled, loading, label }: 
   loading?: boolean
   label: string
 }) {
+  const { t } = useT()
   const enabled = !disabled && !loading
   return (
     <div className="flex gap-2 pt-1">
       <button type="button" onClick={onCancel}
         className="flex-1 px-4 py-2.5 rounded-md border border-border text-sm font-medium text-muted-foreground hover:bg-accent transition-colors">
-        Cancel
+        {t('common.cancel')}
       </button>
       <button
         type={submit ? 'submit' : 'button'}

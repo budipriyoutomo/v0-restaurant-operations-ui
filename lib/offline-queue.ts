@@ -30,6 +30,9 @@ export interface QueuedMutation {
   owner?: string                   // user id (JWT sub) that queued it; absent on pre-owner items
   createdAt: number
   attempts: number
+  // Set when the server rejected the replay (Todo-Pilot §27): kept for the
+  // user to retry or discard, never replayed on its own.
+  conflict?: { status: number; detail: string; at: number }
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -66,7 +69,8 @@ export function newKey(): string {
 // Subscribers — the status bar re-renders on any change.
 // ---------------------------------------------------------------------------
 
-type Listener = (count: number) => void
+export interface QueueState { pending: number; conflicts: QueuedMutation[] }
+type Listener = (state: QueueState) => void
 const listeners = new Set<Listener>()
 
 // Who is signed in, so the count only shows work this session can sync.
@@ -77,18 +81,20 @@ export function setOwnerSource(fn: () => string | null): void {
   ownerSource = fn
 }
 
-async function pendingCount(): Promise<number> {
-  return pendingFor(await listPending(), ownerSource()).length
+async function queueState(): Promise<QueueState> {
+  const items = await listPending()
+  const owner = ownerSource()
+  return { pending: pendingFor(items, owner).length, conflicts: conflictsFor(items, owner) }
 }
 
 async function notify() {
-  const count = await pendingCount()
-  listeners.forEach((l) => l(count))
+  const state = await queueState()
+  listeners.forEach((l) => l(state))
 }
 
 export function subscribe(l: Listener): () => void {
   listeners.add(l)
-  pendingCount().then(l).catch(() => l(0))
+  queueState().then(l).catch(() => l({ pending: 0, conflicts: [] }))
   return () => listeners.delete(l)
 }
 
@@ -111,6 +117,28 @@ export function listPending(): Promise<QueuedMutation[]> {
 
 async function remove(id: string) {
   await tx('readwrite', (s) => s.delete(id))
+  await notify()
+}
+
+/** The user gives up a rejected change (the server's version stands). */
+export async function discardConflict(id: string): Promise<void> {
+  await remove(id)
+}
+
+/** The user wants a rejected change sent again (e.g. after reopening the record). */
+export async function retryConflict(id: string): Promise<void> {
+  const items = await listPending()
+  const item = items.find((m) => m.id === id)
+  if (!item) return
+  delete item.conflict
+  item.attempts = 0
+  await tx('readwrite', (s) => s.put(item))
+  await notify()
+}
+
+async function markConflict(item: QueuedMutation, status: number, detail: string) {
+  item.conflict = { status, detail, at: Date.now() }
+  await tx('readwrite', (s) => s.put(item))
   await notify()
 }
 
@@ -165,8 +193,32 @@ export function belongsTo(m: Pick<QueuedMutation, 'owner'>, owner: string | null
  *  sent — done; drop — a business rejection that will never succeed;
  *  stop — keep it and everything after it (expired session, rate limit, 5xx). */
 /** The queued items `owner`'s session may replay (and so should be shown). */
-export function pendingFor<T extends Pick<QueuedMutation, 'owner'>>(items: T[], owner: string | null): T[] {
-  return items.filter((m) => belongsTo(m, owner))
+export function pendingFor<T extends Pick<QueuedMutation, 'owner' | 'conflict'>>(items: T[], owner: string | null): T[] {
+  return items.filter((m) => belongsTo(m, owner) && !m.conflict)
+}
+
+/** `owner`'s queued changes the server rejected — waiting for a decision. */
+export function conflictsFor<T extends Pick<QueuedMutation, 'owner' | 'conflict'>>(items: T[], owner: string | null): T[] {
+  return items.filter((m) => belongsTo(m, owner) && !!m.conflict)
+}
+
+/** Plain-words reason for a rejected replay (a message key). */
+export function conflictReason(status: number): 'offline.conflict.changed' | 'offline.conflict.gone' | 'offline.conflict.forbidden' | 'offline.conflict.invalid' {
+  if (status === 409) return 'offline.conflict.changed'
+  if (status === 404 || status === 410) return 'offline.conflict.gone'
+  if (status === 403) return 'offline.conflict.forbidden'
+  return 'offline.conflict.invalid'
+}
+
+/** The server's own explanation from an error body (FastAPI `detail`). */
+export function serverDetail(body: string): string {
+  if (!body) return ''
+  try {
+    const d = JSON.parse(body)?.detail
+    if (typeof d === 'string') return d
+    if (Array.isArray(d)) return d.map((e) => e?.msg).filter(Boolean).join('; ')
+  } catch { /* not JSON */ }
+  return body.slice(0, 300)
 }
 
 export function replayOutcome(status: number): 'sent' | 'drop' | 'stop' {
@@ -207,9 +259,10 @@ export async function flush(baseUrl: string, token: string | null): Promise<{ se
         await remove(m.id)
         sent += 1
       } else if (outcome === 'drop') {
-        // A client error that will never succeed on replay (e.g. the WO was
-        // completed meanwhile). Stop retrying it.
-        await remove(m.id)
+        // A client error that will not succeed by itself on replay (e.g. the
+        // WO was completed meanwhile). Keep it as a conflict for the user to
+        // decide (Todo-Pilot §27) instead of losing their work silently.
+        await markConflict(m, res.status, serverDetail(await res.text().catch(() => '')))
         failed += 1
       } else {
         // Expired session (401 — the work is still valid, keep it for after

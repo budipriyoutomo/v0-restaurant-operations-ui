@@ -25,8 +25,8 @@ async function signIn(browser: Browser, who: { email: string; password: string }
   await page.goto('/')
   await page.getByLabel('Email').fill(who.email)
   await page.getByLabel('Password', { exact: true }).fill(who.password)
-  await page.getByRole('button', { name: /sign in/i }).click()
-  await expect(menuItem(page, 'Issues')).toBeVisible()
+  await page.getByRole('button', { name: /^masuk$/i }).click()
+  await expect(menuItem(page, 'Laporan')).toBeVisible()
   return page
 }
 
@@ -48,63 +48,75 @@ test('maintenance issue > Rp 1 juta: 2-step approval → work order completed �
 
   // 1. Manager reports the issue.
   const manager = await signIn(browser, MANAGER)
-  await goTo(manager, 'Issues')
-  await manager.getByRole('button', { name: 'New Issue' }).click()
-  const dialog = manager.locator('form').filter({ has: manager.getByRole('button', { name: 'Create Issue' }) })
-  await dialog.getByLabel('Title').fill(title)
-  await dialog.getByLabel('Description').fill('Bau gas di dapur utama, kompor harus diganti selangnya')
+  await goTo(manager, 'Laporan')
+  await manager.getByRole('button', { name: 'Laporan Baru' }).click()
+  const dialog = manager.locator('form').filter({ has: manager.getByRole('button', { name: 'Buat Laporan' }) })
+  await dialog.getByLabel('Judul').fill(title)
+  await dialog.getByLabel('Deskripsi').fill('Bau gas di dapur utama, kompor harus diganti selangnya')
   await dialog.getByLabel('Outlet').selectOption(OUTLET.name)
-  await dialog.getByLabel('Category').selectOption('Maintenance')
-  await dialog.getByLabel('Due Date').fill('2026-12-31')
-  await dialog.getByLabel(/create task/i).uncheck()
-  await dialog.getByLabel(/create work order/i).check()
-  await dialog.getByLabel(/^estimated cost/i).fill('2500000')
-  await expect(dialog.getByText(/above rp 1\.000\.000 — 2-step approval/i)).toBeVisible()
-  await dialog.getByRole('button', { name: 'Create Issue' }).click()
+  await dialog.getByLabel('Kategori').selectOption('Maintenance')
+  await dialog.getByLabel('Tenggat').fill('2026-12-31')
+  await dialog.getByLabel(/buat tugas/i).uncheck()
+  await dialog.getByLabel(/buat perintah kerja/i).check()
+  await dialog.getByLabel(/^estimasi biaya/i).fill('2500000')
+  await expect(dialog.getByText(/di atas rp 1\.000\.000 — persetujuan 2 langkah/i)).toBeVisible()
+  await dialog.getByRole('button', { name: 'Buat Laporan' }).click()
   await expect(dialog).toBeHidden()
   await expect(manager.getByText(title).first()).toBeVisible()
 
-  // 2. Manager approves step 1.
-  await goTo(manager, 'Approvals')
-  await manager.getByText(title).first().click()
-  await expect(manager.getByText(/your turn — step 1 \(manager\)/i)).toBeVisible()
-  await manager.getByRole('button', { name: 'Approve Step 1' }).click()
-  await expect(manager.getByText(/waiting for admin approval/i)).toBeVisible()
+  // 2. Manager approves step 1 — straight from "Pekerjaan Saya", the manager's
+  //    home page (Todo-Pilot §19): the approval is waiting for them there.
+  await manager.goto('/')
+  const waiting = manager.getByRole('region', { name: 'Menunggu keputusan saya' })
+  await waiting.getByText(`Approval biaya: ${title}`).click()
+  await expect(manager.getByText(/giliran anda — langkah 1 \(manajer\)/i)).toBeVisible()
+  await manager.getByRole('button', { name: 'Setujui Langkah 1' }).click()
+  // The decision is confirmed after reading what it does (Todo-Pilot §23).
+  await expect(manager.getByText(/permintaan lanjut ke langkah 2\/2/i)).toBeVisible()
+  await manager.getByRole('button', { name: 'Ya, setujui' }).click()
+  await expect(manager.getByText(/menunggu persetujuan admin/i)).toBeVisible()
 
   // 3. Admin approves step 2 (final).
   const admin = await signIn(browser, ADMIN)
-  await goTo(admin, 'Approvals')
+  await goTo(admin, 'Persetujuan')
   await admin.getByText(title).first().click()
-  await expect(admin.getByText(/your turn — step 2 \(admin\)/i)).toBeVisible()
-  await admin.getByRole('button', { name: 'Approve', exact: true }).click()
-  await expect(admin.getByRole('button', { name: 'Approve', exact: true })).toBeHidden()
+  await expect(admin.getByText(/giliran anda — langkah 2 \(admin\)/i)).toBeVisible()
+  await admin.getByRole('button', { name: 'Setujui', exact: true }).click()
+  await expect(admin.getByText(/persetujuan terakhir/i)).toBeVisible()
+  await admin.getByRole('button', { name: 'Ya, setujui' }).click()
+  await expect(admin.getByRole('button', { name: 'Setujui', exact: true })).toBeHidden()
 
   // 4. Manager completes the work order, which approval moved to in-progress.
-  await manager.reload()
-  await goTo(manager, 'CMMS')
+  // Full load for fresh data. (A reload would keep the approval drawer open —
+  // the open record is in the URL since Todo-Pilot §14.)
+  await manager.goto('/cmms')
   await manager.getByText(title).first().click()
-  await manager.getByRole('button', { name: 'Mark Completed' }).click()
-  await expect(manager.getByRole('button', { name: 'Mark Completed' })).toBeHidden()
-  await expect(manager.getByText('Completed').first()).toBeVisible()
+  await manager.getByRole('button', { name: 'Tandai Selesai' }).click()
+  await expect(manager.getByRole('button', { name: 'Tandai Selesai' })).toBeHidden()
+  await expect(manager.getByText('Selesai').first()).toBeVisible()
   await manager.mouse.click(400, 300)                              // click the dimmed backdrop to close the drawer
 
   // 5. Every derived record is finished. With no Task the Issue does not
   //    auto-resolve (roll-up needs ≥1 Task, Todo-Next §2.1) — the manager closes it.
-  await goTo(manager, 'Issues')
+  await goTo(manager, 'Laporan')
   await manager.getByText(title).first().click()
-  const linked = manager.getByText('Linked Records').locator('..')
-  await expect(linked.getByText('approved')).toBeVisible()
-  await expect(linked.getByText('Completed')).toBeVisible()           // the WO is listed too
-  await expect(manager.getByText(/cannot be closed|must be finished first/i)).toHaveCount(0)
-  const statusMenu = manager.getByText('Update Status').locator('..')
+  const linked = manager.getByText('Catatan terkait').locator('..')
+  await expect(linked.getByText('Disetujui')).toBeVisible()
+  await expect(linked.getByText('Selesai')).toBeVisible()           // the WO is listed too
+  await expect(manager.getByText(/belum bisa diselesaikan|selesaikan atau batalkan/i)).toHaveCount(0)
+  const statusMenu = manager.getByText('Ubah status').locator('..')
   await statusMenu.getByRole('button').first().click()
-  // The status change is optimistic — wait for the server to accept it.
+  // Closing is final, so it is sent after a few seconds with "Urungkan" (Todo-Pilot §23).
   const [closeRes] = await Promise.all([
     manager.waitForResponse((r) => r.request().method() === 'PATCH' && /\/api\/issues\/[^/]+$/.test(r.url())),
-    statusMenu.getByRole('button', { name: 'Closed' }).click(),
+    (async () => {
+      await statusMenu.getByRole('option', { name: 'Ditutup' }).click()
+      await expect(manager.getByText(/^Menutup ISS-\d{4}-\d+…$/)).toBeVisible()
+      await expect(manager.getByRole('button', { name: 'Urungkan' })).toBeVisible()
+    })(),
   ])
   expect(closeRes.status(), await closeRes.text()).toBe(200)
-  await expect(manager.getByText('Update Status')).toBeHidden()      // closed is final: no status menu
+  await expect(manager.getByText('Ubah status')).toBeHidden()      // closed is final: no status menu
 
   // Assert the server state, not only the screen.
   const issues = await (await request.get(`${API}/api/issues`, { headers: auth })).json()

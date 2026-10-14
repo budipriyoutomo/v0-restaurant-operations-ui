@@ -1,17 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { AppShell } from '@/components/layout/app-shell'
+import { ListSkeleton } from '@/components/shared/skeleton'
 import { useIssueStore } from '@/lib/store'
 import { api, authToken } from '@/lib/api-client'
 import { User } from '@/lib/types'
 import { usePermissions } from '@/lib/permissions'
+import { pagePath } from '@/lib/routes'
+import { homePage } from '@/lib/home'
+import { normalizeLocale, useT } from '@/lib/i18n'
+import { navigate, useRoute } from '@/lib/use-route'
+import { NotFoundView } from '@/components/shared/not-found-view'
 
 import { LoginPage }               from '@/components/pages/login-page'
 import { PlatformPage }            from '@/components/pages/platform-page'
 
 // ── Operations ────────────────────────────────────────────────────────────────
 import { ExecutiveDashboardPage } from '@/components/pages/executive-dashboard-page'
+import { MyWorkPage }              from '@/components/pages/my-work-page'
 import { IssuesListPage }          from '@/components/pages/issues-list-page'
 import { TaskCenterPage }          from '@/components/pages/task-center-page'
 import { ApprovalCenterPage }      from '@/components/pages/approval-center-page'
@@ -38,11 +45,23 @@ import { UsersPage }               from '@/components/pages/users-page'
 import { NotificationsPage }       from '@/components/pages/notifications-page'
 import { SettingsPage }            from '@/components/pages/settings-page'
 
+// One catch-all route renders the whole app shell; the URL (not component
+// state) decides the page and the open record — Todo-Pilot §14 / UX-1.
 export default function Page() {
-  const [currentPage, setCurrentPage] = useState('dashboard')
+  return (
+    <Suspense fallback={null}>
+      <App />
+    </Suspense>
+  )
+}
+
+function App() {
+  const { page: routePage, notFound } = useRoute()
+  const onNavigate = (page: string) => navigate(pagePath(page))
   const [sessionChecked, setSessionChecked] = useState(false)
-  const { currentUser, authLoading, loadAll, isLoading, error } = useIssueStore()
+  const { currentUser, authLoading, loadAll, isLoading, error, lastSyncedAt } = useIssueStore()
   const { canViewPage } = usePermissions()
+  const { t } = useT()
 
   // On first mount: try to restore a previous session from localStorage token.
   // If the token is valid, /api/auth/me succeeds and currentUser is populated.
@@ -69,13 +88,19 @@ export default function Page() {
   useEffect(() => {
     // Platform admins have no company: every company endpoint would refuse them.
     if (currentUser && !currentUser.is_platform_admin) loadAll()
+    // The account's language wins over this device's last choice (Todo-Pilot §16).
+    if (currentUser) {
+      api.get<{ language?: string }>('/api/auth/me/preferences')
+        .then((p) => { if (p?.language) useIssueStore.getState().setLocale(normalizeLocale(p.language), { persist: false }) })
+        .catch(() => {})
+    }
   }, [currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Waiting for session restore check on first load
   if (!sessionChecked || authLoading) {
     return (
       <div className="flex items-center justify-center h-screen text-muted-foreground text-sm">
-        Loading…
+        {t('common.loading')}
       </div>
     )
   }
@@ -90,20 +115,23 @@ export default function Page() {
     return <PlatformPage />
   }
 
+  // '/' = the role's home page (Todo-Pilot §19): set per role, default My Work.
+  const currentPage = routePage === 'home' ? homePage(currentUser) : routePage
+
   const renderPage = () => {
+    if (notFound) return <NotFoundView />
     if (!canViewPage(currentPage)) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-8">
-          <p className="text-2xl font-semibold text-foreground">Access Denied</p>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            You don&apos;t have permission to view this page. Contact your administrator if you need access.
-          </p>
+          <p className="text-2xl font-semibold text-foreground">{t('shell.accessDenied')}</p>
+          <p className="text-sm text-muted-foreground max-w-xs">{t('shell.accessDeniedText')}</p>
         </div>
       )
     }
 
     switch (currentPage) {
       // ── Operations ──────────────────────────────────────────────────────
+      case 'my-work':       return <MyWorkPage />
       case 'dashboard':     return <ExecutiveDashboardPage />
       case 'issues':        return <IssuesListPage key="issues" />
       case 'tasks':         return <TaskCenterPage />
@@ -134,31 +162,33 @@ export default function Page() {
     }
   }
 
-  if (isLoading && !error) {
+  // First load: the frame at once, placeholders until the data arrives (Todo-Pilot §22).
+  // Later reloads keep the page on screen.
+  if (isLoading && !lastSyncedAt && !error) {
     return (
-      <div className="flex items-center justify-center h-screen text-muted-foreground text-sm">
-        Loading…
-      </div>
+      <AppShell currentPage={currentPage} onNavigate={onNavigate}>
+        <ListSkeleton rows={5} />
+      </AppShell>
     )
   }
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-2">
-        <p className="text-sm text-destructive font-medium">Could not connect to backend</p>
+        <p className="text-sm text-destructive font-medium">{t('shell.backendDown')}</p>
         <p className="text-xs text-muted-foreground max-w-sm text-center">{error}</p>
         <button
           onClick={() => loadAll()}
           className="mt-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm"
         >
-          Retry
+          {t('common.retry')}
         </button>
       </div>
     )
   }
 
   return (
-    <AppShell currentPage={currentPage} onNavigate={setCurrentPage}>
+    <AppShell currentPage={currentPage} onNavigate={onNavigate}>
       {renderPage()}
     </AppShell>
   )

@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { CreateOutletInput, Outlet, OutletStatus } from '@/lib/types'
+import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
 interface NewOutletDialogProps {
   open: boolean
@@ -17,6 +19,7 @@ const statuses: OutletStatus[] = ['operational', 'warning', 'critical']
 const defaultForm = { name: '', code: '', status: 'operational' as OutletStatus, approvalThreshold: '' }
 
 export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: NewOutletDialogProps) {
+  const { t, label } = useT()
   const [formData, setFormData] = useState(defaultForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,21 +63,27 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
       })
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
+      setError(err instanceof Error ? err.message : t('common.somethingWrong'))
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalKeyboard(panelRef, () => onOpenChange(false), open)
+
   if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="outlet-dialog-title"
+        className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
-          <h2 className="text-lg font-bold">{isEdit ? 'Edit Outlet' : 'Create New Outlet'}</h2>
+          <h2 id="outlet-dialog-title" className="text-lg font-bold">{isEdit ? t('outletDialog.edit') : t('outletDialog.create')}</h2>
           <button
             onClick={() => onOpenChange(false)}
+            aria-label={t('common.close')}
             className="p-1 hover:bg-muted rounded-md transition-colors"
           >
             <X className="size-5 text-muted-foreground" />
@@ -87,11 +96,11 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
           )}
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Outlet Name <span className="text-destructive">*</span></label>
-            <input
+            <label htmlFor="outlet-name" className="block text-sm font-semibold mb-1.5">{t('outletDialog.name')} <span className="text-destructive">*</span></label>
+            <input id="outlet-name"
               type="text"
               name="name"
-              placeholder="e.g. Outlet KL Central"
+              placeholder={t('outletDialog.namePlaceholder')}
               value={formData.name}
               onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -99,11 +108,11 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Code <span className="text-destructive">*</span></label>
-            <input
+            <label htmlFor="outlet-code" className="block text-sm font-semibold mb-1.5">{t('masterData.code')} <span className="text-destructive">*</span></label>
+            <input id="outlet-code"
               type="text"
               name="code"
-              placeholder="e.g. KLC"
+              placeholder={t('outletDialog.codePlaceholder')}
               value={formData.code}
               onChange={handleChange}
               maxLength={5}
@@ -112,8 +121,8 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Status</label>
-            <select
+            <label htmlFor="outlet-status" className="block text-sm font-semibold mb-1.5">{t('common.status')}</label>
+            <select id="outlet-status"
               name="status"
               value={formData.status}
               onChange={handleChange}
@@ -121,27 +130,27 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
             >
               {statuses.map((status) => (
                 <option key={status} value={status}>
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {label('outletStatus', status)}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Approval Threshold (Rp)</label>
-            <input
+            <label htmlFor="outlet-approvalThreshold" className="block text-sm font-semibold mb-1.5">{t('outletDialog.threshold')}</label>
+            <input id="outlet-approvalThreshold"
               type="text"
               inputMode="numeric"
               name="approvalThreshold"
-              placeholder={`Default: ${(initialData?.approvalThresholdDefault ?? 1_000_000).toLocaleString('id-ID')}`}
+              placeholder={t('outletDialog.thresholdPlaceholder', { amount: (initialData?.approvalThresholdDefault ?? 1_000_000).toLocaleString('id-ID') })}
               value={formData.approvalThreshold}
               onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
             <p className={cn('text-xs mt-1', thresholdValid ? 'text-muted-foreground' : 'text-destructive')}>
               {thresholdValid
-                ? 'Corrective work orders above this cost need approval. Leave empty to use the default.'
-                : 'Enter a whole number without dots or commas.'}
+                ? t('outletDialog.thresholdHint')
+                : t('outletDialog.thresholdInvalid')}
             </p>
           </div>
 
@@ -152,7 +161,7 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
               disabled={isSubmitting}
               className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -164,7 +173,7 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
                   : 'bg-muted text-muted-foreground cursor-not-allowed'
               )}
             >
-              {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Outlet'}
+              {isSubmitting ? t('common.saving') : isEdit ? t('procurement.saveChanges') : t('outletDialog.submit')}
             </button>
           </div>
         </form>

@@ -98,14 +98,46 @@ export interface Issue {
   priority: Priority
   status: IssueStatus
   assignee: string
+  assigneeUserId?: string | null   // Todo-Pilot §17; null = not linked to a user (never notified)
   dueDate: string | null   // null when no due date is set
   createdDate: string
+  createdAt?: string | null   // ISO timestamp — "2 h ago" on the card (Todo-Pilot §21)
   slaBreach: boolean
   // Relations — populated automatically when child records are generated
   taskIds: string[]
   approvalId: string | null
   workOrderId: string | null  // populated when Maintenance issue auto-generates a WO
   closureBlockers: ClosureBlocker[]  // non-empty → Resolve/Close is refused by the API
+  // "Siap ditutup" (Todo-Pilot §18): derived records all finished, Issue not closed yet
+  readyToClose?: boolean
+  photoCount?: number   // Todo-Pilot §20
+  // Card summaries from the server, so a page of cards needs no other list (Todo-Pilot §22)
+  approval?: { id: string; number: string; status: ApprovalStatus; currentStepOrder: number; stepCount: number; escalated: boolean } | null
+  workOrder?: { id: string; number: string; status: WorkOrderStatus } | null
+}
+
+// Photo on an Issue — GET /api/issues/{id}/photos (Todo-Pilot §20). URLs are
+// authenticated API paths; load them with the bearer token.
+export interface IssuePhoto {
+  id: string
+  caption: string | null
+  fileUrl: string
+  thumbnailUrl: string
+  mimeType: string | null
+  createdAt: string
+}
+
+// Assignee picker option — GET /api/auth/users/assignable (Todo-Pilot §17)
+export interface AssignableUser {
+  id: string
+  name: string
+  role_name: string
+  approval_tier: string
+}
+
+export interface BulkCloseResult {
+  closed: Issue[]
+  failed: { id: string; number: string | null; reason: string }[]
 }
 
 export interface Task {
@@ -116,11 +148,13 @@ export interface Task {
   status: TaskStatus
   priority: Priority
   assignee: string
+  assigneeUserId?: string | null   // Todo-Pilot §17
   dueDate: string | null   // null when the parent Issue had no due date
   outlet: string
   // Relation back to the originating Issue (always present — Tasks never exist standalone in this MVP)
   issueId: string
   issueNumber: string
+  issueStatus?: IssueStatus | null   // a finished Issue locks its tasks (Todo-Pilot §22/§23)
 }
 
 export interface ApprovalRequest {
@@ -132,7 +166,7 @@ export interface ApprovalRequest {
   requester: string
   outlet: string
   requestedDate: string | null
-  amount?: number | null     // IDR integer; format "Rp X.XXX" only in UI
+  amount?: number | null     // IDR integer; show with formatMoney() (lib/money.ts)
   currency?: string          // default "IDR"
   status: ApprovalStatus
   // Polymorphic source: an approval is for an Issue OR a Purchase Request (Tier 6.1).
@@ -265,6 +299,7 @@ export type AccessLevel = 'none' | 'view' | 'manage'
 
 export interface User {
   id: string
+  home_page?: string | null   // role's home page (Todo-Pilot §19); see lib/home.ts
   email: string
   name: string
   role: UserRole
@@ -294,6 +329,7 @@ export interface RoleDef {
   approval_tier: ApprovalTier
   is_system: boolean
   user_count: number
+  home_page?: string | null   // Todo-Pilot §19; null = default (My Work)
 }
 
 export interface ModuleDef {
@@ -349,6 +385,7 @@ export interface WorkOrder {
   priority: Priority
   status: WorkOrderStatus
   assignee: string
+  assigneeUserId?: string | null   // Todo-Pilot §17
   scheduledDate: string | null
   completedDate: string | null
   createdAt: string
@@ -470,6 +507,7 @@ export interface CreateWorkOrderInput {
   description?: string
   priority?: Priority
   assignee?: string
+  assigneeUserId?: string | null   // Todo-Pilot §17
   scheduledDate?: string
   estimatedCost?: number
 }
@@ -960,7 +998,8 @@ export interface CreateIssueInput {
   category: IssueCategory
   priority: Priority
   assignee: string
-  dueDate: string
+  assigneeUserId?: string | null   // picker choice; wins over `assignee` (Todo-Pilot §17)
+  dueDate: string            // '' = none (optional in quick report, Todo-Pilot §20)
   generateTask: boolean
   generateApproval: boolean
   approvalAmount?: number    // IDR integer; no formatted strings

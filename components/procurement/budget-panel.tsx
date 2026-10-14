@@ -6,9 +6,11 @@ import { toast } from 'sonner'
 import { useIssueStore } from '@/lib/store'
 import { usePermissions } from '@/lib/permissions'
 import { BudgetStatusEntry } from '@/lib/types'
+import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
+import { formatMoney } from '@/lib/money'
 
-const rp = (n: number) => 'Rp ' + (n ?? 0).toLocaleString('id-ID')
+const rp = (n: number) => formatMoney(n ?? 0)
 
 function shiftPeriod(period: string, delta: number): string {
   const [y, m] = period.split('-').map(Number)
@@ -17,6 +19,7 @@ function shiftPeriod(period: string, delta: number): string {
 }
 
 export function BudgetPanel() {
+  const { t } = useT()
   const { outlets, loadBudgetStatus, createBudget, loadMasterData } = useIssueStore()
   const { can } = usePermissions()
 
@@ -38,17 +41,17 @@ export function BudgetPanel() {
   useEffect(() => { if (outlets.length === 0) loadMasterData() }, [outlets.length, loadMasterData])
 
   const handleCreate = async () => {
-    if (!form.outletId) return toast.error('Pilih outlet')
+    if (!form.outletId) return toast.error(t('budget.pickOutlet'))
     const amt = Number(form.amount)
-    if (!amt || amt < 0) return toast.error('Nominal tidak valid')
+    if (!amt || amt < 0) return toast.error(t('budget.badAmount'))
     setSaving(true)
     try {
       await createBudget(form.outletId, period, amt)
-      toast.success('Anggaran disimpan')
+      toast.success(t('budget.saved'))
       setForm({ outletId: '', amount: '' }); setShowForm(false)
       refresh()
     } catch (e) {
-      toast.error(e instanceof Error && e.message.includes('409') ? 'Anggaran outlet ini sudah ada untuk periode tsb' : String(e))
+      toast.error(e instanceof Error && e.message.includes('409') ? t('budget.exists') : String(e))
     } finally { setSaving(false) }
   }
 
@@ -58,20 +61,20 @@ export function BudgetPanel() {
         <div className="flex items-center gap-2">
           <Wallet className="size-4 text-primary" />
           <div>
-            <h3 className="text-sm font-semibold">Anggaran vs Realisasi</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Biaya WO selesai + PO per outlet</p>
+            <h3 className="text-sm font-semibold">{t('budget.title')}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{t('budget.subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-md border border-border">
-            <button onClick={() => setPeriod((p) => shiftPeriod(p, -1))} className="p-1 hover:bg-accent"><ChevronLeft className="size-3.5" /></button>
+            <button onClick={() => setPeriod((p) => shiftPeriod(p, -1))} aria-label={t('budget.prevPeriod')} className="p-1 hover:bg-accent"><ChevronLeft className="size-3.5" /></button>
             <span className="text-xs font-mono px-1.5">{period}</span>
-            <button onClick={() => setPeriod((p) => shiftPeriod(p, 1))} className="p-1 hover:bg-accent"><ChevronRight className="size-3.5" /></button>
+            <button onClick={() => setPeriod((p) => shiftPeriod(p, 1))} aria-label={t('budget.nextPeriod')} className="p-1 hover:bg-accent"><ChevronRight className="size-3.5" /></button>
           </div>
           {can.manageBudgets && (
             <button onClick={() => setShowForm((v) => !v)}
               className="flex items-center gap-1.5 px-2.5 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90">
-              <Plus className="size-3.5" /> Set anggaran
+              <Plus className="size-3.5" /> {t('budget.set')}
             </button>
           )}
         </div>
@@ -80,30 +83,30 @@ export function BudgetPanel() {
       {showForm && can.manageBudgets && (
         <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-muted/20 p-3">
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold text-muted-foreground">Outlet</span>
+            <span className="font-semibold text-muted-foreground">{t('common.outlet')}</span>
             <select value={form.outletId} onChange={(e) => setForm((f) => ({ ...f, outletId: e.target.value }))}
               className="h-8 rounded-md border border-border bg-background px-2 text-xs">
-              <option value="">— outlet —</option>
+              <option value="">{t('budget.outletOption')}</option>
               {outlets.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs">
-            <span className="font-semibold text-muted-foreground">Anggaran {period} (IDR)</span>
+            <span className="font-semibold text-muted-foreground">{t('budget.amount', { period })}</span>
             <input type="number" min={0} value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
               className="h-8 w-40 rounded-md border border-border bg-background px-2 text-xs" />
           </label>
           <button onClick={handleCreate} disabled={saving}
             className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
-            {saving && <Loader2 className="size-3.5 animate-spin" />} Simpan
+            {saving && <Loader2 className="size-3.5 animate-spin" />} {t('common.save')}
           </button>
         </div>
       )}
 
       {loading ? (
-        <p className="text-xs text-muted-foreground text-center py-6">Memuat…</p>
+        <p className="text-xs text-muted-foreground text-center py-6">{t('purchasing.loading')}</p>
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-8 text-xs text-muted-foreground">
-          Belum ada anggaran untuk {period}.
+          {t('budget.empty', { period })}
         </div>
       ) : (
         <div className="space-y-3">
@@ -112,9 +115,9 @@ export function BudgetPanel() {
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-sm font-semibold">{r.outlet}</span>
                 {r.overBudget ? (
-                  <span className="flex items-center gap-1 text-[11px] font-semibold text-destructive"><AlertTriangle className="size-3.5" /> Over budget</span>
+                  <span className="flex items-center gap-1 text-[11px] font-semibold text-destructive"><AlertTriangle className="size-3.5" /> {t('budget.over')}</span>
                 ) : r.warning ? (
-                  <span className="flex items-center gap-1 text-[11px] font-semibold text-warning"><AlertTriangle className="size-3.5" /> Mendekati plafon</span>
+                  <span className="flex items-center gap-1 text-[11px] font-semibold text-warning"><AlertTriangle className="size-3.5" /> {t('budget.near')}</span>
                 ) : null}
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -124,7 +127,7 @@ export function BudgetPanel() {
               </div>
               <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted-foreground">
                 <span>{rp(r.spent)} / {rp(r.amount)} ({r.pct}%)</span>
-                <span className={cn(r.remaining < 0 && 'text-destructive font-semibold')}>Sisa {rp(r.remaining)}</span>
+                <span className={cn(r.remaining < 0 && 'text-destructive font-semibold')}>{t('budget.remaining', { amount: rp(r.remaining) })}</span>
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
                 WO {rp(r.spentWorkOrders)} · PO {rp(r.spentPurchaseOrders)}

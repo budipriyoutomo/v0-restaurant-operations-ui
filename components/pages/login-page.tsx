@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { LOCALES, useT } from '@/lib/i18n'
 import { useIssueStore } from '@/lib/store'
 
 export function LoginPage() {
-  const { login, authLoading, authError } = useIssueStore()
+  const { login, authLoading, authError, setLocale } = useIssueStore()
+  const { t, locale } = useT()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -33,20 +35,35 @@ export function LoginPage() {
             <span className="text-primary-foreground font-bold text-xl">R</span>
           </div>
           <h1 className="text-2xl font-bold">RestaurantOps</h1>
-          <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('login.subtitle')}</p>
+          <div className="mt-3 inline-flex rounded-md border border-border text-xs" role="group" aria-label={t('login.language')}>
+            {LOCALES.map((l) => (
+              <button
+                key={l.value}
+                type="button"
+                aria-pressed={locale === l.value}
+                onClick={() => setLocale(l.value)}
+                className={cn('px-2.5 py-1 first:rounded-l-md last:rounded-r-md', locale === l.value ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Error */}
           {authError && (
             <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm text-destructive">
-              {authError.includes('Invalid') ? 'Invalid email or password.' : authError}
+              {authError.includes('Invalid') ? t('login.invalid')
+                : authError.includes('account is inactive') ? t('login.companyInactive')
+                : authError}
             </div>
           )}
 
           {/* Email */}
           <div>
-            <label htmlFor="login-email" className="block text-sm font-semibold mb-1.5">Email</label>
+            <label htmlFor="login-email" className="block text-sm font-semibold mb-1.5">{t('common.email')}</label>
             <input
               id="login-email"
               type="email"
@@ -61,7 +78,7 @@ export function LoginPage() {
 
           {/* Password */}
           <div>
-            <label htmlFor="login-password" className="block text-sm font-semibold mb-1.5">Password</label>
+            <label htmlFor="login-password" className="block text-sm font-semibold mb-1.5">{t('login.password')}</label>
             <div className="relative">
               <input
                 id="login-password"
@@ -74,7 +91,7 @@ export function LoginPage() {
                 className="w-full px-3 py-2 pr-10 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-60"
               />
               <button
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPassword((v) => !v)}
@@ -99,21 +116,22 @@ export function LoginPage() {
             {authLoading ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Signing in…
+                {t('login.signingIn')}
               </>
             ) : (
-              'Sign In'
+              t('login.signIn')
             )}
           </button>
         </form>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Contact your administrator to create an account.
+          {t('login.contactAdmin')}
         </p>
 
-        {/* Dev credentials hint */}
+        {/* Dev credentials hint — never in a production build (credential policy, DOC.md) */}
+        {process.env.NODE_ENV !== 'production' && (
         <div className="mt-6 p-3 rounded-md bg-muted/40 border border-border text-xs text-muted-foreground space-y-1">
-          <p className="font-semibold text-foreground/70 mb-2">Demo Accounts</p>
+          <p className="font-semibold text-foreground/70 mb-2">{t('login.demoAccounts')}</p>
           {[
             { role: 'Admin', email: 'admin@restaurant.com', password: 'admin123' },
             { role: 'Manager', email: 'manager@restaurant.com', password: 'manager123' },
@@ -128,8 +146,9 @@ export function LoginPage() {
               <span className="font-medium">{role}</span> — {email} / {pw}
             </button>
           ))}
-          <p className="text-muted-foreground/60 pt-1">Click to autofill</p>
+          <p className="text-muted-foreground/60 pt-1">{t('login.clickToFill')}</p>
         </div>
+        )}
       </div>
     </div>
   )

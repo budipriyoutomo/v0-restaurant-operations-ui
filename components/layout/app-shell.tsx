@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Sidebar } from './sidebar'
 import { TopNav } from './top-nav'
 import { OfflineStatusBar } from '@/components/shared/offline-status-bar'
+import { BottomNav } from './bottom-nav'
 import { useIssueStore } from '@/lib/store'
 
 interface AppShellProps {
@@ -14,12 +15,16 @@ interface AppShellProps {
 
 export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const { issues, tasks, approvals, unreadCount } = useIssueStore()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const navigateAndClose = (page: string) => { setMobileNavOpen(false); onNavigate(page) }
+  const { counts, unreadCount } = useIssueStore()
 
+  // Counted by the server (Todo-Pilot §22). Issues = work still going on —
+  // finished work awaiting close is not counted (Todo-Pilot §18).
   const badges = {
-    issues:        issues.filter((i) => i.status !== 'resolved' && i.status !== 'closed').length,
-    tasks:         tasks.filter((t) => t.status !== 'resolved' && t.status !== 'closed').length,
-    approvals:     approvals.filter((a) => a.status === 'pending').length,
+    issues:        counts?.issuesInProgress ?? 0,
+    tasks:         counts?.tasksActive ?? 0,
+    approvals:     counts?.approvalsPending ?? 0,
     notifications: unreadCount,
   }
 
@@ -29,15 +34,19 @@ export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         currentPage={currentPage}
-        onNavigate={onNavigate}
+        onNavigate={navigateAndClose}
         badges={badges}
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
       />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <TopNav currentPage={currentPage} sidebarCollapsed={sidebarCollapsed} onNavigate={onNavigate} />
+        <TopNav currentPage={currentPage} sidebarCollapsed={sidebarCollapsed} onNavigate={onNavigate} onOpenMenu={() => setMobileNavOpen(true)} />
         <OfflineStatusBar />
-        <main className="flex-1 overflow-y-auto bg-background">
+        {/* pb-16: room for the phone's bottom navigation (Todo-Pilot §19) */}
+        <main className="flex-1 overflow-y-auto bg-background pb-16 md:pb-0">
           {children}
         </main>
+        <BottomNav currentPage={currentPage} />
       </div>
     </div>
   )

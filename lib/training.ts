@@ -2,15 +2,19 @@
 // Mirrors backend training_service (capacity_error, attendance_error); the
 // server stays the authority.
 import type { TrainingProgram } from './types'
+import { formatDate, translate } from './i18n/translate'
+import type { Locale } from './i18n/locale'
 
 export function placesLeft(maxParticipants: number | null, enrolled: number): number | null {
   return maxParticipants === null ? null : Math.max(0, maxParticipants - enrolled)
 }
 
 /** Why attendance cannot be marked yet (null = it can). `today` is YYYY-MM-DD. */
-export function attendanceBlocker(p: Pick<TrainingProgram, 'status' | 'scheduled_date'>, today: string): string | null {
-  if (p.status === 'cancelled') return 'The training was cancelled'
-  if (p.scheduled_date && p.scheduled_date > today) return `Attendance can be marked from ${p.scheduled_date}`
+export function attendanceBlocker(p: Pick<TrainingProgram, 'status' | 'scheduled_date'>, today: string, locale: Locale = 'en'): string | null {
+  if (p.status === 'cancelled') return translate(locale, 'participants.cancelled')
+  if (p.scheduled_date && p.scheduled_date > today) {
+    return translate(locale, 'participants.fromDate', { date: locale === 'en' ? p.scheduled_date : formatDate(locale, p.scheduled_date) })
+  }
   return null
 }
 

@@ -5,22 +5,25 @@ import { toast } from 'sonner'
 import { Search, AlertCircle, Wrench, Calendar, User, Plus, GripVertical, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { Issue, IssueStatus, Priority } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateWorkOrderDialog } from '@/components/dialogs/create-work-order-dialog'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
+import { UnlinkedAssigneeNote } from '@/components/shared/unlinked-assignee-note'
 import { approvalThresholdsByOutlet } from '@/lib/outlet-threshold'
+import { statusLabel, translate, useT, type Locale } from '@/lib/i18n'
 
 // Theme-aware status presentation — matches the Task Center kanban.
-const STATUS_META: Record<IssueStatus, { label: string; dot: string; accent: string; ring: string }> = {
-  open:          { label: 'Open',        dot: 'bg-blue-500',    accent: 'border-t-blue-500',    ring: 'ring-blue-500/40' },
-  assigned:      { label: 'Assigned',    dot: 'bg-violet-500',  accent: 'border-t-violet-500',  ring: 'ring-violet-500/40' },
-  'in-progress': { label: 'In Progress', dot: 'bg-amber-500',   accent: 'border-t-amber-500',   ring: 'ring-amber-500/40' },
-  waiting:       { label: 'Waiting',     dot: 'bg-cyan-500',    accent: 'border-t-cyan-500',    ring: 'ring-cyan-500/40' },
-  resolved:      { label: 'Resolved',    dot: 'bg-emerald-500', accent: 'border-t-emerald-500', ring: 'ring-emerald-500/40' },
-  closed:        { label: 'Closed',       dot: 'bg-slate-400',   accent: 'border-t-slate-400',   ring: 'ring-slate-400/40' },
-  cancelled:     { label: 'Cancelled',   dot: 'bg-rose-400',    accent: 'border-t-rose-400',    ring: 'ring-rose-400/40' },
+const STATUS_META: Record<IssueStatus, { dot: string; accent: string; ring: string }> = {
+  open:          { dot: 'bg-blue-500',    accent: 'border-t-blue-500',    ring: 'ring-blue-500/40' },
+  assigned:      { dot: 'bg-violet-500',  accent: 'border-t-violet-500',  ring: 'ring-violet-500/40' },
+  'in-progress': { dot: 'bg-amber-500',   accent: 'border-t-amber-500',   ring: 'ring-amber-500/40' },
+  waiting:       { dot: 'bg-cyan-500',    accent: 'border-t-cyan-500',    ring: 'ring-cyan-500/40' },
+  resolved:      { dot: 'bg-emerald-500', accent: 'border-t-emerald-500', ring: 'ring-emerald-500/40' },
+  closed:        { dot: 'bg-slate-400',   accent: 'border-t-slate-400',   ring: 'ring-slate-400/40' },
+  cancelled:     { dot: 'bg-rose-400',    accent: 'border-t-rose-400',    ring: 'ring-rose-400/40' },
 }
 
 // Maintenance board shows the active pipeline only — 'closed' issues drop off the board.
@@ -28,8 +31,10 @@ const COLUMN_ORDER: IssueStatus[] = ['open', 'assigned', 'in-progress', 'waiting
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low']
 
 export function MaintenanceModulePage() {
+  useEnsureLoaded('core', 'cmms')
   const { issues, updateIssueStatus, workOrders, assets, pics, createWorkOrder, createIssue } = useIssueStore()
   const { can } = usePermissions()
+  const { t, label, status, date, locale } = useT()
   const myOutlets = useMyOutlets()
   // Id only — the drawer reads the store's latest copy (status, closureBlockers).
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -57,6 +62,7 @@ export function MaintenanceModulePage() {
   const byStatus = COLUMN_ORDER.map((id) => ({
     id,
     ...STATUS_META[id],
+    label: status(id),
     items: filtered.filter((i) => i.status === id),
   }))
 
@@ -73,13 +79,13 @@ export function MaintenanceModulePage() {
 
   const hasFilters = !!searchQuery || !!filterPriority
 
-  function handleDrop(status: IssueStatus) {
+  function handleDrop(target: IssueStatus) {
     if (draggingId && can.updateIssueStatus) {
       const issue = maintenanceIssues.find((i) => i.id === draggingId)
-      if (issue && issue.status !== status) {
-        const why = moveBlockedReason(issue, status)
+      if (issue && issue.status !== target) {
+        const why = moveBlockedReason(issue, target, locale)
         if (why) toast.error(why)
-        else updateIssueStatus(draggingId, status)
+        else updateIssueStatus(draggingId, target)
       }
     }
     setDraggingId(null)
@@ -91,32 +97,33 @@ export function MaintenanceModulePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Maintenance</h1>
+          <h1 className="text-3xl font-bold">{t('maintenance.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Queue of maintenance issues reported by outlets. Equipment, work orders and PM are managed in CMMS.
+            {t('maintenance.subtitle')}
           </p>
         </div>
         <button
           onClick={() => setShowReport(true)}
-          className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+          // Phones: floating, thumb-sized and always on screen (Todo-Pilot §15)
+          className="flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors fixed bottom-20 right-4 z-30 h-14 px-5 rounded-full shadow-lg text-sm sm:static sm:h-9 sm:px-4 sm:rounded-md sm:shadow-none sm:text-xs"
         >
-          <Plus className="size-4" /> Report Issue
+          <Plus className="size-4" /> {t('maintenance.report')}
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-4 rounded-lg border border-border bg-muted/20">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Total Issues</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('maintenance.totalIssues')}</p>
           <p className="text-2xl font-bold">{stats.total}</p>
         </div>
         <div className="p-4 rounded-lg border border-border bg-muted/20">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Critical</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('maintenance.critical')}</p>
           <p className="text-2xl font-bold text-red-600">{stats.critical}</p>
         </div>
         <div className="p-4 rounded-lg border border-border bg-muted/20">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">SLA Breached</p>
-          <p className="text-2xl font-bold text-amber-600">{stats.overdue}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('maintenance.slaBreached')}</p>
+          <p className="text-2xl font-bold text-amber-700">{stats.overdue}</p>
         </div>
       </div>
 
@@ -126,7 +133,7 @@ export function MaintenanceModulePage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search by number, title, outlet..."
+            placeholder={t('maintenance.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -134,7 +141,7 @@ export function MaintenanceModulePage() {
         </div>
 
         <div className="flex gap-1.5 items-center flex-wrap">
-          <span className="text-xs font-medium text-muted-foreground mr-1">Priority:</span>
+          <span className="text-xs font-medium text-muted-foreground mr-1">{t('issues.priorityFilter')}</span>
           {PRIORITIES.map((p) => (
             <button
               key={p}
@@ -154,7 +161,7 @@ export function MaintenanceModulePage() {
               onClick={() => { setSearchQuery(''); setFilterPriority(null) }}
               className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              <X className="size-3" /> Clear
+              <X className="size-3" /> {t('tasks.clear')}
             </button>
           )}
         </div>
@@ -164,9 +171,9 @@ export function MaintenanceModulePage() {
       {maintenanceIssues.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Wrench className="size-10 text-muted-foreground mb-4" />
-          <p className="text-sm font-medium">No maintenance issues</p>
+          <p className="text-sm font-medium">{t('maintenance.empty')}</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-            Create an issue with category &ldquo;Maintenance&rdquo; to see it here.
+            {t('maintenance.emptyHint')}
           </p>
         </div>
       )}
@@ -207,7 +214,7 @@ export function MaintenanceModulePage() {
                         'flex items-center justify-center h-24 rounded-lg border border-dashed border-border text-xs text-muted-foreground transition-colors',
                         isDropTarget && 'border-primary/50 text-foreground',
                       )}>
-                        {isDropTarget ? 'Drop here' : 'No issues'}
+                        {isDropTarget ? t('tasks.dropHere') : t('maintenance.noIssues')}
                       </div>
                     ) : (
                       col.items.map((issue) => (
@@ -234,7 +241,7 @@ export function MaintenanceModulePage() {
 
       {/* Detail Panel */}
       {selectedIssue && (
-        <div className="fixed right-0 top-0 h-screen w-[420px] bg-background border-l border-border shadow-lg overflow-y-auto z-40 flex flex-col">
+        <div className="fixed right-0 top-0 h-screen w-full sm:w-[420px] bg-background border-l border-border shadow-lg overflow-y-auto z-40 flex flex-col">
           {/* Header */}
           <div className="sticky top-0 bg-background border-b border-border px-6 py-4 flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
@@ -243,6 +250,7 @@ export function MaintenanceModulePage() {
             </div>
             <button
               onClick={() => setSelectedIssue(null)}
+              aria-label={t('common.close')}
               className="text-muted-foreground hover:text-foreground text-lg leading-none flex-shrink-0 mt-0.5"
             >
               ✕
@@ -253,7 +261,7 @@ export function MaintenanceModulePage() {
             {/* Status + Priority */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground font-medium">Status</span>
+                <span className="text-muted-foreground font-medium">{t('common.status')}</span>
                 {can.updateIssueStatus && !LOCKED_STATUSES.includes(selectedIssue.status) ? (
                   <select
                     value={selectedIssue.status}
@@ -262,7 +270,7 @@ export function MaintenanceModulePage() {
                   >
                     {COLUMN_ORDER.map((id) => (
                       <option key={id} value={id} disabled={id !== selectedIssue.status && !!moveBlockedReason(selectedIssue, id)}>
-                        {STATUS_META[id].label}
+                        {status(id)}
                       </option>
                     ))}
                   </select>
@@ -271,7 +279,7 @@ export function MaintenanceModulePage() {
                 )}
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground font-medium">Priority</span>
+                <span className="text-muted-foreground font-medium">{t('common.priority')}</span>
                 <PriorityBadge priority={selectedIssue.priority} />
               </div>
             </div>
@@ -279,28 +287,31 @@ export function MaintenanceModulePage() {
             {/* Meta */}
             <div className="border-t border-border pt-4 space-y-3 text-xs">
               <div>
-                <p className="text-muted-foreground font-medium mb-1">Description</p>
+                <p className="text-muted-foreground font-medium mb-1">{t('common.description')}</p>
                 <p className="text-foreground leading-relaxed">{selectedIssue.description || '—'}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <User className="size-4 text-muted-foreground" />
-                <span className="font-semibold">{selectedIssue.assignee || 'Unassigned'}</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <User className="size-4 text-muted-foreground" />
+                  <span className="font-semibold">{selectedIssue.assignee || t('common.unassigned')}</span>
+                </div>
+                <UnlinkedAssigneeNote record={selectedIssue} />
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="size-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Due: {selectedIssue.dueDate ?? '—'}</span>
+                <span className="text-muted-foreground">{t('maintenance.due', { date: date(selectedIssue.dueDate) })}</span>
               </div>
               {selectedIssue.slaBreach && (
                 <div className="flex items-center gap-2 text-destructive">
                   <AlertCircle className="size-4" />
-                  <span className="font-semibold">SLA Breached</span>
+                  <span className="font-semibold">{t('maintenance.slaBreached')}</span>
                 </div>
               )}
             </div>
 
             {/* Issue reference */}
             <div className="p-3 rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs">
-              <p className="text-blue-700 dark:text-blue-300 font-medium">Issue</p>
+              <p className="text-blue-700 dark:text-blue-300 font-medium">{t('maintenance.issueRef')}</p>
               <p className="text-blue-700 dark:text-blue-300 font-mono font-bold mt-0.5">{selectedIssue.number}</p>
               <p className="text-blue-600 dark:text-blue-400 mt-0.5">{selectedIssue.outlet}</p>
             </div>
@@ -311,7 +322,7 @@ export function MaintenanceModulePage() {
             <div className="border-t border-border pt-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold">
-                  Work Orders
+                  {t('maintenance.workOrders')}
                   <span className="ml-1.5 text-muted-foreground font-normal">({linkedWOs.length})</span>
                 </p>
                 {can.manageCMMS && (
@@ -319,7 +330,7 @@ export function MaintenanceModulePage() {
                     onClick={() => setShowCreateWO(true)}
                     className="flex items-center gap-1 px-2.5 h-7 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 transition-colors"
                   >
-                    <Plus className="size-3" /> Create WO
+                    <Plus className="size-3" /> {t('maintenance.createWo')}
                   </button>
                 )}
               </div>
@@ -327,9 +338,9 @@ export function MaintenanceModulePage() {
               {linkedWOs.length === 0 ? (
                 <div className="text-center py-6 rounded-md border border-dashed border-border">
                   <Wrench className="size-6 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">No work orders linked.</p>
+                  <p className="text-xs text-muted-foreground">{t('maintenance.noWos')}</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {can.manageCMMS ? 'Create one to assign a technician.' : 'A technician or manager will create one in CMMS.'}
+                    {can.manageCMMS ? t('maintenance.noWosManager') : t('maintenance.noWosStaff')}
                   </p>
                 </div>
               ) : (
@@ -346,7 +357,7 @@ export function MaintenanceModulePage() {
                             'px-1.5 py-0.5 rounded text-[10px] font-semibold',
                             wo.type === 'preventive' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
                           )}>
-                            {wo.type}
+                            {label('woType', wo.type)}
                           </span>
                           <StatusBadge status={wo.status} />
                         </div>
@@ -357,7 +368,7 @@ export function MaintenanceModulePage() {
                         <span className="flex-shrink-0 ml-2">{wo.assignee}</span>
                       </div>
                       {wo.scheduledDate && (
-                        <p className="text-muted-foreground">Scheduled: <span className="font-mono">{wo.scheduledDate}</span></p>
+                        <p className="text-muted-foreground">{t('maintenance.scheduled')} <span>{date(wo.scheduledDate)}</span></p>
                       )}
                     </div>
                   ))}
@@ -373,7 +384,6 @@ export function MaintenanceModulePage() {
         open={showCreateWO}
         onOpenChange={setShowCreateWO}
         assets={assets}
-        assignees={pics.map((p) => p.name)}
         defaultIssueId={selectedIssue?.id}
         defaultIssueNumber={selectedIssue?.number}
         onSubmit={async (input) => { await createWorkOrder(input) }}
@@ -385,7 +395,6 @@ export function MaintenanceModulePage() {
         defaultCategory="Maintenance"
         outlets={myOutlets.map((o) => o.name)}
         approvalThresholds={approvalThresholdsByOutlet(myOutlets)}
-        assignees={['Unassigned', ...pics.map((p) => p.name)]}
         assets={assets}
         onSubmit={async (input) => { await createIssue(input) }}
       />
@@ -398,12 +407,12 @@ export function MaintenanceModulePage() {
 // `resolved` while a Task / WO / Approval of it is still open.
 const LOCKED_STATUSES: IssueStatus[] = ['resolved', 'closed', 'cancelled']
 
-function moveBlockedReason(issue: Issue, target: IssueStatus): string | null {
+function moveBlockedReason(issue: Issue, target: IssueStatus, locale: Locale = 'en'): string | null {
   if (LOCKED_STATUSES.includes(issue.status)) {
-    return `${issue.number} is ${issue.status} — close or reopen it from the Issues page.`
+    return translate(locale, 'maintenance.lockedMove', { number: issue.number, status: statusLabel(locale, issue.status) })
   }
   if (target === 'resolved' && issue.closureBlockers.length > 0) {
-    return `${issue.number} still has open work: ${issue.closureBlockers.map((b) => b.number).join(', ')}.`
+    return translate(locale, 'maintenance.openWork', { number: issue.number, list: issue.closureBlockers.map((b) => b.number).join(', ') })
   }
   return null
 }
@@ -427,6 +436,7 @@ function IssueCard({
   onDragStart: () => void
   onDragEnd: () => void
 }) {
+  const { t } = useT()
   return (
     <div
       draggable={draggable}
@@ -455,7 +465,7 @@ function IssueCard({
         </div>
         <div className="flex items-center gap-2 text-muted-foreground">
           <User className="size-3 flex-shrink-0" />
-          <span className="truncate">{issue.assignee || 'Unassigned'}</span>
+          <span className="truncate">{issue.assignee || t('common.unassigned')}</span>
         </div>
         <div className="flex items-center justify-between gap-2 text-muted-foreground">
           <span className="truncate">{issue.outlet}</span>

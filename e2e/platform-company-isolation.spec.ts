@@ -21,7 +21,7 @@ async function openLogin(browser: Browser): Promise<Page> {
 async function submitLogin(page: Page, who: { email: string; password: string }) {
   await page.getByLabel('Email').fill(who.email)
   await page.getByLabel('Password', { exact: true }).fill(who.password)
-  await page.getByRole('button', { name: /sign in/i }).click()
+  await page.getByRole('button', { name: /^masuk$/i }).click()
 }
 
 test('platform admin onboards a company that sees only its own data, then deactivates it', async ({ browser, request }) => {
@@ -38,37 +38,37 @@ test('platform admin onboards a company that sees only its own data, then deacti
   // 1. Platform admin creates the company.
   const platform = await openLogin(browser)
   await submitLogin(platform, PLATFORM)
-  await expect(platform.getByRole('heading', { name: 'Companies' })).toBeVisible()
+  await expect(platform.getByRole('heading', { name: 'Perusahaan' })).toBeVisible()
   await expect(platform.getByRole('row', { name: /Default Company/ })).toBeVisible()
-  await platform.getByRole('button', { name: /new company/i }).click()
-  const dialog = platform.getByRole('dialog', { name: 'New company' })
-  await dialog.getByLabel('Company name').fill(company)
-  await dialog.getByLabel(/first outlet/i).fill('Kopi Senopati')
-  await dialog.getByLabel('Admin name').fill('Sari')
-  await dialog.getByLabel('Admin email').fill(admin.email)
+  await platform.getByRole('button', { name: /perusahaan baru/i }).click()
+  const dialog = platform.getByRole('dialog', { name: 'Perusahaan baru' })
+  await dialog.getByLabel('Nama perusahaan').fill(company)
+  await dialog.getByLabel(/outlet pertama/i).fill('Kopi Senopati')
+  await dialog.getByLabel('Nama admin').fill('Sari')
+  await dialog.getByLabel('Email admin').fill(admin.email)
   await dialog.getByLabel(/password/i).fill(admin.password)
-  await dialog.getByRole('button', { name: 'Create company' }).click()
+  await dialog.getByRole('button', { name: 'Buat perusahaan' }).click()
   await expect(platform.getByRole('status')).toContainText(admin.email)
-  await platform.getByRole('button', { name: 'Done' }).click()
+  await platform.getByRole('button', { name: 'Selesai' }).click()
   const row = platform.getByRole('row', { name: new RegExp(company) })
-  await expect(row).toContainText('Active')
+  await expect(row).toContainText('Aktif')
 
   // 2. Its admin signs in to an empty company of their own.
   const tenant = await openLogin(browser)
   await submitLogin(tenant, admin)
-  await tenant.getByRole('button', { name: /^Issues( \d+)?$/ }).click()
-  await expect(tenant.getByRole('button', { name: 'New Issue' })).toBeVisible()
+  await tenant.getByRole('button', { name: /^Laporan( \d+)?$/ }).click()
+  await expect(tenant.getByRole('button', { name: 'Laporan Baru' })).toBeVisible()
   await expect(tenant.getByText(foreignTitle)).toHaveCount(0)
-  await tenant.getByRole('button', { name: 'New Issue' }).click()
+  await tenant.getByRole('button', { name: 'Laporan Baru' }).click()
   const outletOptions = await tenant.getByLabel('Outlet').locator('option').allTextContents()
   expect(outletOptions).toEqual(['Kopi Senopati'])
 
   // 3. Deactivated: the company's admin is locked out.
-  await row.getByRole('button', { name: /deactivate/i }).click()
-  await platform.getByRole('button', { name: /yes, deactivate/i }).click()
-  await expect(row).toContainText('Inactive')
+  await row.getByRole('button', { name: /^nonaktifkan$/i }).click()
+  await platform.getByRole('button', { name: /ya, nonaktifkan/i }).click()
+  await expect(row).toContainText('Nonaktif')
 
   const lockedOut = await openLogin(browser)
   await submitLogin(lockedOut, admin)
-  await expect(lockedOut.getByText(/account is inactive/i)).toBeVisible()
+  await expect(lockedOut.getByText(/akun perusahaan anda nonaktif/i)).toBeVisible()
 })

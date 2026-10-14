@@ -11,12 +11,16 @@ import { create } from 'zustand'
 import { toast } from 'sonner'
 import { api, apiErrorMessage, authToken } from './api-client'
 import { canListUsers, canRead, hasPermission } from './access'
+import { rememberLocale, storedLocale, type Locale } from './i18n/locale'
+import { translate } from './i18n/translate'
 import {
   AppNotification,
   ApprovalRequest,
   ApproverRole,
   Asset,
+  AssignableUser,
   AuditLog,
+  BulkCloseResult,
   Campaign,
   CampaignResultsInput,
   CreateAssetInput,
@@ -26,6 +30,7 @@ import {
   CreateVendorInput,
   CreateWorkOrderInput,
   Issue,
+  IssuePhoto,
   MasterCategory,
   Outlet,
   PIC,
@@ -90,6 +95,7 @@ export interface RoleInput {
   all_outlets: boolean
   outlet_ids: string[]
   approval_tier: 'staff' | 'manager' | 'admin'
+  home_page?: string | null   // Todo-Pilot §19
 }
 
 interface IssueCoreState {
@@ -99,6 +105,9 @@ interface IssueCoreState {
   authError: string | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  // Interface language (Todo-Pilot §16). Kept across logout on this device.
+  locale: Locale
+  setLocale: (locale: Locale, opts?: { persist?: boolean }) => void
 
   // Issue core
   issues: Issue[]
@@ -107,6 +116,8 @@ interface IssueCoreState {
   auditLogs: AuditLog[]
   isLoading: boolean
   error: string | null
+  // When the issue core last loaded from the server (Todo-Pilot §22/§27); null = never
+  lastSyncedAt: string | null
 
   // Notifications
   notifications: AppNotification[]
@@ -126,7 +137,7 @@ interface IssueCoreState {
   // Users management
   allUsers: User[]
   usersLoading: boolean
-  loadUsers: () => Promise<void>
+  loadUsers: () => Promise<boolean>
   inviteUser: (email: string, name: string, role: string, password: string) => Promise<User>
   updateUser: (id: string, patch: { name?: string; role?: string; is_active?: boolean; outlet_ids?: string[]; whatsapp_number?: string }) => Promise<User>
   deleteUser: (id: string) => Promise<void>
@@ -142,14 +153,40 @@ interface IssueCoreState {
 
   // Issue core actions
   loadAll: () => Promise<void>
+  loadCore: () => Promise<boolean>
+  // Modules loaded the first time a page needs them, not at login (Todo-Pilot §22)
+  loaded: Partial<Record<LazyModule, 'loading' | 'done'>>
+  ensureLoaded: (module: LazyModule) => Promise<void>
+  // Server lists (Todo-Pilot §22): issues/tasks/approvals/workOrders are a cache of
+  // what has been fetched (pages, records, an issue's children) — not "everything".
+  counts: Counts | null
+  loadCounts: () => Promise<void>
+  listVersion: number                      // bumped by every change → lists on screen refetch
+  bumpLists: () => void
+  upsertIssues: (items: Issue[]) => void
+  upsertTasks: (items: Task[]) => void
+  upsertApprovals: (items: ApprovalRequest[]) => void
+  fetchIssue: (id: string) => Promise<Issue | null>
+  fetchApproval: (id: string) => Promise<ApprovalRequest | null>
+  loadIssueChildren: (issue: Pick<Issue, 'id'>) => Promise<void>
   loadAuditLogs: () => Promise<void>
   createIssue: (input: CreateIssueInput) => Promise<Issue>
+  uploadIssuePhoto: (issueId: string, file: File, caption?: string) => Promise<IssuePhoto>
+  loadIssuePhotos: (issueId: string) => Promise<IssuePhoto[]>
   updateIssueStatus: (issueId: string, status: Issue['status']) => void
   cancelIssue:       (issueId: string, reason?: string) => Promise<Issue>
+  bulkCloseIssues:   (issueIds: string[]) => Promise<BulkCloseResult>
+  // Assignees are users (Todo-Pilot §17). userId null = unassign.
+  assignableUsers:   Record<string, AssignableUser[]>   // by outlet name; '' = shared
+  loadAssignableUsers: (outlet: string) => Promise<AssignableUser[]>
+  assignIssue:       (issueId: string, userId: string | null) => Promise<Issue>
+  assignTask:        (taskId: string, userId: string | null) => Promise<Task>
+  assignWorkOrder:   (woId: string, userId: string | null) => Promise<WorkOrder>
   reopenIssue:       (issueId: string, reason: string) => Promise<Issue>
   reviseApproval:    (issueId: string, amount: number, reason?: string) => Promise<Issue>
   updateTaskStatus:  (taskId: string,  status: Task['status'])  => void
   refreshIssue:      (issueId: string) => Promise<void>
+  refreshTask:       (taskId: string) => Promise<void>
   refreshIssueChildren: (issue: Issue) => Promise<void>
   decideApproval: (approvalId: string, decision: 'approved' | 'rejected', comment?: string) => Promise<void>
   delegateApproval: (approvalId: string, target: { toUserId?: string; toRole?: ApproverRole }) => Promise<void>
@@ -160,7 +197,7 @@ interface IssueCoreState {
   workOrders: WorkOrder[]
   cmmsLoading: boolean
   cmmsError: string | null
-  loadCMMS: () => Promise<void>
+  loadCMMS: () => Promise<boolean>
   createAsset: (input: CreateAssetInput) => Promise<Asset>
   updateAsset: (id: string, input: UpdateAssetInput) => Promise<Asset>
   deleteAsset: (id: string) => Promise<void>
@@ -232,7 +269,7 @@ interface IssueCoreState {
   // Vendors (Procurement)
   vendors: Vendor[]
   vendorsLoading: boolean
-  loadVendors: () => Promise<void>
+  loadVendors: () => Promise<boolean>
   createVendor: (input: CreateVendorInput) => Promise<Vendor>
   updateVendor: (id: string, input: UpdateVendorInput) => Promise<Vendor>
   deleteVendor: (id: string) => Promise<void>
@@ -240,7 +277,7 @@ interface IssueCoreState {
   // Training Programs
   trainingPrograms: TrainingProgram[]
   trainingLoading: boolean
-  loadTrainingPrograms: () => Promise<void>
+  loadTrainingPrograms: () => Promise<boolean>
   createTrainingProgram: (input: CreateTrainingProgramInput) => Promise<TrainingProgram>
   updateTrainingProgram: (id: string, input: UpdateTrainingProgramInput) => Promise<TrainingProgram>
   deleteTrainingProgram: (id: string) => Promise<void>
@@ -248,7 +285,7 @@ interface IssueCoreState {
   // Campaigns (Marketing)
   campaigns: Campaign[]
   campaignsLoading: boolean
-  loadCampaigns: () => Promise<void>
+  loadCampaigns: () => Promise<boolean>
   createCampaign: (input: CreateCampaignInput) => Promise<Campaign>
   updateCampaign: (id: string, input: UpdateCampaignInput) => Promise<Campaign>
   recordCampaignResults: (id: string, input: CampaignResultsInput) => Promise<Campaign>
@@ -267,6 +304,44 @@ interface IssueCoreState {
   deletePIC: (id: string) => Promise<void>
 }
 
+/** Update/insert by id, keeping everything else in the cache (Todo-Pilot §22). */
+function mergeById<T extends { id: string }>(list: T[], incoming: T[]): T[] {
+  if (incoming.length === 0) return list
+  const fresh = new Map(incoming.map((x) => [x.id, x]))
+  const kept = list.map((x) => fresh.get(x.id) ?? x)
+  const known = new Set(list.map((x) => x.id))
+  return [...kept, ...incoming.filter((x) => !known.has(x.id))]
+}
+
+// ---------------------------------------------------------------------------
+// Lazy modules (Todo-Pilot §22): loaded by ensureLoaded() when a page needs them.
+// ---------------------------------------------------------------------------
+
+export type LazyModule = 'core' | 'cmms' | 'vendors' | 'training' | 'campaigns' | 'users'
+
+/** Menu badges — GET /api/counts; null where the role cannot open that list. */
+export interface Counts { issuesInProgress: number | null; tasksActive: number | null; approvalsPending: number | null }
+
+const LAZY_ALLOWED: Record<LazyModule, (me: User | null) => boolean> = {
+  // Every issue, task and approval — only for pages that aggregate them all
+  // (analytics, reports, module pages filtering by category).
+  core:      (me) => canRead(me, 'issues') || canRead(me, 'tasks') || canRead(me, 'approvals'),
+  cmms:      (me) => canRead(me, 'assets') || canRead(me, 'workOrders'),
+  vendors:   (me) => canRead(me, 'vendors'),
+  training:  (me) => canRead(me, 'training'),
+  campaigns: (me) => canRead(me, 'campaigns'),
+  users:     (me) => canListUsers(me),
+}
+
+const LAZY_LOADERS: Record<LazyModule, (s: IssueCoreState) => Promise<boolean>> = {
+  core:      (s) => s.loadCore(),
+  cmms:      (s) => s.loadCMMS(),
+  vendors:   (s) => s.loadVendors(),
+  training:  (s) => s.loadTrainingPrograms(),
+  campaigns: (s) => s.loadCampaigns(),
+  users:     (s) => s.loadUsers(),
+}
+
 // ---------------------------------------------------------------------------
 // Session data — the initial state, and what logout() resets to. One object
 // so a new slice can't be forgotten on logout: loadAll skips modules the next
@@ -274,12 +349,16 @@ interface IssueCoreState {
 // ---------------------------------------------------------------------------
 
 const EMPTY_DATA = {
+  loaded:    {} as Partial<Record<LazyModule, 'loading' | 'done'>>,
   issues:    [],
   tasks:     [],
   approvals: [],
   auditLogs: [],
   isLoading: false,
   error:     null,
+  lastSyncedAt: null as string | null,
+  counts: null as Counts | null,
+  listVersion: 0,
 
   outlets:           [],
   categories:        [],
@@ -309,6 +388,7 @@ const EMPTY_DATA = {
   partsLoading: false,
 
   allUsers:     [],
+  assignableUsers: {},
   usersLoading: false,
   roles:        [],
   modules:      [],
@@ -351,7 +431,7 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     } catch (e) {
       authToken.clear()
       // The server's reason: wrong credentials (401) or an inactive company (403, Todo-Pilot §11).
-      set({ currentUser: null, authLoading: false, authError: apiErrorMessage(e, 'Sign-in failed.') })
+      set({ currentUser: null, authLoading: false, authError: apiErrorMessage(e, translate(get().locale, 'login.failed')) })
       throw e
     }
   },
@@ -361,34 +441,122 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     set({ currentUser: null, ...EMPTY_DATA })
   },
 
+  locale: storedLocale(),
+  setLocale: (locale, { persist = true } = {}) => {
+    rememberLocale(locale)
+    set({ locale })
+    // Saved on the account so it follows the user to other devices.
+    if (persist && get().currentUser) {
+      api.patch('/api/auth/me/preferences', { preferences: { language: locale } }).catch(() => {})
+    }
+  },
+
   ...EMPTY_DATA,
 
   // -------------------------------------------------------------------------
   // loadAll — initial hydration from the API (issue core + master data)
   // -------------------------------------------------------------------------
   loadAll: async () => {
-    // Only call what the role may read — a 403 here would fail the whole batch.
-    const me = get().currentUser
+    // Login no longer downloads every issue, task and approval (Todo-Pilot §22):
+    // badges come from /api/counts, lists page on the server, aggregate pages
+    // call ensureLoaded('core').
     set({ isLoading: true, error: null })
+    try {
+      const counts = await api.get<Counts>('/api/counts')
+      set({ counts, isLoading: false, lastSyncedAt: new Date().toISOString() })
+    } catch (e) {
+      // Already showing data: keep it (it is only stale) rather than an error page.
+      if (get().lastSyncedAt) {
+        set({ isLoading: false })
+        toast.error(translate(get().locale, 'shell.syncFailed'))
+      } else {
+        set({ isLoading: false, error: String(e) })
+      }
+    }
+    get().loadMasterData()
+    get().loadNotifications()
+    // Everything else loads when its page opens (ensureLoaded) — an outlet
+    // phone should not pull CMMS, vendors, training… just to report a leak.
+    if (get().loaded.core === 'done') get().loadCore()     // Retry / refresh keeps an aggregate page current
+  },
+
+  loadCore: async () => {
+    const me = get().currentUser
     try {
       const [issues, tasks, approvals] = await Promise.all([
         canRead(me, 'issues')    ? api.get<Issue[]>('/api/issues')                : Promise.resolve([]),
         canRead(me, 'tasks')     ? api.get<Task[]>('/api/tasks')                  : Promise.resolve([]),
         canRead(me, 'approvals') ? api.get<ApprovalRequest[]>('/api/approvals')   : Promise.resolve([]),
       ])
-      set({ issues, tasks, approvals, isLoading: false })
-    } catch (e) {
-      set({ isLoading: false, error: String(e) })
+      set({ issues, tasks, approvals })
+      return true
+    } catch {
+      return false
     }
-    get().loadMasterData()
-    if (canRead(me, 'auditLogs')) get().loadAuditLogs()
-    if (canListUsers(me))         get().loadUsers()
-    if (hasPermission(me, 'users')) get().loadRoles()
-    get().loadCMMS()
-    get().loadNotifications()
-    if (canRead(me, 'vendors'))   get().loadVendors()
-    if (canRead(me, 'training'))  get().loadTrainingPrograms()
-    if (canRead(me, 'campaigns')) get().loadCampaigns()
+  },
+
+  loadCounts: async () => {
+    try { set({ counts: await api.get<Counts>('/api/counts') }) } catch { /* badges keep their last value */ }
+  },
+
+  bumpLists: () => {
+    set((s) => ({ listVersion: s.listVersion + 1 }))
+    get().loadCounts()
+  },
+
+  upsertIssues: (items) => set((s) => ({ issues: mergeById(s.issues, items) })),
+  upsertTasks: (items) => set((s) => ({ tasks: mergeById(s.tasks, items) })),
+  upsertApprovals: (items) => set((s) => ({ approvals: mergeById(s.approvals, items) })),
+
+  fetchIssue: async (id) => {
+    try {
+      const issue = await api.get<Issue>(`/api/issues/${encodeURIComponent(id)}`)
+      get().upsertIssues([issue])
+      return issue
+    } catch (e) {
+      if (/API 40[34]|API 422/.test(String(e))) return null
+      throw e
+    }
+  },
+
+  fetchApproval: async (id) => {
+    try {
+      const approval = await api.get<ApprovalRequest>(`/api/approvals/${encodeURIComponent(id)}`)
+      get().upsertApprovals([approval])
+      return approval
+    } catch (e) {
+      if (/API 40[34]|API 422/.test(String(e))) return null
+      throw e
+    }
+  },
+
+  // An issue's tasks, approval and work orders — for its drawer and after a
+  // change that touches them server-side. Never the whole lists.
+  loadIssueChildren: async (issue) => {
+    const me = get().currentUser
+    const q = `issue_id=${encodeURIComponent(issue.id)}`
+    const [tasks, approvals, workOrders] = await Promise.all([
+      canRead(me, 'tasks')      ? api.get<Task[]>(`/api/tasks?${q}`)                : Promise.resolve(null),
+      canRead(me, 'approvals')  ? api.get<ApprovalRequest[]>(`/api/approvals?${q}`) : Promise.resolve(null),
+      canRead(me, 'workOrders') ? api.get<WorkOrder[]>(`/api/work-orders?${q}`)     : Promise.resolve(null),
+    ])
+    set((s) => ({
+      // Replace this issue's children: one that disappeared server-side goes too.
+      tasks: tasks ? [...s.tasks.filter((t) => t.issueId !== issue.id), ...tasks] : s.tasks,
+      approvals: approvals ? mergeById(s.approvals, approvals) : s.approvals,
+      workOrders: workOrders ? mergeById(s.workOrders, workOrders) : s.workOrders,
+    }))
+  },
+
+  ensureLoaded: async (module) => {
+    if (get().loaded[module]) return
+    const me = get().currentUser
+    const mark = (v: 'loading' | 'done' | undefined) => set((s) => ({ loaded: { ...s.loaded, [module]: v } }))
+    if (!LAZY_ALLOWED[module](me)) return mark('done')   // nothing this role may read
+    mark('loading')
+    const ok = await LAZY_LOADERS[module](get())
+    if (get().currentUser?.id !== me?.id) return         // logged out meanwhile
+    mark(ok ? 'done' : undefined)                       // a failed load is tried again next time
   },
 
   // -------------------------------------------------------------------------
@@ -447,8 +615,10 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     try {
       const allUsers = await api.get<User[]>('/api/auth/users')
       set({ allUsers, usersLoading: false })
+      return true
     } catch {
       set({ usersLoading: false })
+      return false
     }
   },
 
@@ -523,7 +693,8 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     try {
       const vendors = await api.get<Vendor[]>('/api/vendors?active_only=false')
       set({ vendors, vendorsLoading: false })
-    } catch { set({ vendorsLoading: false }) }
+      return true
+    } catch { set({ vendorsLoading: false }); return false }
   },
   createVendor: async (input) => {
     const vendor = await api.post<Vendor>('/api/vendors', input)
@@ -548,7 +719,8 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     try {
       const trainingPrograms = await api.get<TrainingProgram[]>('/api/training-programs')
       set({ trainingPrograms, trainingLoading: false })
-    } catch { set({ trainingLoading: false }) }
+      return true
+    } catch { set({ trainingLoading: false }); return false }
   },
   createTrainingProgram: async (input) => {
     const program = await api.post<TrainingProgram>('/api/training-programs', input)
@@ -573,7 +745,8 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     try {
       const campaigns = await api.get<Campaign[]>('/api/campaigns')
       set({ campaigns, campaignsLoading: false })
-    } catch { set({ campaignsLoading: false }) }
+      return true
+    } catch { set({ campaignsLoading: false }); return false }
   },
   createCampaign: async (input) => {
     const campaign = await api.post<Campaign>('/api/campaigns', input)
@@ -607,6 +780,7 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
       category:         input.category,
       priority:         input.priority,
       assignee:         input.assignee,
+      assigneeUserId:   input.assigneeUserId ?? null,
       dueDate:          input.dueDate,
       generateTask:     input.generateTask,
       generateApproval: input.generateApproval,
@@ -616,20 +790,28 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
       estimatedCost:    input.estimatedCost ?? null,
     }, input.idempotencyKey ? { 'Idempotency-Key': input.idempotencyKey } : undefined)
 
-    // Refresh tasks, approvals, and work orders to pick up auto-generated records.
-    const me = get().currentUser
-    const [tasks, approvals, workOrders] = await Promise.all([
-      canRead(me, 'tasks')      ? api.get<Task[]>('/api/tasks')                : Promise.resolve(get().tasks),
-      canRead(me, 'approvals')  ? api.get<ApprovalRequest[]>('/api/approvals') : Promise.resolve(get().approvals),
-      canRead(me, 'workOrders') ? api.get<WorkOrder[]>('/api/work-orders')     : Promise.resolve(get().workOrders),
-    ])
-    set((state) => ({
-      issues:     [issue, ...state.issues.filter((i) => i.id !== issue.id)],
-      tasks,
-      approvals,
-      workOrders,
-    }))
+    set((state) => ({ issues: [issue, ...state.issues.filter((i) => i.id !== issue.id)] }))
+    // Only this issue's generated task / approval / work order (Todo-Pilot §22).
+    await get().loadIssueChildren(issue)
+    get().bumpLists()
     return issue
+  },
+
+  // Photo taken when reporting (Todo-Pilot §20). Through the offline queue like
+  // WO photos: throws QueuedError when stored for later upload.
+  uploadIssuePhoto: async (issueId, file, caption) => {
+    return api.mutateOrQueue<IssuePhoto>({
+      method: 'POST',
+      path: `/api/issues/${issueId}/photos`,
+      file,
+      fileName: file.name,
+      formParts: caption ? [{ field: 'caption', value: caption }] : [],
+      label: `Foto laporan ${issueId.slice(0, 8)}`,
+    })
+  },
+
+  loadIssuePhotos: async (issueId) => {
+    return api.get<IssuePhoto[]>(`/api/issues/${issueId}/photos`)
   },
 
   // -------------------------------------------------------------------------
@@ -640,13 +822,14 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
       issues: state.issues.map((i) => i.id === issueId ? { ...i, status } : i),
     }))
     api.patch<Issue>(`/api/issues/${issueId}`, { status })
-      .then((issue) => set((state) => ({
-        issues: state.issues.map((i) => i.id === issueId ? issue : i),
-      })))
+      .then((issue) => {
+        set((state) => ({ issues: state.issues.map((i) => i.id === issueId ? issue : i) }))
+        get().bumpLists()
+      })
       .catch((e) => {
         // e.g. 409 from the closure guard — the message lists the open records.
-        toast.error(apiErrorMessage(e, 'Failed to update issue status.'))
-        get().loadAll()
+        toast.error(apiErrorMessage(e, translate(get().locale, 'errors.issueStatus')))
+        get().refreshIssue(issueId).catch(() => {})   // only this record, not loadAll()
       })
   },
 
@@ -659,9 +842,42 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     await get().refreshIssueChildren(issue)
     return issue
   },
+  // Close many "Siap ditutup" Issues (Todo-Pilot §18). The API closes each one
+  // on its own; failures come back with a reason and stay as they were.
+  bulkCloseIssues: async (issueIds) => {
+    const result = await api.post<BulkCloseResult>('/api/issues/bulk-close', { ids: issueIds })
+    const closed = new Map(result.closed.map((i) => [i.id, i]))
+    set((state) => ({ issues: state.issues.map((i) => closed.get(i.id) ?? i) }))
+    get().bumpLists()
+    return result
+  },
+  loadAssignableUsers: async (outlet) => {
+    const cached = get().assignableUsers[outlet]
+    if (cached) return cached
+    const users = await api.get<AssignableUser[]>(`/api/auth/users/assignable?outlet=${encodeURIComponent(outlet)}`)
+    set((state) => ({ assignableUsers: { ...state.assignableUsers, [outlet]: users } }))
+    return users
+  },
+  assignIssue: async (issueId, userId) => {
+    const issue = await api.patch<Issue>(`/api/issues/${issueId}`, assigneeBody(userId))
+    set((state) => ({ issues: state.issues.map((i) => i.id === issueId ? issue : i) }))
+    get().bumpLists()
+    return issue
+  },
+  assignTask: async (taskId, userId) => {
+    const task = await api.patch<Task>(`/api/tasks/${taskId}`, assigneeBody(userId))
+    set((state) => ({ tasks: state.tasks.map((t) => t.id === taskId ? task : t) }))
+    return task
+  },
+  assignWorkOrder: async (woId, userId) => {
+    const wo = await api.patch<WorkOrder>(`/api/work-orders/${woId}`, assigneeBody(userId))
+    set((state) => ({ workOrders: state.workOrders.map((w) => w.id === woId ? { ...w, ...wo } : w) }))
+    return wo
+  },
   reopenIssue: async (issueId, reason) => {
     const issue = await api.post<Issue>(`/api/issues/${issueId}/reopen`, { reason })
     set((state) => ({ issues: state.issues.map((i) => i.id === issueId ? issue : i) }))
+    get().bumpLists()
     return issue
   },
   reviseApproval: async (issueId, amount, reason) => {
@@ -670,16 +886,9 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     return issue
   },
   refreshIssueChildren: async (issue) => {
-    const me = get().currentUser
-    const [tasks, approvals, workOrders] = await Promise.all([
-      canRead(me, 'tasks')      ? api.get<Task[]>('/api/tasks')                : Promise.resolve(get().tasks),
-      canRead(me, 'approvals')  ? api.get<ApprovalRequest[]>('/api/approvals') : Promise.resolve(get().approvals),
-      canRead(me, 'workOrders') ? api.get<WorkOrder[]>('/api/work-orders')     : Promise.resolve(get().workOrders),
-    ])
-    set((state) => ({
-      issues: state.issues.map((i) => i.id === issue.id ? issue : i),
-      tasks, approvals, workOrders,
-    }))
+    set((state) => ({ issues: mergeById(state.issues, [issue]) }))
+    await get().loadIssueChildren(issue)
+    get().bumpLists()
   },
 
   // -------------------------------------------------------------------------
@@ -691,10 +900,11 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     }))
     const issueId = get().tasks.find((t) => t.id === taskId)?.issueId
     api.patch(`/api/tasks/${taskId}`, { status })
-      .then(() => { if (issueId) return get().refreshIssue(issueId) })
+      .then(async () => { if (issueId) await get().refreshIssue(issueId); get().bumpLists() })
       .catch((e) => {
-        toast.error(e instanceof Error ? e.message : 'Failed to update task status.')
-        get().loadAll()
+        toast.error(e instanceof Error ? e.message : translate(get().locale, 'errors.taskStatus'))
+        get().refreshTask(taskId).catch(() => {})
+        if (issueId) get().refreshIssue(issueId).catch(() => {})
       })
   },
 
@@ -705,9 +915,12 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
   // -------------------------------------------------------------------------
   refreshIssue: async (issueId) => {
     const issue = await api.get<Issue>(`/api/issues/${issueId}`)
-    set((state) => ({
-      issues: state.issues.map((i) => i.id === issueId ? issue : i),
-    }))
+    set((state) => ({ issues: mergeById(state.issues, [issue]) }))
+  },
+
+  refreshTask: async (taskId) => {
+    const task = await api.get<Task>(`/api/tasks/${taskId}`)
+    set((state) => ({ tasks: mergeById(state.tasks, [task]) }))
   },
 
   // -------------------------------------------------------------------------
@@ -746,6 +959,7 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     if (updated.status !== 'pending' && updated.issueId) {
       await get().refreshIssue(updated.issueId)
     }
+    get().bumpLists()
   },
 
   delegateApproval: async (approvalId, target) => {
@@ -753,15 +967,15 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     set((state) => ({
       approvals: state.approvals.map((a) => a.id === approvalId ? updated : a),
     }))
+    get().bumpLists()
   },
 
   escalateStaleApprovals: async (thresholdDays) => {
     const res = await api.post<{ escalated: number; approvalIds: string[] }>(
       '/api/approvals/escalate-stale', { thresholdDays },
     )
-    // Refresh approvals so escalated flags show up.
-    const approvals = await api.get<ApprovalRequest[]>('/api/approvals')
-    set({ approvals })
+    // Lists on screen refetch, so escalated flags show up.
+    get().bumpLists()
     return res.escalated
   },
 
@@ -774,7 +988,7 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
   // -------------------------------------------------------------------------
   loadCMMS: async () => {
     const me = get().currentUser
-    if (!canRead(me, 'assets') && !canRead(me, 'workOrders')) return
+    if (!canRead(me, 'assets') && !canRead(me, 'workOrders')) return true
     set({ cmmsLoading: true, cmmsError: null })
     try {
       const [assets, workOrders] = await Promise.all([
@@ -782,8 +996,10 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
         canRead(me, 'workOrders') ? api.get<WorkOrder[]>('/api/work-orders') : Promise.resolve([]),
       ])
       set({ assets, workOrders, cmmsLoading: false })
+      return true
     } catch (e) {
       set({ cmmsLoading: false, cmmsError: String(e) })
+      return false
     }
   },
 
@@ -1067,8 +1283,8 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
   createPurchaseRequest: async (input) => {
     const pr = await api.post<PurchaseRequest>('/api/purchase-requests', input)
     set((state) => ({ purchaseRequests: [pr, ...state.purchaseRequests] }))
-    // The PR raised an approval — refresh the approval inbox.
-    get().loadAll?.()
+    // The PR raised an approval — lists and badges refetch.
+    get().bumpLists()
     return pr
   },
 
@@ -1254,3 +1470,8 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     }
   },
 }))
+
+// PATCH body for an assignment: a user, or explicitly nobody (Todo-Pilot §17).
+function assigneeBody(userId: string | null) {
+  return userId ? { assigneeUserId: userId } : { assignee: 'Unassigned' }
+}

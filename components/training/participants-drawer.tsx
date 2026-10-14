@@ -2,14 +2,16 @@
 
 // Participants of one training program: enroll (bulk, capacity-checked),
 // mark attended / no-show, score (Todo-Pilot §9).
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { Check, Loader2, Minus, UserPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { api, apiErrorMessage } from '@/lib/api-client'
 import { useIssueStore } from '@/lib/store'
 import { attendanceBlocker, enrollCandidates, placesLeft } from '@/lib/training'
+import { useT } from '@/lib/i18n'
 import type { EnrollmentStatus, TrainingEnrollment, TrainingProgram } from '@/lib/types'
+import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
 const base = (id: string) => `/api/training-programs/${id}/enrollments`
 
@@ -19,6 +21,7 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
   onClose: () => void
   onChanged: () => void        // program counts changed
 }) {
+  const { t, label, date, locale } = useT()
   const allUsers = useIssueStore((s) => s.allUsers)
   const [rows, setRows] = useState<TrainingEnrollment[] | null>(null)
   const [picking, setPicking] = useState(false)
@@ -30,7 +33,7 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
   useEffect(() => { load() }, [program.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const today = new Date().toISOString().slice(0, 10)
-  const blocker = attendanceBlocker(program, today)
+  const blocker = attendanceBlocker(program, today, locale)
   const left = placesLeft(program.max_participants, rows?.length ?? program.enrolled_count)
   const candidates = useMemo(
     () => enrollCandidates(allUsers, (rows ?? []).map((r) => r.user_id), onlyTargetRole ? program.target_role : null),
@@ -41,7 +44,7 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
     setBusy(true)
     try {
       await api.post(base(program.id), { user_ids: selected })
-      toast.success(`${selected.length} participant(s) enrolled.`)
+      toast.success(t('participants.enrolled', { count: selected.length }))
       setSelected([]); setPicking(false)
       await load(); onChanged()
     } catch (e) {
@@ -71,27 +74,30 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
     }
   }
 
+  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalKeyboard(panelRef, onClose)
+
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-full sm:max-w-lg bg-background border-l border-border shadow-lg z-50 overflow-y-auto">
+      <div ref={panelRef} role="dialog" aria-modal="true" className="fixed inset-y-0 right-0 w-full sm:max-w-lg bg-background border-l border-border shadow-lg z-50 overflow-y-auto">
         <div className="sticky top-0 bg-background border-b border-border px-5 py-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="font-bold leading-snug">{program.title}</h2>
             <p className="text-xs text-muted-foreground">
-              {program.scheduled_date ?? 'No date'} · {program.outlet ?? 'All outlets'} · {rows?.length ?? '…'}
-              {program.max_participants ? ` / ${program.max_participants}` : ''} enrolled
-              {left !== null && ` · ${left} place(s) left`}
+              {program.scheduled_date ? date(program.scheduled_date) : t('participants.noDate')} · {program.outlet ?? t('participants.allOutlets')} · {t('participants.enrolledCount', { count: rows?.length ?? '…', max: program.max_participants ? ` / ${program.max_participants}` : '' })}
+              {left !== null && t('participants.placesLeft', { count: left })}
             </p>
           </div>
-          <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground"><X className="size-5" /></button>
+          <button onClick={onClose} aria-label={t('common.close')} className="p-1 text-muted-foreground hover:text-foreground"><X className="size-5" /></button>
         </div>
 
         <div className="p-5 space-y-4">
           {canManage && !picking && program.status !== 'cancelled' && program.status !== 'completed' && (
             <button onClick={() => setPicking(true)} disabled={left === 0}
               className="flex items-center gap-1.5 px-3 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
-              <UserPlus className="size-4" /> {left === 0 ? 'Training is full' : 'Enroll participants'}
+              <UserPlus className="size-4" /> {left === 0 ? t('participants.full') : t('participants.enroll')}
             </button>
           )}
 
@@ -99,12 +105,12 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
             <div className="rounded-lg border border-border p-3 space-y-2">
               <label className="flex items-center gap-2 text-xs">
                 <input type="checkbox" checked={onlyTargetRole} onChange={(e) => setOnlyTargetRole(e.target.checked)} />
-                Only users with role <b className="capitalize">{program.target_role}</b>
+                {t('participants.onlyRole')} <b>{program.target_role === 'all' ? t('training.allRoles') : label('tier', program.target_role)}</b>
               </label>
               {allUsers.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Your role cannot list users (needs Users &amp; Roles view).</p>
+                <p className="text-xs text-muted-foreground">{t('participants.cannotList')}</p>
               ) : candidates.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Everyone eligible is already enrolled.</p>
+                <p className="text-xs text-muted-foreground">{t('participants.allEnrolled')}</p>
               ) : (
                 <div className="max-h-56 overflow-y-auto divide-y divide-border border border-border rounded-md">
                   {candidates.map((u) => (
@@ -118,13 +124,13 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
                 </div>
               )}
               {left !== null && selected.length > left && (
-                <p className="text-xs text-destructive">Only {left} place(s) left — {selected.length} selected.</p>
+                <p className="text-xs text-destructive">{t('participants.tooMany', { left, selected: selected.length })}</p>
               )}
               <div className="flex justify-end gap-2">
-                <button onClick={() => { setPicking(false); setSelected([]) }} className="px-3 h-8 rounded-md border border-border text-xs">Cancel</button>
+                <button onClick={() => { setPicking(false); setSelected([]) }} className="px-3 h-8 rounded-md border border-border text-xs">{t('common.cancel')}</button>
                 <button onClick={enroll} disabled={busy || selected.length === 0 || (left !== null && selected.length > left)}
                   className="px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
-                  {busy ? 'Enrolling…' : `Enroll ${selected.length || ''}`}
+                  {busy ? t('participants.enrolling') : t('participants.enrollN', { count: selected.length || '' })}
                 </button>
               </div>
             </div>
@@ -135,7 +141,7 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
           )}
 
           {rows === null ? <div className="flex justify-center py-10"><Loader2 className="size-5 animate-spin" /></div>
-            : rows.length === 0 ? <p className="text-sm text-muted-foreground text-center py-10">No participants yet.</p>
+            : rows.length === 0 ? <p className="text-sm text-muted-foreground text-center py-10">{t('participants.none')}</p>
             : (
               <div className="space-y-2">
                 {rows.map((r) => (
@@ -146,7 +152,7 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
                         <p className="text-[11px] text-muted-foreground">{r.role_name} · {r.outlet}</p>
                       </div>
                       {canManage && r.status === 'registered' && (
-                        <button onClick={() => remove(r)} className="text-[11px] text-muted-foreground hover:text-destructive">Remove</button>
+                        <button onClick={() => remove(r)} className="text-[11px] text-muted-foreground hover:text-destructive">{t('participants.remove')}</button>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -159,12 +165,12 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
                               active ? (s === 'attended' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-red-600 text-white border-red-600')
                                 : 'border-border hover:bg-muted/50', (!canManage || blocker) && !active && 'opacity-40')}>
                             {s === 'attended' ? <Check className="size-3.5" /> : <Minus className="size-3.5" />}
-                            {s === 'attended' ? 'Attended' : 'No-show'}
+                            {label('enrollmentStatus', s)}
                           </button>
                         )
                       })}
                       {r.status === 'attended' && (
-                        <input type="number" min={0} max={100} defaultValue={r.score ?? ''} disabled={!canManage} placeholder="Score"
+                        <input type="number" min={0} max={100} defaultValue={r.score ?? ''} disabled={!canManage} placeholder={t('participants.score')} aria-label={t('participants.score')}
                           onBlur={(e) => {
                             const v = e.target.value === '' ? null : Math.max(0, Math.min(100, Math.round(Number(e.target.value))))
                             if (v !== r.score) patch(r, { score: v })

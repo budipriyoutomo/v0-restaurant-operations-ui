@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { MasterCategory, PIC } from '@/lib/types'
+import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
 interface NewPICDialogProps {
   open: boolean
@@ -19,10 +21,12 @@ interface NewPICDialogProps {
   }) => Promise<void> | void
 }
 
-const departments = ['Engineering', 'Operations', 'Maintenance', 'Quality', 'Supply Chain', 'Finance']
+// Stored as these values; shown as t('picDialog.dept.<value>').
+const departments = ['Engineering', 'Operations', 'Maintenance', 'Quality', 'Supply Chain', 'Finance'] as const
 const defaultForm = { name: '', email: '', phone: '', department: 'Engineering', categories: [] as string[] }
 
 export function NewPICDialog({ open, onOpenChange, categories, initialData, onSubmit }: NewPICDialogProps) {
+  const { t } = useT()
   const [formData, setFormData] = useState(defaultForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,21 +74,27 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
       await onSubmit?.(formData)
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
+      setError(err instanceof Error ? err.message : t('common.somethingWrong'))
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalKeyboard(panelRef, () => onOpenChange(false), open)
+
   if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="pic-dialog-title"
+        className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
-          <h2 className="text-lg font-bold">{isEdit ? 'Edit PIC' : 'Create New PIC'}</h2>
+          <h2 id="pic-dialog-title" className="text-lg font-bold">{isEdit ? t('picDialog.edit') : t('picDialog.create')}</h2>
           <button
             onClick={() => onOpenChange(false)}
+            aria-label={t('common.close')}
             className="p-1 hover:bg-muted rounded-md transition-colors"
           >
             <X className="size-5 text-muted-foreground" />
@@ -97,11 +107,11 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
           )}
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Full Name <span className="text-destructive">*</span></label>
-            <input
+            <label htmlFor="pic-name" className="block text-sm font-semibold mb-1.5">{t('picDialog.fullName')} <span className="text-destructive">*</span></label>
+            <input id="pic-name"
               type="text"
               name="name"
-              placeholder="e.g. Ahmad Razif"
+              placeholder={t('picDialog.namePlaceholder')}
               value={formData.name}
               onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -109,11 +119,11 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Email <span className="text-destructive">*</span></label>
-            <input
+            <label htmlFor="pic-email" className="block text-sm font-semibold mb-1.5">{t('common.email')} <span className="text-destructive">*</span></label>
+            <input id="pic-email"
               type="email"
               name="email"
-              placeholder="e.g. ahmad@restaurant.com"
+              placeholder={t('picDialog.emailPlaceholder')}
               value={formData.email}
               onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -121,11 +131,11 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Phone <span className="text-destructive">*</span></label>
-            <input
+            <label htmlFor="pic-phone" className="block text-sm font-semibold mb-1.5">{t('picDialog.phone')} <span className="text-destructive">*</span></label>
+            <input id="pic-phone"
               type="tel"
               name="phone"
-              placeholder="e.g. +60 12-3456 7890"
+              placeholder={t('picDialog.phonePlaceholder')}
               value={formData.phone}
               onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -133,8 +143,8 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Department</label>
-            <select
+            <label htmlFor="pic-department" className="block text-sm font-semibold mb-1.5">{t('picDialog.department')}</label>
+            <select id="pic-department"
               name="department"
               value={formData.department}
               onChange={handleChange}
@@ -142,16 +152,16 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
             >
               {departments.map((dept) => (
                 <option key={dept} value={dept}>
-                  {dept}
+                  {t(`picDialog.dept.${dept}`)}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-2">Assign Categories <span className="text-destructive">*</span></label>
+            <p className="block text-sm font-semibold mb-2">{t('picDialog.assignCategories')} <span className="text-destructive">*</span></p>
             {categories.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">No categories available — add categories first.</p>
+              <p className="text-sm text-muted-foreground italic">{t('picDialog.noCategories')}</p>
             ) : (
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {categories.map((category) => (
@@ -171,7 +181,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
               </div>
             )}
             {formData.categories.length === 0 && (
-              <p className="text-xs text-destructive mt-2">Please select at least one category</p>
+              <p className="text-xs text-destructive mt-2">{t('picDialog.pickOne')}</p>
             )}
           </div>
 
@@ -182,7 +192,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
               disabled={isSubmitting}
               className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -194,7 +204,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
                   : 'bg-muted text-muted-foreground cursor-not-allowed'
               )}
             >
-              {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create PIC'}
+              {isSubmitting ? t('common.saving') : isEdit ? t('procurement.saveChanges') : t('picDialog.submit')}
             </button>
           </div>
         </form>

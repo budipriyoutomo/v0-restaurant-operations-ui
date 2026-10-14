@@ -26,7 +26,7 @@ export function hasAnyPermission(
 // Pages every signed-in user can open regardless of role. Settings only holds
 // the user's own preferences (/api/auth/me/*); the `settings` module permission
 // still gates company-wide system jobs (can.runSystemJobs).
-const ALWAYS_VISIBLE = new Set(['notifications', 'settings'])
+const ALWAYS_VISIBLE = new Set(['notifications', 'settings', 'my-work'])   // my-work: Todo-Pilot §19
 
 // Page ids are module keys.
 export function canViewPage(user: Pick<User, 'permissions'> | null | undefined, page: string): boolean {

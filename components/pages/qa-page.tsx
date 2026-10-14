@@ -3,7 +3,7 @@
 // QA & Compliance — outlet audit checklists (Todo-Pilot §7). Replaces the
 // saved Issues view: audits, scores per outlet, checklist templates, and the
 // Compliance issues that failed items raise.
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { ClipboardCheck, Plus, Repeat, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -17,11 +17,14 @@ import { AuditRunner } from '@/components/qa/audit-runner'
 import { TemplateEditor } from '@/components/qa/template-editor'
 import { QAScoresPanel } from '@/components/qa/qa-scores-panel'
 import { TONE_CLASS } from '@/components/qa/tone'
+import { useT } from '@/lib/i18n'
 import { IssuesListPage } from '@/components/pages/issues-list-page'
+import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
 type Tab = 'audits' | 'scores' | 'templates' | 'issues'
 
 export function QAPage() {
+  const { t } = useT()
   const { can } = usePermissions()
   const myOutlets = useMyOutlets()
   const [tab, setTab] = useState<Tab>('audits')
@@ -43,60 +46,60 @@ export function QAPage() {
   const submitted = (audits ?? []).filter((a) => a.status === 'submitted')
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'audits', label: 'Audits' },
-    { id: 'scores', label: 'Scores' },
-    { id: 'templates', label: 'Checklist templates' },
-    { id: 'issues', label: 'Compliance issues' },
+    { id: 'audits', label: t('qa.tab.audits') },
+    { id: 'scores', label: t('qa.tab.scores') },
+    { id: 'templates', label: t('qa.tab.templates') },
+    { id: 'issues', label: t('qa.tab.issues') },
   ]
 
   return (
     <div className="p-4 sm:p-6 space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold">QA &amp; Compliance</h1>
+          <h1 className="text-3xl font-bold">{t('qa.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Outlet audits against a checklist. Every failed item becomes a Compliance issue with a task.
+            {t('qa.subtitle')}
           </p>
         </div>
         {can.manageQA && tab === 'audits' && (
           <button onClick={() => setShowStart(true)}
             className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90">
-            <Plus className="size-4" /> Start audit
+            <Plus className="size-4" /> {t('qa.startAudit')}
           </button>
         )}
         {can.manageQA && tab === 'templates' && (
           <button onClick={() => setEditing('new')}
             className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90">
-            <Plus className="size-4" /> New template
+            <Plus className="size-4" /> {t('qa.newTemplate')}
           </button>
         )}
       </div>
 
       <div className="flex gap-1 border-b border-border overflow-x-auto">
-        {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)}
+        {tabs.map((td) => (
+          <button key={td.id} onClick={() => setTab(td.id)}
             className={cn('px-4 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap',
-              tab === t.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
-            {t.label}
+              tab === td.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+            {td.label}
           </button>
         ))}
       </div>
 
       {tab === 'audits' && (
-        audits === null ? <p className="text-sm text-muted-foreground">Loading…</p> : (
+        audits === null ? <p className="text-sm text-muted-foreground">{t('common.loading')}</p> : (
           <div className="space-y-6">
             {inProgress.length > 0 && (
               <section className="space-y-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">In progress</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('qa.inProgress')}</h3>
                 {inProgress.map((a) => <AuditRow key={a.id} audit={a} onOpen={() => setOpenAuditId(a.id)} />)}
               </section>
             )}
             <section className="space-y-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Submitted</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('qa.submitted')}</h3>
               {submitted.length === 0
                 ? <Empty text={templates.length === 0 && can.manageQA
-                    ? 'No audits yet. Create a checklist template first, then start an audit.'
-                    : 'No submitted audits yet.'} />
+                    ? t('qa.noAuditsCreate')
+                    : t('qa.noSubmitted')} />
                 : submitted.map((a) => <AuditRow key={a.id} audit={a} onOpen={() => setOpenAuditId(a.id)} />)}
             </section>
           </div>
@@ -106,24 +109,24 @@ export function QAPage() {
       {tab === 'scores' && <QAScoresPanel refreshKey={refreshKey} />}
 
       {tab === 'templates' && (
-        templates.length === 0 ? <Empty text="No checklist templates yet." /> : (
+        templates.length === 0 ? <Empty text={t('qa.noTemplates')} /> : (
           <div className="grid gap-3 sm:grid-cols-2">
-            {templates.map((t) => (
-              <div key={t.id} className={cn('p-4 rounded-xl border border-border bg-card space-y-2', !t.isActive && 'opacity-60')}>
+            {templates.map((tpl) => (
+              <div key={tpl.id} className={cn('p-4 rounded-xl border border-border bg-card space-y-2', !tpl.isActive && 'opacity-60')}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold">{t.name}</p>
-                    {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
+                    <p className="font-semibold">{tpl.name}</p>
+                    {tpl.description && <p className="text-xs text-muted-foreground">{tpl.description}</p>}
                   </div>
                   {can.manageQA && (
-                    <button onClick={() => setEditing(t)} className="p-1 text-muted-foreground hover:text-foreground" title="Edit">
+                    <button onClick={() => setEditing(tpl)} className="p-1 text-muted-foreground hover:text-foreground" title={t('common.edit')} aria-label={t('common.edit')}>
                       <Pencil className="size-4" />
                     </button>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {t.items.length} items · {t.items.filter((i) => i.isCritical).length} critical ·{' '}
-                  {t.items.filter((i) => i.requiresPhoto).length} need a photo{!t.isActive && ' · inactive'}
+                  {t('qa.templateSummary', { items: tpl.items.length, critical: tpl.items.filter((i) => i.isCritical).length, photo: tpl.items.filter((i) => i.requiresPhoto).length })}
+                  {!tpl.isActive && t('qa.inactive')}
                 </p>
               </div>
             ))}
@@ -154,6 +157,7 @@ export function QAPage() {
 }
 
 function AuditRow({ audit: a, onOpen }: { audit: QAAuditSummary; onOpen: () => void }) {
+  const { t, date } = useT()
   return (
     <button onClick={onOpen}
       className="w-full text-left p-3 sm:p-4 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors flex items-center gap-3">
@@ -163,19 +167,19 @@ function AuditRow({ audit: a, onOpen }: { audit: QAAuditSummary; onOpen: () => v
           <span className="font-mono text-[11px] text-muted-foreground">{a.number}</span>
           <span className="text-sm font-semibold truncate">{a.templateName}</span>
         </div>
-        <p className="text-xs text-muted-foreground">{a.outlet} · {a.auditDate} · {a.auditor}</p>
+        <p className="text-xs text-muted-foreground">{a.outlet} · {date(a.auditDate)} · {a.auditor}</p>
       </div>
       <div className="text-right flex-shrink-0">
         {a.status === 'submitted' ? (
           <>
             <p className={cn('text-lg font-bold leading-none', TONE_CLASS[scoreTone(a.score)])}>{a.score ?? '—'}</p>
             <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1 justify-end">
-              {a.failedCount} failed
-              {a.repeatCount > 0 && <span className="text-orange-600 inline-flex items-center gap-0.5"><Repeat className="size-3" />{a.repeatCount}</span>}
+              {t('qa.failed', { count: a.failedCount })}
+              {a.repeatCount > 0 && <span className="text-orange-700 inline-flex items-center gap-0.5"><Repeat className="size-3" />{a.repeatCount}</span>}
             </p>
           </>
         ) : (
-          <p className="text-xs font-semibold text-primary">{a.progress.answered}/{a.progress.total} answered</p>
+          <p className="text-xs font-semibold text-primary">{t('qa.answered', { done: a.progress.answered, total: a.progress.total })}</p>
         )}
       </div>
     </button>
@@ -188,6 +192,7 @@ function StartAuditDialog({ templates, outlets, onClose, onStarted }: {
   onClose: () => void
   onStarted: (auditId: string) => void
 }) {
+  const { t } = useT()
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '')
   const [outlet, setOutlet] = useState(outlets[0] ?? '')
   const [auditDate, setAuditDate] = useState(new Date().toISOString().slice(0, 10))
@@ -206,34 +211,38 @@ function StartAuditDialog({ templates, outlets, onClose, onStarted }: {
     }
   }
 
+  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalKeyboard(panelRef, onClose)
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-background rounded-lg border border-border shadow-lg w-full max-w-sm p-5 space-y-4">
-        <h2 className="font-semibold">Start audit</h2>
+      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-lg border border-border shadow-lg w-full max-w-sm p-5 space-y-4">
+        <h2 className="font-semibold">{t('qa.startAudit')}</h2>
         {templates.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Create an active checklist template first (Checklist templates tab).</p>
+          <p className="text-sm text-muted-foreground">{t('qa.needTemplate')}</p>
         ) : (
           <div className="space-y-3">
-            <Field label="Checklist">
+            <Field label={t('qa.checklist')}>
               <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full h-9 px-2 rounded-md border border-border bg-background text-sm">
                 {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.items.length} items)</option>)}
               </select>
             </Field>
-            <Field label="Outlet">
+            <Field label={t('common.outlet')}>
               <select value={outlet} onChange={(e) => setOutlet(e.target.value)} className="w-full h-9 px-2 rounded-md border border-border bg-background text-sm">
                 {outlets.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             </Field>
-            <Field label="Audit date">
+            <Field label={t('qa.auditDate')}>
               <input type="date" value={auditDate} onChange={(e) => setAuditDate(e.target.value)} className="w-full h-9 px-2 rounded-md border border-border bg-background text-sm" />
             </Field>
           </div>
         )}
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 h-9 rounded-md border border-border text-sm">Cancel</button>
+          <button onClick={onClose} className="px-4 h-9 rounded-md border border-border text-sm">{t('common.cancel')}</button>
           <button onClick={start} disabled={!templateId || !outlet || busy}
             className="px-4 h-9 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50">
-            {busy ? 'Starting…' : 'Start'}
+            {busy ? t('qa.starting') : t('qa.start')}
           </button>
         </div>
       </div>

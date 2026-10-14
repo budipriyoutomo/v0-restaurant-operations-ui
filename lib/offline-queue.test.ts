@@ -1,7 +1,7 @@
 // Offline queue replay rules (cross-check fixes 2026-10-03). The IndexedDB plumbing
 // is not exercised here — only the pure decisions flush() is built on.
 import { describe, expect, it } from 'vitest'
-import { belongsTo, pendingFor, replayOutcome, tokenOwner } from './offline-queue'
+import { belongsTo, conflictReason, conflictsFor, pendingFor, replayOutcome, serverDetail, tokenOwner } from './offline-queue'
 
 /** Unsigned JWT with the given payload — enough for tokenOwner(), which never verifies. */
 function jwt(payload: object): string {
@@ -66,5 +66,33 @@ describe('pendingFor', () => {
     expect(pendingFor(items, 'user-a')).toHaveLength(3)   // own two + one legacy
     expect(pendingFor(items, 'user-b')).toHaveLength(2)
     expect(pendingFor(items, null)).toHaveLength(1)
+  })
+})
+
+// Conflicts (Todo-Pilot §27 / UX-14): a replay the server rejects is kept and
+// shown — never dropped silently.
+describe('conflicts', () => {
+  const item = (id: string, over = {}) => ({ id, owner: 'u1', ...over })
+
+  it('a rejected item is no longer pending but listed as a conflict for its owner', () => {
+    const items = [item('a'), item('b', { conflict: { status: 409, detail: 'x', at: 1 } }), item('c', { owner: 'u2', conflict: { status: 409, detail: 'y', at: 1 } })]
+    expect(pendingFor(items, 'u1').map((i) => i.id)).toEqual(['a'])
+    expect(conflictsFor(items, 'u1').map((i) => i.id)).toEqual(['b'])
+  })
+
+  it('explains each rejection in plain words', () => {
+    expect(conflictReason(409)).toBe('offline.conflict.changed')
+    expect(conflictReason(404)).toBe('offline.conflict.gone')
+    expect(conflictReason(403)).toBe('offline.conflict.forbidden')
+    expect(conflictReason(422)).toBe('offline.conflict.invalid')
+    expect(conflictReason(400)).toBe('offline.conflict.invalid')
+  })
+
+  it('keeps the server reason', () => {
+    expect(serverDetail('{"detail":"Cannot transition work order from \'completed\' to \'in-progress\'."}'))
+      .toBe("Cannot transition work order from 'completed' to 'in-progress'.")
+    expect(serverDetail('{"detail":[{"msg":"field required"}]}')).toBe('field required')
+    expect(serverDetail('Bad gateway')).toBe('Bad gateway')
+    expect(serverDetail('')).toBe('')
   })
 })

@@ -8,7 +8,7 @@ import { defineConfig } from '@playwright/test'
 // `npm run e2e`. On macOS 13 Playwright's bundled Chromium is unsupported, so
 // the installed Google Chrome is used there (override with PLAYWRIGHT_CHANNEL).
 const API_PORT = 8001
-const WEB_PORT = 3001
+const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 3001)   // override when :3001 is taken
 const DB_URL = process.env.E2E_DATABASE_URL ?? 'postgresql+psycopg://postgres:@localhost:5432/restaurantops_e2e'
 const channel = process.env.PLAYWRIGHT_CHANNEL ?? (process.platform === 'darwin' ? 'chrome' : undefined)
 

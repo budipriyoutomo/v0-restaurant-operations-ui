@@ -4,12 +4,12 @@ import { TrendingDown, Zap, Clock, CheckCircle, AlertTriangle, DollarSign, Activ
 
 const kpis = [
   { label: 'MTTR', value: '3.2h', icon: Clock, trend: '-0.6h', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-  { label: 'MTBF', value: '168h', icon: TrendingDown, trend: '+12h', color: 'bg-green-500/10 text-green-600 dark:text-green-400' },
+  { label: 'MTBF', value: '168h', icon: TrendingDown, trend: '+12h', color: 'bg-green-500/10 text-green-700 dark:text-green-400' },
   { label: 'Active Downtime', value: '12.7h', icon: Zap, trend: '-2.1h', color: 'bg-red-500/10 text-red-600 dark:text-red-400' },
   { label: 'PM Compliance', value: '94%', icon: CheckCircle, trend: '+3%', color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' },
-  { label: 'Critical Breakdowns', value: '3', icon: AlertTriangle, trend: '-1', color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+  { label: 'Critical Breakdowns', value: '3', icon: AlertTriangle, trend: '-1', color: 'bg-orange-500/10 text-orange-700 dark:text-orange-400' },
   { label: 'Maintenance Cost', value: 'RM8.5k', icon: DollarSign, trend: '+RM1.2k', color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' },
-  { label: 'Asset Health', value: '68%', icon: Activity, trend: '-4%', color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' },
+  { label: 'Asset Health', value: '68%', icon: Activity, trend: '-4%', color: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400' },
   { label: 'Overdue WO', value: '2', icon: AlertCircle, trend: '+1', color: 'bg-red-500/10 text-red-600 dark:text-red-400' },
 ]
 

@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Sun, Moon, Bell, Shield, RefreshCw, Check, Loader2, Mail, MessageCircle, Send } from 'lucide-react'
+import { Sun, Moon, Check, Loader2, Mail, MessageCircle, Send, Languages, CalendarDays } from 'lucide-react'
+import { hasPermission } from '@/lib/access'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { api, apiErrorMessage } from '@/lib/api-client'
 import { useIssueStore } from '@/lib/store'
+import { LOCALES, normalizeLocale, useT } from '@/lib/i18n'
 import type { User } from '@/lib/types'
 
 interface AppPreferences {
@@ -28,6 +30,9 @@ interface AppPreferences {
   waApprovalDecided: boolean
   waWorkOrderAssigned: boolean
   waIssueReadyToClose: boolean
+  // GM outlet summary (Todo-Pilot §25) — opt-in, read by outlet_comparison_service.
+  digestDaily: boolean
+  digestWeekly: boolean
 }
 
 const DEFAULT_PREFS: AppPreferences = {
@@ -46,14 +51,23 @@ const DEFAULT_PREFS: AppPreferences = {
   waApprovalDecided:   true,
   waWorkOrderAssigned: true,
   waIssueReadyToClose: true,
+  digestDaily:         false,
+  digestWeekly:        false,
 }
 
-const WA_EVENTS: { key: keyof AppPreferences; label: string; description: string }[] = [
-  { key: 'waApprovalPending',   label: 'Approval waiting for you', description: 'An approval step needs my decision' },
-  { key: 'waApprovalEscalated', label: 'Approval escalated',       description: 'An approval is stuck and escalated (admins)' },
-  { key: 'waApprovalDecided',   label: 'My request decided',       description: 'A request I made is approved or rejected' },
-  { key: 'waWorkOrderAssigned', label: 'Work order assigned',      description: 'A work order is assigned to me' },
-  { key: 'waIssueReadyToClose', label: 'Issue ready to close',     description: 'All work under an issue in my outlet is done (managers)' },
+// Label: t('settings.ev.<ev>'), description: t('settings.wa.<ev>') / t('settings.email.<ev>').
+const WA_EVENTS: { key: keyof AppPreferences; ev: 'approvalPending' | 'approvalEscalated' | 'approvalDecided' | 'woAssigned' | 'readyToClose' }[] = [
+  { key: 'waApprovalPending',   ev: 'approvalPending' },
+  { key: 'waApprovalEscalated', ev: 'approvalEscalated' },
+  { key: 'waApprovalDecided',   ev: 'approvalDecided' },
+  { key: 'waWorkOrderAssigned', ev: 'woAssigned' },
+  { key: 'waIssueReadyToClose', ev: 'readyToClose' },
+]
+const EMAIL_EVENTS: { key: keyof AppPreferences; ev: 'approvalPending' | 'approvalEscalated' | 'approvalDecided' | 'woAssigned' }[] = [
+  { key: 'emailApprovalPending',   ev: 'approvalPending' },
+  { key: 'emailApprovalEscalated', ev: 'approvalEscalated' },
+  { key: 'emailApprovalDecided',   ev: 'approvalDecided' },
+  { key: 'emailWorkOrderAssigned', ev: 'woAssigned' },
 ]
 
 function applyDarkMode(dark: boolean) {
@@ -63,6 +77,9 @@ function applyDarkMode(dark: boolean) {
 }
 
 export function SettingsPage() {
+  const { t, locale } = useT()
+  const setLocale = useIssueStore((s) => s.setLocale)
+  const canDigest = hasPermission(useIssueStore((s) => s.currentUser), 'dashboard')
   const [prefs, setPrefs] = useState<AppPreferences>(DEFAULT_PREFS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -121,94 +138,72 @@ export function SettingsPage() {
     <div className="p-6 space-y-6 max-w-xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1">Application preferences — saved to your account</p>
+          <h1 className="text-3xl font-bold">{t('settings.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('settings.subtitle')}</p>
         </div>
         {saving ? (
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
         ) : saved ? (
           <span className="flex items-center gap-1 text-xs text-success font-medium">
-            <Check className="size-3.5" /> Saved
+            <Check className="size-3.5" /> {t('common.saved')}
           </span>
         ) : null}
       </div>
 
-      <SettingGroup label="Appearance">
+      <SettingGroup label={t('settings.language')}>
+        <div className="flex items-center justify-between px-4 py-3.5 gap-4">
+          <div className="flex items-start gap-3">
+            <Languages className="size-4 mt-0.5 text-muted-foreground" />
+            <div>
+              <label htmlFor="settings-language" className="text-sm font-medium">{t('settings.languageLabel')}</label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('settings.languageHint')}</p>
+            </div>
+          </div>
+          <select
+            id="settings-language"
+            value={locale}
+            onChange={(e) => setLocale(normalizeLocale(e.target.value))}
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+          >
+            {LOCALES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+          </select>
+        </div>
+      </SettingGroup>
+
+      <SettingGroup label={t('settings.appearance')}>
         <ToggleRow
           icon={prefs.darkMode ? <Moon className="size-4" /> : <Sun className="size-4" />}
-          label="Dark Mode"
-          description="Switch between light and dark theme"
+          label={t('settings.darkMode')}
+          description={t('settings.darkModeHint')}
           checked={prefs.darkMode}
           onChange={() => toggle('darkMode')}
         />
       </SettingGroup>
 
-      <SettingGroup label="Notifications">
-        <ToggleRow
-          icon={<Bell className="size-4" />}
-          label="SLA Breach Alerts"
-          description="Highlight overdue Issues with visual indicators"
-          checked={prefs.slaAlerts}
-          onChange={() => toggle('slaAlerts')}
-        />
-        <ToggleRow
-          icon={<Bell className="size-4" />}
-          label="Approval Reminders"
-          description="Show pending approval count in the sidebar badge"
-          checked={prefs.approvalReminders}
-          onChange={() => toggle('approvalReminders')}
-        />
-      </SettingGroup>
-
-      <SettingGroup label="Email">
-        <ToggleRow
-          icon={<Mail className="size-4" />}
-          label="Approval waiting for you"
-          description="Email me when an approval step needs my decision"
-          checked={prefs.emailApprovalPending}
-          onChange={() => toggle('emailApprovalPending')}
-        />
-        <ToggleRow
-          icon={<Mail className="size-4" />}
-          label="Approval escalated"
-          description="Email me when an approval is stuck and escalated (admins)"
-          checked={prefs.emailApprovalEscalated}
-          onChange={() => toggle('emailApprovalEscalated')}
-        />
-        <ToggleRow
-          icon={<Mail className="size-4" />}
-          label="My request decided"
-          description="Email me when a request I made is approved or rejected"
-          checked={prefs.emailApprovalDecided}
-          onChange={() => toggle('emailApprovalDecided')}
-        />
-        <ToggleRow
-          icon={<Mail className="size-4" />}
-          label="Work order assigned"
-          description="Email me when a work order is assigned to me"
-          checked={prefs.emailWorkOrderAssigned}
-          onChange={() => toggle('emailWorkOrderAssigned')}
-        />
+      <SettingGroup label={t('settings.emailGroup')}>
+        {EMAIL_EVENTS.map(({ key, ev }) => (
+          <ToggleRow
+            key={key}
+            icon={<Mail className="size-4" />}
+            label={t(`settings.ev.${ev}`)}
+            description={t(`settings.email.${ev}`)}
+            checked={prefs[key] as boolean}
+            onChange={() => toggle(key)}
+          />
+        ))}
       </SettingGroup>
 
       <WhatsAppGroup prefs={prefs} toggle={toggle} />
 
-      <SettingGroup label="System">
-        <ToggleRow
-          icon={<RefreshCw className="size-4" />}
-          label="Auto-Refresh"
-          description="Automatically reload data every 5 minutes"
-          checked={prefs.autoRefresh}
-          onChange={() => toggle('autoRefresh')}
-        />
-        <ToggleRow
-          icon={<Shield className="size-4" />}
-          label="Compact Sidebar"
-          description="Start with the sidebar collapsed by default"
-          checked={prefs.compactSidebar}
-          onChange={() => toggle('compactSidebar')}
-        />
-      </SettingGroup>
+      {canDigest && (
+        <SettingGroup label={t('settings.digestGroup')}>
+          <ToggleRow icon={<CalendarDays className="size-4" />} label={t('settings.digestDaily')}
+            description={t('settings.digestDailyHint')} checked={prefs.digestDaily} onChange={() => toggle('digestDaily')} />
+          <ToggleRow icon={<CalendarDays className="size-4" />} label={t('settings.digestWeekly')}
+            description={t('settings.digestWeeklyHint')} checked={prefs.digestWeekly} onChange={() => toggle('digestWeekly')} />
+        </SettingGroup>
+      )}
+
     </div>
   )
 }
@@ -217,6 +212,7 @@ export function SettingsPage() {
 // WhatsApp — number, opt-in and per-event switches (Todo-Pilot §4)
 // ---------------------------------------------------------------------------
 function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key: keyof AppPreferences) => void }) {
+  const { t } = useT()
   const currentUser = useIssueStore((s) => s.currentUser)
   const savedNumber = currentUser?.whatsapp_number ?? ''
   const [number, setNumber] = useState(savedNumber)
@@ -235,9 +231,9 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
       const user = await api.patch<User>('/api/auth/me/whatsapp', { number: number.trim() })
       useIssueStore.setState({ currentUser: user })
       setNumber(user.whatsapp_number ?? '')
-      toast.success(user.whatsapp_number ? `WhatsApp number saved: +${user.whatsapp_number}` : 'WhatsApp number removed.')
+      toast.success(user.whatsapp_number ? t('settings.wa.numberSaved', { number: user.whatsapp_number }) : t('settings.wa.numberRemoved'))
     } catch (e) {
-      toast.error(apiErrorMessage(e, 'Could not save the number.'))
+      toast.error(apiErrorMessage(e, t('settings.wa.saveFailed')))
     } finally {
       setBusy(null)
     }
@@ -247,9 +243,9 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
     setBusy('test')
     try {
       await api.post('/api/auth/me/whatsapp/test', {})
-      toast.success('Test message queued — check your WhatsApp.')
+      toast.success(t('settings.wa.testQueued'))
     } catch (e) {
-      toast.error(apiErrorMessage(e, 'Could not send a test message.'))
+      toast.error(apiErrorMessage(e, t('settings.wa.testFailed')))
     } finally {
       setBusy(null)
     }
@@ -263,14 +259,15 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
       <div className="px-4 py-3.5 space-y-2">
         {serverEnabled === false && (
           <p className="text-xs text-amber-700 bg-amber-100/60 border border-amber-200 rounded-md px-2.5 py-1.5">
-            WhatsApp is not configured on the server yet — you can save your settings now; messages start once an admin connects WuzAPI.
+            {t('settings.wa.notConfigured')}
           </p>
         )}
-        <label className="text-sm font-medium flex items-center gap-2">
-          <MessageCircle className="size-4 text-muted-foreground" /> WhatsApp number
+        <label htmlFor="settings-wa-number" className="text-sm font-medium flex items-center gap-2">
+          <MessageCircle className="size-4 text-muted-foreground" /> {t('settings.wa.number')}
         </label>
         <div className="flex gap-2">
           <input
+            id="settings-wa-number"
             type="tel"
             value={number}
             onChange={(e) => setNumber(e.target.value)}
@@ -282,25 +279,25 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
             disabled={!dirty || busy !== null}
             className="px-3 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50"
           >
-            {busy === 'save' ? 'Saving…' : 'Save'}
+            {busy === 'save' ? t('common.saving') : t('common.save')}
           </button>
           <button
             onClick={sendTest}
             disabled={!hasNumber || dirty || busy !== null || serverEnabled === false}
-            title="Send a test message to this number"
+            title={t('settings.wa.testTitle')}
             className="flex items-center gap-1 px-3 h-9 rounded-md border border-border text-xs font-semibold hover:bg-muted/50 disabled:opacity-50"
           >
-            <Send className="size-3.5" /> {busy === 'test' ? 'Sending…' : 'Test'}
+            <Send className="size-3.5" /> {busy === 'test' ? t('settings.wa.sending') : t('settings.wa.test')}
           </button>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Indonesian numbers can start with 0; use +country code for others. Leave empty and save to remove.
+          {t('settings.wa.numberHint')}
         </p>
       </div>
       <ToggleRow
         icon={<MessageCircle className="size-4" />}
-        label="Send notifications to WhatsApp"
-        description={hasNumber ? 'Off by default — turn on to receive the events below' : 'Save a number first'}
+        label={t('settings.wa.enable')}
+        description={hasNumber ? t('settings.wa.enableHint') : t('settings.wa.saveFirst')}
         checked={prefs.waEnabled && hasNumber}
         onChange={() => hasNumber && toggle('waEnabled')}
       />
@@ -308,8 +305,8 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
         <ToggleRow
           key={ev.key}
           icon={<MessageCircle className="size-4" />}
-          label={ev.label}
-          description={ev.description}
+          label={t(`settings.ev.${ev.ev}`)}
+          description={t(`settings.wa.${ev.ev}`)}
           checked={prefs[ev.key] as boolean}
           onChange={() => toggle(ev.key)}
         />
@@ -350,6 +347,7 @@ function ToggleRow({
       <button
         role="switch"
         aria-checked={checked}
+        aria-label={label}
         onClick={onChange}
         className={cn(
           'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',

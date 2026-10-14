@@ -1,14 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { RefreshCw, ShoppingCart, PackageCheck, Loader2, Truck, BadgeCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { useIssueStore } from '@/lib/store'
+import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 import { usePermissions } from '@/lib/permissions'
 import { PurchaseOrder, PurchaseRequest, PurchaseRequestStatus, PurchaseOrderStatus, VendorPerformanceSummary, PartPriceHistoryEntry } from '@/lib/types'
+import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
+import { formatMoney } from '@/lib/money'
+import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
-const rp = (n: number) => 'Rp ' + (n ?? 0).toLocaleString('id-ID')
+const rp = (n: number) => formatMoney(n ?? 0)
 
 const PR_BADGE: Record<PurchaseRequestStatus, string> = {
   pending_approval: 'bg-warning/15 text-warning border-warning/30',
@@ -26,9 +30,10 @@ const PO_BADGE: Record<PurchaseOrderStatus, string> = {
 }
 
 export function PurchasingPanel() {
+  const { t, label } = useT()
   const {
     purchaseRequests, purchaseOrders, procurementLoading, vendors,
-    loadPurchaseRequests, loadPurchaseOrders, loadVendors,
+    loadPurchaseRequests, loadPurchaseOrders,
     scanLowStock, orderPurchaseRequest, receivePurchaseOrder,
   } = useIssueStore()
   const { can } = usePermissions()
@@ -37,18 +42,18 @@ export function PurchasingPanel() {
   const [choosingFor, setChoosingFor] = useState<PurchaseRequest | null>(null)
   const [receivingPo, setReceivingPo] = useState<PurchaseOrder | null>(null)
 
+  useEnsureLoaded('vendors')
   useEffect(() => {
     loadPurchaseRequests()
     loadPurchaseOrders()
-    if (vendors.length === 0) loadVendors()
-  }, [loadPurchaseRequests, loadPurchaseOrders, loadVendors]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadPurchaseRequests, loadPurchaseOrders])
 
   const handleScan = async () => {
     setBusy('scan')
     try {
       const r = await scanLowStock()
       toast[r.created > 0 ? 'success' : 'message'](
-        r.created > 0 ? `${r.created} purchase request dibuat` : 'Tidak ada stok yang perlu di-reorder',
+        r.created > 0 ? t('purchasing.scanCreated', { count: r.created }) : t('purchasing.nothingToReorder'),
       )
     } catch (e) { toast.error(String(e)) } finally { setBusy(null) }
   }
@@ -57,9 +62,9 @@ export function PurchasingPanel() {
     setBusy(pr.id)
     try {
       await orderPurchaseRequest(pr.id, vendorId)
-      toast.success(`PO dibuat dari ${pr.number}`)
+      toast.success(t('purchasing.poCreated', { number: pr.number }))
       setChoosingFor(null)
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Gagal membuat PO') } finally { setBusy(null) }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t('purchasing.poFailed')) } finally { setBusy(null) }
   }
 
   return (
@@ -70,33 +75,33 @@ export function PurchasingPanel() {
           <div className="flex items-center gap-2">
             <ShoppingCart className="size-4 text-primary" />
             <div>
-              <h3 className="text-sm font-semibold">Purchase Requests</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Stok menipis → PR otomatis → approval → PO</p>
+              <h3 className="text-sm font-semibold">{t('purchasing.prTitle')}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('purchasing.prSubtitle')}</p>
             </div>
           </div>
           {can.runSystemJobs && (
             <button onClick={handleScan} disabled={busy === 'scan'}
               className="flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent disabled:opacity-50">
               {busy === 'scan' ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-              Pindai stok menipis
+              {t('purchasing.scan')}
             </button>
           )}
         </div>
 
         {procurementLoading && purchaseRequests.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-6">Memuat…</p>
+          <p className="text-xs text-muted-foreground text-center py-6">{t('purchasing.loading')}</p>
         ) : purchaseRequests.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-8 text-xs text-muted-foreground">Belum ada purchase request.</div>
+          <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-8 text-xs text-muted-foreground">{t('purchasing.noPr')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left py-2 font-semibold">Nomor</th>
-                  <th className="text-left py-2 font-semibold">Item</th>
-                  <th className="text-left py-2 font-semibold">Sumber</th>
-                  <th className="text-right py-2 font-semibold">Estimasi</th>
-                  <th className="text-left py-2 font-semibold">Status</th>
+                  <th className="text-left py-2 font-semibold">{t('purchasing.number')}</th>
+                  <th className="text-left py-2 font-semibold">{t('purchasing.item')}</th>
+                  <th className="text-left py-2 font-semibold">{t('purchasing.source')}</th>
+                  <th className="text-right py-2 font-semibold">{t('purchasing.estimate')}</th>
+                  <th className="text-left py-2 font-semibold">{t('common.status')}</th>
                   <th className="py-2" />
                 </tr>
               </thead>
@@ -107,22 +112,22 @@ export function PurchasingPanel() {
                     <td className="py-2 text-muted-foreground">
                       {pr.items.map((i) => `${i.partName} ×${i.quantity}`).join(', ')}
                     </td>
-                    <td className="py-2 text-muted-foreground">{pr.source === 'auto_reorder' ? 'Auto' : 'Manual'}</td>
+                    <td className="py-2 text-muted-foreground">{pr.source === 'auto_reorder' ? t('purchasing.auto') : t('purchasing.manual')}</td>
                     <td className="py-2 text-right">{rp(pr.totalEst)}</td>
                     <td className="py-2">
                       <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-semibold border', PR_BADGE[pr.status])}>
-                        {pr.status.replace('_', ' ')}
+                        {label('prStatus', pr.status)}
                       </span>
                     </td>
                     <td className="py-2 text-right">
                       {pr.status === 'approved' && can.manageProcurement && (
                         <button onClick={() => setChoosingFor(pr)}
                           className="px-2 h-7 rounded border border-border text-[11px] font-semibold hover:bg-accent">
-                          Buat PO
+                          {t('purchasing.createPo')}
                         </button>
                       )}
                       {pr.status === 'pending_approval' && (
-                        <span className="text-[10px] text-muted-foreground">menunggu approval</span>
+                        <span className="text-[10px] text-muted-foreground">{t('purchasing.awaitingApproval')}</span>
                       )}
                     </td>
                   </tr>
@@ -137,20 +142,20 @@ export function PurchasingPanel() {
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <Truck className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold">Purchase Orders</h3>
+          <h3 className="text-sm font-semibold">{t('purchasing.poTitle')}</h3>
         </div>
         {purchaseOrders.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-8 text-xs text-muted-foreground">Belum ada purchase order.</div>
+          <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-8 text-xs text-muted-foreground">{t('purchasing.noPo')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left py-2 font-semibold">Nomor</th>
-                  <th className="text-left py-2 font-semibold">Vendor</th>
-                  <th className="text-left py-2 font-semibold">Progres</th>
-                  <th className="text-right py-2 font-semibold">Total</th>
-                  <th className="text-left py-2 font-semibold">Status</th>
+                  <th className="text-left py-2 font-semibold">{t('purchasing.number')}</th>
+                  <th className="text-left py-2 font-semibold">{t('purchasing.vendor')}</th>
+                  <th className="text-left py-2 font-semibold">{t('purchasing.progress')}</th>
+                  <th className="text-right py-2 font-semibold">{t('common.total')}</th>
+                  <th className="text-left py-2 font-semibold">{t('common.status')}</th>
                   <th className="py-2" />
                 </tr>
               </thead>
@@ -162,18 +167,18 @@ export function PurchasingPanel() {
                     <tr key={po.id} className="hover:bg-accent/40">
                       <td className="py-2 font-mono">{po.number}</td>
                       <td className="py-2 text-muted-foreground">{po.vendorName ?? '—'}</td>
-                      <td className="py-2 text-muted-foreground">{recv}/{ord} diterima</td>
+                      <td className="py-2 text-muted-foreground">{t('purchasing.received', { recv, ord })}</td>
                       <td className="py-2 text-right">{rp(po.total)}</td>
                       <td className="py-2">
                         <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-semibold border', PO_BADGE[po.status])}>
-                          {po.status.replace('_', ' ')}
+                          {label('poStatus', po.status)}
                         </span>
                       </td>
                       <td className="py-2 text-right">
                         {(po.status === 'sent' || po.status === 'partially_received') && can.manageProcurement && (
                           <button onClick={() => setReceivingPo(po)}
                             className="flex items-center gap-1 px-2 h-7 rounded border border-border text-[11px] font-semibold hover:bg-accent ml-auto">
-                            <PackageCheck className="size-3.5" /> Terima
+                            <PackageCheck className="size-3.5" /> {t('purchasing.receive')}
                           </button>
                         )}
                       </td>
@@ -197,7 +202,7 @@ export function PurchasingPanel() {
 
       {receivingPo && (
         <ReceiveDialog po={receivingPo} onClose={() => setReceivingPo(null)}
-          onReceive={async (lines) => { await receivePurchaseOrder(receivingPo.id, lines); setReceivingPo(null); toast.success('Barang diterima, stok diperbarui') }} />
+          onReceive={async (lines) => { await receivePurchaseOrder(receivingPo.id, lines); setReceivingPo(null); toast.success(t('purchasing.receivedToast')) }} />
       )}
     </div>
   )
@@ -209,6 +214,7 @@ function ChooseVendorDialog({ pr, busy, onClose, onPick }: {
   onClose: () => void
   onPick: (vendorId: string) => void
 }) {
+  const { t } = useT()
   const { vendors, loadVendorPerformanceSummary, loadPartPriceHistory } = useIssueStore()
   const [perf, setPerf] = useState<VendorPerformanceSummary[] | null>(null)
   const [prices, setPrices] = useState<PartPriceHistoryEntry[]>([])
@@ -229,24 +235,28 @@ function ChooseVendorDialog({ pr, busy, onClose, onPick }: {
     return pb - pa
   })
 
+  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalKeyboard(panelRef, onClose)
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-background rounded-lg border border-border shadow-lg max-w-xl w-full p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-lg border border-border shadow-lg max-w-xl w-full p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           <BadgeCheck className="size-4 text-primary" />
-          <h3 className="text-sm font-bold">Pilih vendor — {pr.number}</h3>
+          <h3 className="text-sm font-bold">{t('purchasing.pickVendor', { number: pr.number })}</h3>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Diurut berdasarkan ketepatan waktu. {firstPartId ? 'Harga = riwayat pembelian part ini.' : ''}
+          {t('purchasing.sortedBy')} {firstPartId ? t('purchasing.priceHint') : ''}
         </p>
 
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
-              <th className="text-left py-1.5 font-semibold">Vendor</th>
-              <th className="text-right py-1.5 font-semibold">On-time</th>
-              <th className="text-right py-1.5 font-semibold">Resolusi</th>
-              <th className="text-right py-1.5 font-semibold">Harga terakhir</th>
+              <th className="text-left py-1.5 font-semibold">{t('purchasing.vendor')}</th>
+              <th className="text-right py-1.5 font-semibold">{t('purchasing.onTime')}</th>
+              <th className="text-right py-1.5 font-semibold">{t('purchasing.resolution')}</th>
+              <th className="text-right py-1.5 font-semibold">{t('purchasing.lastPrice')}</th>
               <th className="py-1.5" />
             </tr>
           </thead>
@@ -258,14 +268,14 @@ function ChooseVendorDialog({ pr, busy, onClose, onPick }: {
                 <tr key={v.id} className="hover:bg-accent/40">
                   <td className="py-2 font-semibold">{v.name}</td>
                   <td className="py-2 text-right">{p && p.completed > 0 ? `${p.onTimePct}%` : '—'}</td>
-                  <td className="py-2 text-right text-muted-foreground">{p && p.completed > 0 ? `${p.avgResolutionDays}h` : '—'}</td>
+                  <td className="py-2 text-right text-muted-foreground">{p && p.completed > 0 ? t('purchasing.days', { n: p.avgResolutionDays }) : '—'}</td>
                   <td className="py-2 text-right text-muted-foreground">
-                    {price ? `Rp ${price.lastUnitCost.toLocaleString('id-ID')}` : '—'}
+                    {price ? formatMoney(price.lastUnitCost) : '—'}
                   </td>
                   <td className="py-2 text-right">
                     <button onClick={() => onPick(v.id)} disabled={busy}
                       className="px-2 h-7 rounded bg-primary text-primary-foreground text-[11px] font-semibold disabled:opacity-50">
-                      {busy ? <Loader2 className="size-3 animate-spin" /> : 'Pilih'}
+                      {busy ? <Loader2 className="size-3 animate-spin" /> : t('purchasing.pick')}
                     </button>
                   </td>
                 </tr>
@@ -273,7 +283,7 @@ function ChooseVendorDialog({ pr, busy, onClose, onPick }: {
             })}
           </tbody>
         </table>
-        {ranked.length === 0 && <p className="text-[11px] text-muted-foreground text-center py-4">Belum ada vendor aktif.</p>}
+        {ranked.length === 0 && <p className="text-[11px] text-muted-foreground text-center py-4">{t('purchasing.noActiveVendors')}</p>}
       </div>
     </div>
   )
@@ -284,6 +294,7 @@ function ReceiveDialog({ po, onClose, onReceive }: {
   onClose: () => void
   onReceive: (lines: { purchaseOrderItemId: string; quantityReceived: number }[]) => Promise<void>
 }) {
+  const { t } = useT()
   // Default each line to its outstanding quantity; the storeman can reduce it.
   const [qty, setQty] = useState<Record<string, string>>(
     Object.fromEntries(po.items.map((i) => [i.id, String(i.quantityOrdered - i.quantityReceived)])),
@@ -294,21 +305,25 @@ function ReceiveDialog({ po, onClose, onReceive }: {
     const lines = po.items
       .map((i) => ({ purchaseOrderItemId: i.id, quantityReceived: Number(qty[i.id] || 0) }))
       .filter((l) => l.quantityReceived > 0)
-    if (lines.length === 0) return toast.error('Isi jumlah yang diterima')
+    if (lines.length === 0) return toast.error(t('purchasing.enterQty'))
     setSaving(true)
-    try { await onReceive(lines) } catch (e) { toast.error(e instanceof Error ? e.message : 'Gagal') } finally { setSaving(false) }
+    try { await onReceive(lines) } catch (e) { toast.error(e instanceof Error ? e.message : t('common.failed')) } finally { setSaving(false) }
   }
+
+  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalKeyboard(panelRef, onClose)
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-sm font-bold">Terima barang — {po.number}</h3>
+      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-sm font-bold">{t('purchasing.receiveTitle', { number: po.number })}</h3>
         <div className="space-y-2">
           {po.items.map((i) => {
             const outstanding = i.quantityOrdered - i.quantityReceived
             return (
               <div key={i.id} className="flex items-center gap-2 text-xs">
-                <span className="flex-1">{i.partName} <span className="text-muted-foreground">(sisa {outstanding})</span></span>
+                <span className="flex-1">{i.partName} <span className="text-muted-foreground">{t('purchasing.remaining', { n: outstanding })}</span></span>
                 <input type="number" min={0} max={outstanding} value={qty[i.id]}
                   onChange={(e) => setQty((q) => ({ ...q, [i.id]: e.target.value }))}
                   disabled={outstanding === 0}
@@ -318,10 +333,10 @@ function ReceiveDialog({ po, onClose, onReceive }: {
           })}
         </div>
         <div className="flex justify-end gap-2 pt-1">
-          <button onClick={onClose} className="px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent">Batal</button>
+          <button onClick={onClose} className="px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent">{t('common.cancel')}</button>
           <button onClick={submit} disabled={saving}
             className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
-            {saving && <Loader2 className="size-3.5 animate-spin" />} Terima
+            {saving && <Loader2 className="size-3.5 animate-spin" />} {t('purchasing.receive')}
           </button>
         </div>
       </div>

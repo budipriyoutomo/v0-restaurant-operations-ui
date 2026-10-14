@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { CategoryType, MasterCategory } from '@/lib/types'
+import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
 interface NewCategoryDialogProps {
   open: boolean
@@ -16,6 +18,7 @@ const types: CategoryType[] = ['operations', 'maintenance']
 const defaultForm = { name: '', description: '', type: 'operations' as CategoryType }
 
 export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }: NewCategoryDialogProps) {
+  const { t } = useT()
   const [formData, setFormData] = useState(defaultForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,21 +51,27 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
       await onSubmit?.(formData)
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
+      setError(err instanceof Error ? err.message : t('common.somethingWrong'))
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useModalKeyboard(panelRef, () => onOpenChange(false), open)
+
   if (!open) return null
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="category-dialog-title"
+        className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
-          <h2 className="text-lg font-bold">{isEdit ? 'Edit Category' : 'Create New Category'}</h2>
+          <h2 id="category-dialog-title" className="text-lg font-bold">{isEdit ? t('categoryDialog.edit') : t('categoryDialog.create')}</h2>
           <button
             onClick={() => onOpenChange(false)}
+            aria-label={t('common.close')}
             className="p-1 hover:bg-muted rounded-md transition-colors"
           >
             <X className="size-5 text-muted-foreground" />
@@ -75,11 +84,11 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
           )}
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Category Name <span className="text-destructive">*</span></label>
-            <input
+            <label htmlFor="category-name" className="block text-sm font-semibold mb-1.5">{t('categoryDialog.name')} <span className="text-destructive">*</span></label>
+            <input id="category-name"
               type="text"
               name="name"
-              placeholder="e.g. Operations"
+              placeholder={t('categoryDialog.namePlaceholder')}
               value={formData.name}
               onChange={handleChange}
               className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -87,10 +96,10 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Description <span className="text-destructive">*</span></label>
-            <textarea
+            <label htmlFor="category-description" className="block text-sm font-semibold mb-1.5">{t('common.description')} <span className="text-destructive">*</span></label>
+            <textarea id="category-description"
               name="description"
-              placeholder="Describe the category purpose"
+              placeholder={t('categoryDialog.descriptionPlaceholder')}
               value={formData.description}
               onChange={handleChange}
               rows={3}
@@ -99,8 +108,8 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-1.5">Type</label>
-            <select
+            <label htmlFor="category-type" className="block text-sm font-semibold mb-1.5">{t('common.type')}</label>
+            <select id="category-type"
               name="type"
               value={formData.type}
               onChange={handleChange}
@@ -108,7 +117,7 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
             >
               {types.map((type) => (
                 <option key={type} value={type}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                  {type === 'operations' ? t('masterData.typeOperations') : t('masterData.typeMaintenance')}
                 </option>
               ))}
             </select>
@@ -121,7 +130,7 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
               disabled={isSubmitting}
               className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -133,7 +142,7 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
                   : 'bg-muted text-muted-foreground cursor-not-allowed'
               )}
             >
-              {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Category'}
+              {isSubmitting ? t('common.saving') : isEdit ? t('procurement.saveChanges') : t('categoryDialog.submit')}
             </button>
           </div>
         </form>
