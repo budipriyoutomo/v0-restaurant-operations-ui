@@ -263,10 +263,10 @@ function VendorList({ vendors, loading, canManage, onEdit, onDelete, onToggleAct
             </div>
             {canManage && (
               <div className="flex gap-1 flex-shrink-0">
-                <button onClick={() => onEdit(v)} aria-label={t('common.edit')} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <button onClick={() => onEdit(v)} aria-label={t('common.edit')} className="size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                   <Pencil className="size-3" />
                 </button>
-                <button onClick={() => setConfirmDelete(v.id)} aria-label={t('common.delete')} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                <button onClick={() => setConfirmDelete(v.id)} aria-label={t('common.delete')} className="size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                   <Trash2 className="size-3" />
                 </button>
               </div>
@@ -370,7 +370,7 @@ function VendorFormModal({ vendor, outlets, onClose, onSubmit }: {
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-lg bg-background rounded-2xl border border-border shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-5">
           <h2 className="text-base font-semibold">{vendor ? t('procurement.editVendor') : t('procurement.addVendor')}</h2>
           <button onClick={onClose} aria-label={t('common.close')} className="size-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent">
             <X className="size-4" />

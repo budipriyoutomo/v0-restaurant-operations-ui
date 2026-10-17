@@ -136,7 +136,7 @@ export function ExecutiveDashboardPage() {
               {data.issues.urgent.map((issue) => (
                 <button key={issue.id} type="button" onClick={() => navigate(recordPath('issues', issue.id))}
                   className="w-full text-left p-3 rounded-xl border border-border hover:border-primary/40 transition-colors">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="flex-1 min-w-0">
                       <p className="font-mono text-xs text-primary font-semibold mb-1">{issue.number}</p>
                       <p className="text-sm font-medium truncate">{issue.title}</p>

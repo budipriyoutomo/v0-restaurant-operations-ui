@@ -48,7 +48,7 @@ function NotifCard({ n, onRead }: { n: AppNotification; onRead: (id: string) => 
       {isUnread && (
         <button
           onClick={(e) => { e.stopPropagation(); onRead(n.id) }}
-          className="flex-shrink-0 mt-0.5 size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          className="flex-shrink-0 mt-0.5 size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           title={t('notifications.markRead')}
           aria-label={t('notifications.markRead')}
         >
@@ -80,7 +80,7 @@ export function NotificationsPage() {
   return (
     <div className="p-6 space-y-6 max-w-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <Bell className="size-6 text-foreground" />
           <div>

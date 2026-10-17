@@ -107,7 +107,7 @@ export function ApprovalPolicyPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <GitBranch className="size-4 text-primary" />
           <div>
@@ -191,7 +191,7 @@ export function ApprovalPolicyPanel() {
                     {ROLES.map((r) => <option key={r} value={r}>{label('tier', r)}</option>)}
                   </select>
                   {form.steps.length > 1 && (
-                    <button onClick={() => removeStep(idx)} aria-label={t('policy.removeStep')} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
+                    <button onClick={() => removeStep(idx)} aria-label={t('policy.removeStep')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
                       <X className="size-3" />
                     </button>
                   )}
@@ -263,7 +263,7 @@ export function ApprovalPolicyPanel() {
                   <td className="px-4 py-3.5 text-right">
                     <button
                       onClick={() => handleDelete(p.id, p.approvalType)}
-                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                      className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                       title={t('policy.delete')}
                       aria-label={t('policy.delete')}
                     >

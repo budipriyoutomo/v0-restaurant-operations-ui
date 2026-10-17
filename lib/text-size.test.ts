@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 const root = path.resolve(__dirname, '..')
 const TINY = /text-\[(?:[0-9]|1[01])(?:\.\d+)?px\]/
+const TINY_CHART = /fontSize[:=]\s*\{?\s*(?:[0-9]|1[01])\b/   // recharts ticks, legends, tooltips
 
 
 function files(dir: string, out: string[] = []): string[] {
@@ -22,5 +23,10 @@ describe('text size (≥ 12px)', () => {
 
   it('no file uses text-[9px] / [10px] / [11px] — use text-xs', () => {
     expect(offenders).toEqual([])
+  })
+
+  it('no chart uses fontSize below 12', () => {
+    const charts = files(path.join(root, 'components')).filter((f) => TINY_CHART.test(readFileSync(path.join(root, f), 'utf8')))
+    expect(charts).toEqual([])
   })
 })

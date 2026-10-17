@@ -21,7 +21,8 @@ import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 import { SegmentedTabs } from '@/components/shared/segmented-tabs'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { EmptyState } from '@/components/shared/empty-state'
-import { FilterToggle, PageHeader } from '@/components/shared/page-header'
+import { PageHeader } from '@/components/shared/page-header'
+import { FilterBar, FilterOptions, FilterSelect } from '@/components/shared/filter-menu'
 
 type Tab = 'complaints' | 'kpis' | 'issues'
 
@@ -83,14 +84,14 @@ export function GuestPage() {
 
       {tab === 'complaints' && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 flex-wrap rounded-2xl border border-border bg-card p-3">
-            <FilterToggle checked={openOnly} onChange={setOpenOnly}>{t('guest.openOnly')}</FilterToggle>
-            <select value={channel} onChange={(e) => setChannel(e.target.value as GuestChannel | '')}
-              className="h-9 text-sm rounded-lg border border-border bg-background px-2.5" aria-label={t('guest.channel')}>
-              <option value="">{t('guest.allChannels')}</option>
-              {GUEST_CHANNELS.map((ch) => <option key={ch} value={ch}>{label('guestChannel', ch)}</option>)}
-            </select>
-          </div>
+          <FilterBar className="rounded-2xl border border-border bg-card p-3">
+            <FilterSelect label={t('guest.channel')} allLabel={t('guest.allChannels')} value={channel || null}
+              options={GUEST_CHANNELS.map((ch) => ({ value: ch, label: label('guestChannel', ch) }))}
+              onChange={(v) => setChannel(v ?? '')} />
+            <FilterOptions label={t('common.filterOptions')} items={[
+              { label: t('guest.openOnly'), checked: openOnly, onChange: setOpenOnly },
+            ]} />
+          </FilterBar>
           {cases === null ? <ListSkeleton rows={3} className="p-0 sm:p-0" />
             : visible.length === 0 ? <EmptyState icon={MessageSquareWarning} title={t('guest.none')} />
             : visible.map((c) => <CaseRow key={c.id} c={c} now={now} target={target} onOpen={() => setOpenId(c.id)} />)}

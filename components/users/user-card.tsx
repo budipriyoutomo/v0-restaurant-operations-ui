@@ -153,15 +153,16 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
 
       {/* Actions row — hidden for current user and for read-only viewers */}
       {canManage && !isCurrentUser && (
-        <div className="flex items-center gap-2 pt-1 border-t border-border">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-border">
+          {/* Phones: the role picker gets its own line, the buttons the next */}
+          <div className="relative basis-full sm:basis-auto sm:flex-1">
             <select
               value={user.role}
               disabled={roleLoading}
               aria-label={t('users.changeRole')}
               onChange={e => handleRoleChange(e.target.value)}
               className={cn(
-                'w-full appearance-none pl-2 pr-6 py-1 text-xs rounded border border-border bg-muted/20',
+                'w-full appearance-none h-10 sm:h-9 pl-3 pr-7 text-sm rounded-lg border border-border bg-background',
                 'focus:outline-none focus:ring-1 focus:ring-primary/50',
                 roleLoading && 'opacity-50 cursor-not-allowed'
               )}
@@ -170,8 +171,8 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
               {!roles.some(r => r.key === user.role) && <option value={user.role}>{user.role_name}</option>}
             </select>
             {roleLoading
-              ? <Loader2 className="absolute right-1.5 top-1/2 -translate-y-1/2 size-3 animate-spin text-muted-foreground" />
-              : <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground pointer-events-none" />
+              ? <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 animate-spin text-muted-foreground" />
+              : <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
             }
           </div>
 
@@ -179,7 +180,7 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
             onClick={() => setShowWa(v => !v)}
             title={t('users.waNumber')}
             aria-label={t('users.waNumber')}
-            className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex-shrink-0"
+            className="size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex-shrink-0"
           >
             <MessageCircle className="size-3.5" />
           </button>
@@ -188,7 +189,7 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
             onClick={() => setShowOutlets(true)}
             title={t('users.outletAccess')}
             aria-label={t('users.outletAccess')}
-            className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex-shrink-0"
+            className="size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex-shrink-0"
           >
             <Store className="size-3.5" />
           </button>
@@ -197,7 +198,7 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
             onClick={() => setShowReset(true)}
             title={t('password.reset')}
             aria-label={t('password.reset')}
-            className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex-shrink-0"
+            className="size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors flex-shrink-0"
           >
             <KeyRound className="size-3.5" />
           </button>
@@ -206,7 +207,7 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
             onClick={handleToggleActive}
             disabled={toggleLoading}
             className={cn(
-              'px-2 py-1 text-xs font-semibold rounded border transition-colors flex-shrink-0',
+              'px-3 h-10 sm:h-8 text-sm font-medium rounded-lg border transition-colors flex-shrink-0',
               user.is_active
                 ? 'border-warning/40 text-warning hover:bg-warning/10'
                 : 'border-success/40 text-success hover:bg-success/10',
@@ -219,7 +220,7 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
           <button
             onClick={() => setShowDelete(true)}
             aria-label={t('users.removeUser')}
-            className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
+            className="size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
           >
             <Trash2 className="size-3.5" />
           </button>
@@ -232,14 +233,14 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
           <div className="flex gap-2">
             <button
               onClick={() => setShowDelete(false)}
-              className="flex-1 py-1 text-xs rounded border border-border text-muted-foreground hover:bg-accent transition-colors"
+              className="flex-1 h-10 sm:h-9 text-sm rounded-lg border border-border text-muted-foreground hover:bg-accent transition-colors"
             >
               {t('common.cancel')}
             </button>
             <button
               onClick={handleDelete}
               disabled={deleteLoading}
-              className="flex-1 py-1 text-xs rounded bg-destructive text-destructive-foreground font-semibold flex items-center justify-center gap-1 hover:bg-destructive/90 transition-colors"
+              className="flex-1 h-10 sm:h-9 text-sm rounded-lg bg-destructive text-destructive-foreground font-semibold flex items-center justify-center gap-1 hover:bg-destructive/90 transition-colors"
             >
               {deleteLoading ? <Loader2 className="size-3 animate-spin" /> : t('users.remove')}
             </button>

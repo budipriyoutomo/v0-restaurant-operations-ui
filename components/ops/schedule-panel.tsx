@@ -16,7 +16,7 @@ import { useT } from '@/lib/i18n'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7]
 const FREQUENCIES: OpsScheduleFrequency[] = ['daily', 'weekly', 'monthly']
-const field = 'w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50'
+const field = 'w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50'
 
 export function OpsSchedulePanel({ schedules, templates, onChanged }: {
   schedules: OpsSchedule[]
@@ -207,7 +207,7 @@ export function OpsSchedulePanel({ schedules, templates, onChanged }: {
                       {s.isActive ? t('ops.pause') : t('ops.resume')}
                     </button>
                     <button type="button" onClick={() => remove(s)} aria-label={t('common.delete')}
-                      className="p-1.5 rounded hover:bg-destructive/20"><Trash2 className="size-4 text-muted-foreground" /></button>
+                      className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-destructive/20"><Trash2 className="size-4 text-muted-foreground" /></button>
                   </td>
                 </tr>
               ))}

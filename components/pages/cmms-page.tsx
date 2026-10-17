@@ -27,6 +27,7 @@ import { PMCalendar } from '@/components/cmms/pm-calendar'
 import { AssetDetailPanel } from '@/components/cmms/asset-detail-panel'
 import { WorkOrderDetailDrawer } from '@/components/cmms/work-order-drawer'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { FilterSelect } from '@/components/shared/filter-menu'
 
 // The WO drawer lives in components/cmms; re-exported for existing imports.
 export { WorkOrderDetailDrawer }
@@ -154,28 +155,17 @@ export function CMMSPage() {
             <h3 className="text-sm font-semibold">{t('cmms.assetStatus')}</h3>
             <div className="flex items-center gap-2 flex-wrap">
               {/* The top bar outlet filter already narrows to one outlet */}
-              {assetOutlets.length > 1 && <select
-                value={filterOutlet}
-                onChange={(e) => setFilterOutlet(e.target.value)}
-                className="h-9 text-sm rounded-lg border border-border bg-background px-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                <option value="">{t('cmms.allOutlets')}</option>
-                {assetOutlets.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>}
-              <select
-                value={filterAssetStatus}
-                onChange={(e) => setFilterAssetStatus(e.target.value as AssetStatus | '')}
-                className="h-9 text-sm rounded-lg border border-border bg-background px-2.5 focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                <option value="">{t('cmms.allStatuses')}</option>
-                {(['operational', 'warning', 'maintenance', 'critical'] as AssetStatus[]).map((st) => (
-                  <option key={st} value={st}>{label('assetStatus', st)}</option>
-                ))}
-              </select>
+              {assetOutlets.length > 1 && (
+                <FilterSelect label={t('common.outlet')} allLabel={t('cmms.allOutlets')} value={filterOutlet || null}
+                  options={assetOutlets.map((o) => ({ value: o, label: o }))} onChange={(v) => setFilterOutlet(v ?? '')} />
+              )}
+              <FilterSelect label={t('common.status')} allLabel={t('common.all')} value={filterAssetStatus || null}
+                options={(['operational', 'warning', 'maintenance', 'critical'] as AssetStatus[]).map((st) => ({ value: st, label: label('assetStatus', st) }))}
+                onChange={(v) => setFilterAssetStatus(v ?? '')} />
               <button
                 onClick={() => setShowQr(true)}
-                className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg border border-border text-xs text-muted-foreground hover:bg-accent transition-colors">
-                <QrCode className="size-3" /> {t('cmms.scanQr')}
+                className="flex items-center gap-1.5 px-3 h-10 sm:h-9 rounded-full border border-border text-sm text-muted-foreground hover:bg-accent transition-colors">
+                <QrCode className="size-4" /> {t('cmms.scanQr')}
               </button>
             </div>
           </div>
@@ -249,19 +239,11 @@ export function CMMSPage() {
       {/* Work Orders + Downtime chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
             <h3 className="text-sm font-semibold">{t('cmms.workOrders')}</h3>
-            <div className="flex rounded-md border border-border overflow-hidden text-xs font-semibold">
-              {(['open', 'all'] as const).map((sc) => (
-                <button
-                  key={sc}
-                  onClick={() => { setWoScope(sc); setShowAllWOs(false) }}
-                  className={cn('px-2.5 h-6', woScope === sc ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}
-                >
-                  {sc === 'open' ? t('cmms.openCount', { count: openWOs.length }) : t('cmms.allCount', { count: workOrders.length })}
-                </button>
-              ))}
-            </div>
+            <FilterSelect label={t('common.status')} value={woScope}
+              options={[{ value: 'open', label: t('cmms.openCount', { count: openWOs.length }) }, { value: 'all', label: t('cmms.allCount', { count: workOrders.length }) }]}
+              onChange={(v) => { setWoScope(v ?? 'open'); setShowAllWOs(false) }} />
           </div>
           {listedWOs.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-8">
@@ -320,10 +302,10 @@ export function CMMSPage() {
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={downtimeData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="outlet" tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} width={36} />
+                <XAxis type="number" tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="outlet" tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} width={44} />
                 <Tooltip
-                  contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-popover)', color: 'var(--color-foreground)' }}
+                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-popover)', color: 'var(--color-foreground)' }}
                   formatter={(v: number) => [`${v}`, t('cmms.wos')]}
                 />
                 <Bar dataKey="count" radius={[0, 3, 3, 0]} fill="#ef4444" />

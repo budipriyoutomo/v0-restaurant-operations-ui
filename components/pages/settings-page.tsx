@@ -153,9 +153,10 @@ export function SettingsPage() {
       <ProfileCard />
 
       <SettingGroup label={t('settings.language')}>
-        <div className="flex items-center justify-between px-4 py-3.5 gap-4">
+        {/* Phones: the picker goes under its label, full width */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3.5 gap-3 sm:gap-4">
           <div className="flex items-start gap-3">
-            <Languages className="size-4 mt-0.5 text-muted-foreground" />
+            <Languages className="size-4 mt-0.5 text-muted-foreground flex-shrink-0" />
             <div>
               <label htmlFor="settings-language" className="text-sm font-medium">{t('settings.languageLabel')}</label>
               <p className="text-xs text-muted-foreground mt-0.5">{t('settings.languageHint')}</p>
@@ -165,7 +166,7 @@ export function SettingsPage() {
             id="settings-language"
             value={locale}
             onChange={(e) => setLocale(normalizeLocale(e.target.value))}
-            className="h-9 rounded-lg border border-border bg-background px-2 text-sm"
+            className="w-full sm:w-auto h-10 sm:h-9 rounded-lg border border-border bg-background px-3 text-sm"
           >
             {LOCALES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
           </select>
@@ -440,22 +441,22 @@ function ToggleRow({
           <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
         </div>
       </div>
+      {/* The button is a 44px tap area; the track inside is the visible switch */}
       <button
         role="switch"
         aria-checked={checked}
         aria-label={label}
         onClick={onChange}
-        className={cn(
-          'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
-          checked ? 'bg-primary' : 'bg-muted'
-        )}
+        className="flex-shrink-0 -m-2.5 p-2.5 cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       >
-        <span
-          className={cn(
-            'pointer-events-none inline-block size-4 rounded-full bg-white shadow-sm transition-transform',
-            checked ? 'translate-x-4' : 'translate-x-0'
-          )}
-        />
+        <span className={cn('flex h-6 w-11 rounded-full border-2 border-transparent transition-colors', checked ? 'bg-primary' : 'bg-muted')}>
+          <span
+            className={cn(
+              'pointer-events-none inline-block size-5 rounded-full bg-white shadow-sm transition-transform',
+              checked ? 'translate-x-5' : 'translate-x-0'
+            )}
+          />
+        </span>
       </button>
     </div>
   )

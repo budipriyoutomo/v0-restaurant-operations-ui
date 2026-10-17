@@ -182,7 +182,7 @@ function PrintTab({ assets }: { assets: { id: string; name: string; number: stri
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-xs text-muted-foreground">{t('qr.ready', { count: printable.length })}</p>
         <button onClick={() => window.print()}
           className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg border border-border text-sm font-medium hover:bg-accent">

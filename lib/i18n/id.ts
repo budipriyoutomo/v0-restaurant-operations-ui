@@ -254,6 +254,7 @@ export const id = {
     worthRepair: "Layak diperbaiki",
   },
   common: {
+    filterOptions: "Opsi",
     actions: "Aksi",
     add: "Tambah",
     all: "Semua",
@@ -1822,7 +1823,7 @@ export const id = {
     overdue: "Terlambat",
     reasonIssueFinished: "{number} sudah selesai — buka kembali laporannya untuk mengubah tugasnya.",
     searchPlaceholder: "Cari judul, no. tugas/laporan, atau penanggung jawab…",
-    subtitle: "Geser kartu antar kolom · tugas dibuat otomatis dari Laporan",
+    subtitle: "Tugas dibuat otomatis dari Laporan · ubah status dari kartu",
     title: "Pusat Tugas",
     total: "Total tugas",
   },

@@ -9,7 +9,8 @@ import { ListSkeleton } from '@/components/shared/skeleton'
 import { usePermissions } from '@/lib/permissions'
 import { useT } from '@/lib/i18n'
 import { SegmentedTabs } from '@/components/shared/segmented-tabs'
-import { FilterChip, FilterToggle, PageHeader } from '@/components/shared/page-header'
+import { PageHeader } from '@/components/shared/page-header'
+import { FilterBar, FilterOptions, FilterSelect } from '@/components/shared/filter-menu'
 import { InviteModal } from '@/components/users/invite-modal'
 import { RolesTab } from '@/components/users/roles-tab'
 import { UserCard } from '@/components/users/user-card'
@@ -77,14 +78,13 @@ export function UsersPage() {
 
       {tab === 'roles' ? <RolesTab canManage={can.manageUsers} /> : (
         <>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-medium text-muted-foreground">{t('users.roleFilter')}</span>
-            {[{ key: null as string | null, name: t('common.all') }, ...roles].map(r => (
-              <FilterChip key={r.key ?? 'all'} active={filterRole === r.key} onClick={() => setFilterRole(r.key)}>{r.name}</FilterChip>
-            ))}
-            <span className="hidden sm:block h-5 w-px bg-border mx-1" aria-hidden="true" />
-            <FilterToggle checked={showInactive} onChange={setShowInactive}>{t('users.showInactive')}</FilterToggle>
-          </div>
+          <FilterBar>
+            <FilterSelect label={t('users.roleFilter')} allLabel={t('common.all')} value={filterRole}
+              options={roles.map((r) => ({ value: r.key, label: r.name }))} onChange={setFilterRole} />
+            <FilterOptions label={t('common.filterOptions')} items={[
+              { label: t('users.showInactive'), checked: showInactive, onChange: setShowInactive },
+            ]} />
+          </FilterBar>
 
           {usersLoading && allUsers.length === 0 ? (
             <ListSkeleton rows={4} className="p-0 sm:p-0" />

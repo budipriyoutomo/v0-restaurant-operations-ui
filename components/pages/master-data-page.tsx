@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { PageHeader } from '@/components/shared/page-header'
+import { SegmentedTabs } from '@/components/shared/segmented-tabs'
 
 const statusColors: Record<OutletStatus, { bg: string; text: string }> = {
   operational: { bg: 'bg-success/20', text: 'text-success' },
@@ -138,30 +139,15 @@ export function MasterDataPage() {
       />
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-border">
-        {(['outlets', 'categories', 'pics', 'rules', 'policies'] as const).map((tab) => {
+      <SegmentedTabs label={t('nav.master-data')} value={activeTab} onChange={switchTab}
+        tabs={(['outlets', 'categories', 'pics', 'rules', 'policies'] as const).map((tab) => {
           const count = tab === 'outlets' ? outlets.length
             : tab === 'categories' ? categories.length
             : tab === 'pics' ? pics.length
             : tab === 'rules' ? assignmentRules.length
             : approvalPolicies.length
-          const label = t(`masterData.tab.${tab}`)
-          return (
-            <button
-              key={tab}
-              onClick={() => switchTab(tab)}
-              className={cn(
-                'px-4 py-3 text-sm font-semibold border-b-2 transition-colors',
-                activeTab === tab
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {label} ({count})
-            </button>
-          )
-        })}
-      </div>
+          return { id: tab, label: <>{t(`masterData.tab.${tab}`)} <span className="tabular-nums opacity-60">{count}</span></> }
+        })} />
 
       {/* Search */}
       {activeTab !== 'policies' && activeTab !== 'rules' && (
@@ -244,14 +230,14 @@ export function MasterDataPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => setOutletDialog({ open: true, data: outlet })}
-                            className="p-1.5 hover:bg-accent rounded-md transition-colors"
+                            className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-accent rounded-lg transition-colors"
                             title={t('common.edit')} aria-label={t('common.edit')}
                           >
                             <Edit2 className="size-4 text-muted-foreground hover:text-foreground" />
                           </button>
                           <button
                             onClick={() => handleDeleteOutlet(outlet.id, outlet.name)}
-                            className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors"
+                            className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-destructive/20 rounded-lg transition-colors"
                             title={t('common.delete')} aria-label={t('common.delete')}
                           >
                             <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
@@ -323,7 +309,7 @@ export function MasterDataPage() {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => setCategoryDialog({ open: true, data: category })}
-                        className="p-1.5 hover:bg-accent rounded-md transition-colors"
+                        className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-accent rounded-lg transition-colors"
                         title={t('common.edit')} aria-label={t('common.edit')}
                       >
                         <Edit2 className="size-4 text-muted-foreground hover:text-foreground" />
@@ -331,7 +317,7 @@ export function MasterDataPage() {
                       {!category.isSystem && (
                         <button
                           onClick={() => handleDeleteCategory(category.id, category.name)}
-                          className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors"
+                          className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-destructive/20 rounded-lg transition-colors"
                           title={t('common.delete')} aria-label={t('common.delete')}
                         >
                           <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
@@ -373,14 +359,14 @@ export function MasterDataPage() {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => setPicDialog({ open: true, data: pic })}
-                        className="p-1.5 hover:bg-accent rounded-md transition-colors"
+                        className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-accent rounded-lg transition-colors"
                         title={t('common.edit')} aria-label={t('common.edit')}
                       >
                         <Edit2 className="size-4 text-muted-foreground hover:text-foreground" />
                       </button>
                       <button
                         onClick={() => handleDeletePIC(pic.id, pic.name)}
-                        className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors"
+                        className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-destructive/20 rounded-lg transition-colors"
                         title={t('common.delete')} aria-label={t('common.delete')}
                       >
                         <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
@@ -391,13 +377,13 @@ export function MasterDataPage() {
                   <div className="space-y-2 mb-4 pb-4 border-b border-border">
                     <div className="flex items-center gap-3">
                       <Mail className="size-4 text-muted-foreground" />
-                      <a href={`mailto:${pic.email}`} className="text-sm text-primary hover:underline">
+                      <a href={`mailto:${pic.email}`} className="inline-flex items-center min-h-10 sm:min-h-8 text-sm text-primary hover:underline break-all">
                         {pic.email}
                       </a>
                     </div>
                     <div className="flex items-center gap-3">
                       <Phone className="size-4 text-muted-foreground" />
-                      <a href={`tel:${pic.phone}`} className="text-sm text-primary hover:underline">
+                      <a href={`tel:${pic.phone}`} className="inline-flex items-center min-h-10 sm:min-h-8 text-sm text-primary hover:underline break-all">
                         {pic.phone}
                       </a>
                     </div>

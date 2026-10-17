@@ -58,7 +58,7 @@ export function BudgetPanel() {
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Wallet className="size-4 text-primary" />
           <div>
@@ -68,9 +68,9 @@ export function BudgetPanel() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-md border border-border">
-            <button onClick={() => setPeriod((p) => shiftPeriod(p, -1))} aria-label={t('budget.prevPeriod')} className="p-1 hover:bg-accent"><ChevronLeft className="size-3.5" /></button>
+            <button onClick={() => setPeriod((p) => shiftPeriod(p, -1))} aria-label={t('budget.prevPeriod')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-accent rounded-lg"><ChevronLeft className="size-3.5" /></button>
             <span className="text-xs font-mono px-1.5">{period}</span>
-            <button onClick={() => setPeriod((p) => shiftPeriod(p, 1))} aria-label={t('budget.nextPeriod')} className="p-1 hover:bg-accent"><ChevronRight className="size-3.5" /></button>
+            <button onClick={() => setPeriod((p) => shiftPeriod(p, 1))} aria-label={t('budget.nextPeriod')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-accent rounded-lg"><ChevronRight className="size-3.5" /></button>
           </div>
           {can.manageBudgets && (
             <button onClick={() => setShowForm((v) => !v)}

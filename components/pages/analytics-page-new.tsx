@@ -204,7 +204,7 @@ export function AnalyticsDashboardPage() {
                 const resolvedPct = total > 0 ? Math.round(((total - active) / total) * 100) : 0
                 return (
                   <div key={outlet} className="p-3 rounded-md bg-muted/30 border border-border/50">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                       <span className="font-semibold text-xs">{outlet}</span>
                       <span className={cn(
                         'text-xs font-bold px-2 py-0.5 rounded-full',
@@ -320,7 +320,7 @@ export function AnalyticsDashboardPage() {
 function ChartCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="p-5 sm:p-6 rounded-2xl border border-border bg-card">
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-5">
         <h3 className="font-semibold">{title}</h3>
         <span className="text-muted-foreground">{icon}</span>
       </div>

@@ -42,7 +42,7 @@ export function AssetDetailPanel({ asset, onClose, onSelectWO }: { asset: Asset;
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
         <div>
           <h3 className="text-sm font-semibold">{asset.name}</h3>
           <p className="text-xs text-muted-foreground mt-0.5">

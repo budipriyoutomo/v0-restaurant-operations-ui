@@ -134,7 +134,8 @@ describe('IssuesListPage — URL routing', () => {
 
   it('writes the priority filter to the query string without a new history entry', async () => {
     await renderList(<IssuesListPage />)
-    await userEvent.click(screen.getByRole('button', { name: 'High' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Priority: All' }))
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'High' }))
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/issues?priority=high')
     expect(pushState).not.toHaveBeenCalled()
   })
@@ -176,7 +177,8 @@ describe('IssuesListPage — ready to close', () => {
 
   it('the filter toggle writes ?ready=1', async () => {
     await renderList(<IssuesListPage />)
-    await userEvent.click(screen.getByLabelText(/ready to close only/i))
+    await userEvent.click(screen.getByRole('button', { name: 'Options' }))
+    await userEvent.click(screen.getByRole('menuitemcheckbox', { name: /ready to close only/i }))
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/issues?ready=1')
   })
 

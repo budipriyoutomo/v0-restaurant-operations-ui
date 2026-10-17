@@ -97,7 +97,7 @@ export function SensorPanel({ asset }: { asset: Asset }) {
                   </div>
                   {s.isActive && (
                     <button type="button" onClick={() => revoke(s)} aria-label={t('tempSensor.revoke', { name: s.name })}
-                      className="p-1.5 rounded hover:bg-destructive/20"><Trash2 className="size-4 text-muted-foreground" /></button>
+                      className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-destructive/20"><Trash2 className="size-4 text-muted-foreground" /></button>
                   )}
                 </li>
               )
@@ -111,7 +111,7 @@ export function SensorPanel({ asset }: { asset: Asset }) {
           <div className="flex items-center gap-2">
             <code className="flex-1 min-w-0 break-all text-xs font-mono" data-testid="sensor-key">{newKey}</code>
             <button type="button" onClick={copy} aria-label={t('tempSensor.copy')}
-              className="p-1.5 rounded border border-border hover:bg-muted"><Copy className="size-3.5" /></button>
+              className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg border border-border hover:bg-muted"><Copy className="size-3.5" /></button>
           </div>
           <p className="text-xs text-muted-foreground">{t('tempSensor.howTo')}</p>
           <button type="button" onClick={() => setNewKey(null)} className="text-xs font-semibold text-primary">{t('tempSensor.done')}</button>

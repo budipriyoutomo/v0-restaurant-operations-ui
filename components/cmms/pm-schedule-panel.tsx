@@ -124,7 +124,7 @@ export function PMSchedulePanel() {
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
         <div className="flex items-center gap-2">
           <CalendarClock className="size-4 text-primary" />
           <div>

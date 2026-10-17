@@ -88,7 +88,7 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
           <button
             onClick={() => onOpenChange(false)}
             aria-label={t('common.close')}
-            className="p-1 hover:bg-muted rounded-lg transition-colors"
+            className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-muted rounded-lg transition-colors"
           >
             <X className="size-5 text-muted-foreground" />
           </button>

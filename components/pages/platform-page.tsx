@@ -179,7 +179,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
       <div ref={panelRef} role="dialog" aria-label={title} className="bg-background rounded-2xl border border-border shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h2 className="text-base font-bold">{title}</h2>
-          <button type="button" aria-label={t('common.close')} onClick={onClose} className="p-1 hover:bg-muted rounded-md">
+          <button type="button" aria-label={t('common.close')} onClick={onClose} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-muted rounded-lg">
             <X className="size-4 text-muted-foreground" />
           </button>
         </div>
@@ -230,7 +230,7 @@ function CreateCompanyDialog({ onClose, onCreated }: { onClose: () => void; onCr
               <div className="flex items-center gap-2">
                 <dt className="text-muted-foreground">{t('platform.password')}</dt>
                 <dd>{created.admin_password}</dd>
-                <button type="button" aria-label={t('platform.copyPassword')} className="p-1 rounded hover:bg-muted"
+                <button type="button" aria-label={t('platform.copyPassword')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-muted"
                   onClick={() => navigator.clipboard?.writeText(created.admin_password ?? '')}>
                   <Copy className="size-3.5" />
                 </button>

@@ -112,7 +112,7 @@ export function TemplateEditor({ template, onClose, onSaved }: {
                   <button onClick={() => move(idx, -1)} className="size-9 rounded-full flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground" title={t('qaTemplate.moveUp')} aria-label={t('qaTemplate.moveUp')}><ArrowUp className="size-3.5" /></button>
                   <button onClick={() => move(idx, 1)} className="size-9 rounded-full flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground" title={t('qaTemplate.moveDown')} aria-label={t('qaTemplate.moveDown')}><ArrowDown className="size-3.5" /></button>
                   <button onClick={() => setItems((xs) => xs.filter((_, i) => i !== idx))} disabled={items.length === 1}
-                    className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-30" title={t('qaTemplate.remove')} aria-label={t('qaTemplate.remove')}><Trash2 className="size-3.5" /></button>
+                    className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-30 rounded-lg" title={t('qaTemplate.remove')} aria-label={t('qaTemplate.remove')}><Trash2 className="size-3.5" /></button>
                 </div>
               </div>
             ))}

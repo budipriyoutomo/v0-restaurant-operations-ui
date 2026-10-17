@@ -130,9 +130,9 @@ function TemperatureHistory({ asset }: { asset: Asset }) {
                 {lo !== null && <ReferenceLine y={lo} stroke="var(--muted-foreground)" strokeDasharray="4 4" strokeWidth={1} />}
                 {hi !== null && <ReferenceLine y={hi} stroke="var(--muted-foreground)" strokeDasharray="4 4" strokeWidth={1} />}
                 <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']}
-                  tickFormatter={(v: number) => date(new Date(v).toISOString())} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                  tickFormatter={(v: number) => date(new Date(v).toISOString())} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
                   stroke="var(--border)" />
-                <YAxis domain={domain} tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} stroke="var(--border)" unit="°" width={40} />
+                <YAxis domain={domain} tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }} stroke="var(--border)" unit="°" width={40} />
                 <Tooltip
                   cursor={{ stroke: 'var(--muted-foreground)', strokeWidth: 1 }}
                   content={({ active, payload }) => {

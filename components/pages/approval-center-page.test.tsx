@@ -97,7 +97,8 @@ describe('ApprovalCenterPage — URL routing', () => {
   it('lists pending approvals by default and others via the status filter in the URL', async () => {
     await renderPage()
     expect(screen.queryByText('Sudah disetujui')).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /^approved$/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Status: Pending' }))
+    await userEvent.click(screen.getByRole('menuitemradio', { name: /^approved$/i }))
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/approvals?status=approved')
   })
 

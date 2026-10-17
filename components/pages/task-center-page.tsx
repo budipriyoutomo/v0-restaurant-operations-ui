@@ -11,7 +11,10 @@ import { taskMoveBlock, type Reason } from '@/lib/action-reasons'
 import { toast } from 'sonner'
 import { api } from '@/lib/api-client'
 import { useDebounced, usePagedList } from '@/lib/use-paged-list'
-import { FilterChip, PageHeader } from '@/components/shared/page-header'
+import { PageHeader } from '@/components/shared/page-header'
+import { FilterBar, FilterSelect } from '@/components/shared/filter-menu'
+import { StatusBoard, type CardDrag } from '@/components/shared/status-board'
+import { useUrlState } from '@/lib/use-route'
 import { PriorityBadge } from '@/components/shared/priority-badge'
 import { useOutletFilter } from '@/lib/permissions'
 import { outletQuery } from '@/lib/outlet-filter'
@@ -58,8 +61,8 @@ export function TaskCenterPage() {
     task.issueStatus ? { number: task.issueNumber, status: task.issueStatus } : issues.find((i) => i.id === task.issueId))
   const [searchQuery, setSearchQuery] = useState('')
   const [filterPriority, setFilterPriority] = useState<Priority | null>(null)
-  const [draggingId, setDraggingId] = useState<string | null>(null)
-  const [dragOverCol, setDragOverCol] = useState<TaskStatus | null>(null)
+  // Phones: the status tab, in the URL so refresh and Back keep it
+  const [shownStatus, setShownStatus] = useUrlState('status', null)
 
   // Each column is a page from the server (Todo-Pilot §22): filters run there,
   // and a column shows at most COLUMN_LIMIT cards with the rest counted.
@@ -94,19 +97,18 @@ export function TaskCenterPage() {
     id,
     ...STATUS_META[id],
     label: label('status', id),
-    tasks: filteredTasks.filter((t) => t.status === id),
-    more: Math.max(0, pages[id].total - (pages[id].ids?.length ?? 0)),
+    items: filteredTasks.filter((t) => t.status === id),
+    count: pages[id].total,
+    footer: pages[id].total > (pages[id].ids?.length ?? 0)
+      ? <p className="text-center text-xs text-muted-foreground py-1">{t('tasks.more', { count: pages[id].total - (pages[id].ids?.length ?? 0) })}</p>
+      : null,
   }))
 
-  function handleDrop(status: TaskStatus) {
-    if (draggingId) {
-      const task = tasks.find((t) => t.id === draggingId)
-      const block = task ? blockOf(task) : null
-      if (block) toast.error(t(block.key, block.params))
-      else if (task && task.status !== status) updateTaskStatus(draggingId, status)
-    }
-    setDraggingId(null)
-    setDragOverCol(null)
+  function handleDrop(taskId: string, status: TaskStatus) {
+    const task = tasks.find((t) => t.id === taskId)
+    const block = task ? blockOf(task) : null
+    if (block) toast.error(t(block.key, block.params))
+    else if (task && task.status !== status) updateTaskStatus(taskId, status)
   }
 
   const hasFilters = !!searchQuery || !!filterPriority
@@ -136,88 +138,37 @@ export function TaskCenterPage() {
           />
         </div>
 
-        <div className="flex gap-2 items-center flex-wrap">
-          <span className="text-xs font-medium text-muted-foreground mr-1">{t('issues.priorityFilter')}</span>
-          {PRIORITIES.map((p) => (
-            <FilterChip key={p} active={filterPriority === p} onClick={() => setFilterPriority(filterPriority === p ? null : p)}>
-              {label('priority', p)}
-            </FilterChip>
-          ))}
+        <FilterBar>
+          <FilterSelect label={t('issues.priorityFilter')} allLabel={t('common.all')} value={filterPriority}
+            options={PRIORITIES.map((p) => ({ value: p, label: label('priority', p) }))}
+            onChange={setFilterPriority} />
           {hasFilters && (
             <button
               onClick={() => { setSearchQuery(''); setFilterPriority(null) }}
-              className="flex items-center gap-1 h-10 sm:h-8 px-3 rounded-full text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="flex items-center gap-1 h-10 sm:h-9 px-3 rounded-full text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <X className="size-3" /> {t('tasks.clear')}
             </button>
           )}
-        </div>
+        </FilterBar>
       </div>
 
-      {/* Kanban board */}
-      <div className="flex-1 min-h-0 overflow-x-auto">
-        <div className="flex gap-4 h-full pb-2">
-          {columns.map((column) => {
-            const isDropTarget = dragOverCol === column.id
-            return (
-              <div
-                key={column.id}
-                onDragOver={(e) => { e.preventDefault(); setDragOverCol(column.id) }}
-                onDragLeave={(e) => {
-                  // Only clear when leaving the column entirely, not its children
-                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverCol(null)
-                }}
-                onDrop={() => handleDrop(column.id)}
-                className={cn(
-                  'flex flex-col w-[17rem] shrink-0 rounded-xl border border-t-4 bg-muted/30 transition-colors',
-                  column.accent,
-                  isDropTarget && cn('ring-2 bg-muted/60', column.ring),
-                )}
-              >
-                {/* Column header */}
-                <div className="flex items-center justify-between px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className={cn('size-2 rounded-full', column.dot)} />
-                    <h3 className="font-semibold text-sm">{column.label}</h3>
-                  </div>
-                  <span className="bg-background text-muted-foreground text-xs font-bold px-2 py-0.5 rounded-full border border-border">
-                    {column.tasks.length + column.more}
-                  </span>
-                </div>
-
-                {/* Column body */}
-                <div className="flex-1 min-h-24 space-y-2 px-2 pb-2 overflow-y-auto">
-                  {loading ? (
-                    <div aria-busy="true" className="space-y-2">{[1, 2].map((n) => <div key={n} className="h-20 rounded-lg bg-muted animate-pulse" />)}</div>
-                  ) : column.tasks.length === 0 ? (
-                    <div className={cn(
-                      'flex items-center justify-center h-24 rounded-lg border border-dashed border-border text-xs text-muted-foreground transition-colors',
-                      isDropTarget && 'border-primary/50 text-foreground',
-                    )}>
-                      {isDropTarget ? t('tasks.dropHere') : t('tasks.noTasks')}
-                    </div>
-                  ) : (
-                    column.tasks.map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        block={blockOf(task)}
-                        dragging={draggingId === task.id}
-                        onDragStart={() => setDraggingId(task.id)}
-                        onDragEnd={() => { setDraggingId(null); setDragOverCol(null) }}
-                        onMove={updateTaskStatus}
-                      />
-                    ))
-                  )}
-                  {column.more > 0 && (
-                    <p className="text-center text-xs text-muted-foreground py-1">{t('tasks.more', { count: column.more })}</p>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+      {/* Kanban board on a wide screen; status tabs + one list on a phone */}
+      <StatusBoard
+        label={t('tasks.title')}
+        columns={columns}
+        getId={(task) => task.id}
+        value={COLUMN_ORDER.includes(shownStatus as TaskStatus) ? shownStatus as TaskStatus : null}
+        onValueChange={setShownStatus}
+        onDrop={handleDrop}
+        emptyText={t('tasks.noTasks')}
+        dropHereText={t('tasks.dropHere')}
+        loading={loading}
+        fill
+        renderCard={(task, drag) => (
+          <TaskCard task={task} block={blockOf(task)} drag={drag} onMove={updateTaskStatus} />
+        )}
+      />
     </div>
   )
 }
@@ -262,16 +213,12 @@ function StatCard({
 function TaskCard({
   task,
   block,
-  dragging,
-  onDragStart,
-  onDragEnd,
+  drag,
   onMove,
 }: {
   task: Task
   block: Reason | null
-  dragging: boolean
-  onDragStart: () => void
-  onDragEnd: () => void
+  drag: CardDrag
   onMove: (taskId: string, status: TaskStatus) => void
 }) {
   const overdue = isOverdue(task)
@@ -279,20 +226,20 @@ function TaskCard({
 
   return (
     <div
-      draggable={!block}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      draggable={drag.draggable && !block}
+      onDragStart={drag.onDragStart}
+      onDragEnd={drag.onDragEnd}
       className={cn(
         'group rounded-lg bg-card border border-border p-3 hover:shadow-md hover:border-primary/40 transition-all',
-        block ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
-        dragging && 'opacity-50 ring-2 ring-primary rotate-1',
+        drag.draggable && !block ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
+        drag.dragging && 'opacity-50 ring-2 ring-primary rotate-1',
       )}
     >
       {/* Top row: priority + task number + drag handle */}
       <div className="flex items-center gap-2 mb-2">
         <PriorityBadge priority={task.priority} />
         <span className="font-mono text-xs text-muted-foreground">{task.number}</span>
-        <GripVertical className="size-3.5 text-muted-foreground/40 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+        {drag.draggable && <GripVertical className="size-3.5 text-muted-foreground/40 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />}
       </div>
 
       {/* Title + description */}

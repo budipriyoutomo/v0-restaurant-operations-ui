@@ -85,7 +85,7 @@ export function OpsTemplateEditor({ template, onClose, onSaved }: {
         className="bg-background rounded-2xl border border-border shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 z-10 flex items-center justify-between p-5 border-b border-border bg-background">
           <h2 id="ops-template-title" className="text-lg font-bold">{template ? t('ops.editTemplate') : t('ops.newTemplate')}</h2>
-          <button onClick={onClose} aria-label={t('common.close')} className="p-1 hover:bg-muted rounded-md"><X className="size-5 text-muted-foreground" /></button>
+          <button onClick={onClose} aria-label={t('common.close')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-muted rounded-lg"><X className="size-5 text-muted-foreground" /></button>
         </div>
 
         <div className="p-5 space-y-4">
@@ -122,10 +122,10 @@ export function OpsTemplateEditor({ template, onClose, onSaved }: {
                   <span className="text-xs text-muted-foreground pt-2 w-5">{idx + 1}.</span>
                   <input value={it.title} onChange={(e) => set(idx, { title: e.target.value })} className={field}
                     aria-label={t('ops.itemTitle')} placeholder={t('ops.itemTitlePlaceholder')} />
-                  <button type="button" onClick={() => move(idx, -1)} aria-label={t('ops.moveUp')} className="p-1.5 rounded hover:bg-muted"><ArrowUp className="size-4" /></button>
-                  <button type="button" onClick={() => move(idx, 1)} aria-label={t('ops.moveDown')} className="p-1.5 rounded hover:bg-muted"><ArrowDown className="size-4" /></button>
+                  <button type="button" onClick={() => move(idx, -1)} aria-label={t('ops.moveUp')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-muted"><ArrowUp className="size-4" /></button>
+                  <button type="button" onClick={() => move(idx, 1)} aria-label={t('ops.moveDown')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-muted"><ArrowDown className="size-4" /></button>
                   <button type="button" onClick={() => setItems((xs) => xs.filter((_, i) => i !== idx))} disabled={items.length === 1}
-                    aria-label={t('common.delete')} className="p-1.5 rounded hover:bg-destructive/20 disabled:opacity-30"><Trash2 className="size-4" /></button>
+                    aria-label={t('common.delete')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-destructive/20 disabled:opacity-30"><Trash2 className="size-4" /></button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-7">
                   <input value={it.section} onChange={(e) => set(idx, { section: e.target.value })} className={field}

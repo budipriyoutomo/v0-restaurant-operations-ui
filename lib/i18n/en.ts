@@ -256,6 +256,7 @@ export const en: Messages = {
     worthRepair: "Worth repairing",
   },
   common: {
+    filterOptions: "Options",
     actions: "Actions",
     add: "Add",
     all: "All",
@@ -1824,7 +1825,7 @@ export const en: Messages = {
     overdue: "Overdue",
     reasonIssueFinished: "{number} is finished — reopen the issue to change its tasks.",
     searchPlaceholder: "Search by title, task/issue no., or assignee...",
-    subtitle: "Drag cards across the pipeline · tasks are auto-generated from Issues",
+    subtitle: "Tasks are auto-generated from Issues · change status from the card",
     title: "Task Center",
     total: "Total tasks",
   },

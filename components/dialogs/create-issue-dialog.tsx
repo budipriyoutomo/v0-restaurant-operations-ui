@@ -265,7 +265,7 @@ export function CreateIssueDialog({
             type="button"
             aria-label={t('common.close')}
             onClick={() => !isSubmitting && onOpenChange(false)}
-            className="p-1 hover:bg-muted rounded-lg transition-colors"
+            className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-muted rounded-lg transition-colors"
           >
             <X className="size-5 text-muted-foreground" />
           </button>
@@ -557,7 +557,7 @@ export function CreateIssueDialog({
                   <Camera className="size-4 text-muted-foreground" />
                   <span className="flex-1 truncate">{photo.name}</span>
                   <button type="button" onClick={() => setPhoto(null)} aria-label={t('createIssue.removePhoto')}
-                    className="p-1 rounded hover:bg-muted"><X className="size-4" /></button>
+                    className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-muted"><X className="size-4" /></button>
                 </div>
               ) : (
                 <input id={`${id}-photo`} type="file" accept="image/*" capture="environment"

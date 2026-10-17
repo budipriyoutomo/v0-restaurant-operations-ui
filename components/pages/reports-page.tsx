@@ -121,7 +121,7 @@ function ReportCard({ icon, title, description, count, label, onExport }: Report
         <button
           onClick={handleExport}
           disabled={count === 0}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-4 h-10 sm:h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Download className="size-3.5" />
           {t('reports.export')}

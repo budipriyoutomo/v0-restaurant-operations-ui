@@ -447,7 +447,7 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
               {/* Checklist */}
               {(detail.checklistItems.length > 0 || (can.manageCMMS && !isDone)) && (
                 <div className="space-y-2 pb-4 border-b border-border">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
                     <p className="text-xs font-semibold">{t('wo.checklist')}</p>
                     <p className="text-xs text-muted-foreground">
                       {t('wo.checklistDone', { done: detail.checklistItems.filter(i => i.isDone).length, total: detail.checklistItems.length })}

@@ -240,8 +240,8 @@ function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatu
             </div>
             {canManage && (
               <div className="flex gap-1">
-                <button onClick={() => onEdit(c)} aria-label={t('common.edit')} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><Pencil className="size-3" /></button>
-                <button onClick={() => setConfirmDelete(c.id)} aria-label={t('common.delete')} className="size-6 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="size-3" /></button>
+                <button onClick={() => onEdit(c)} aria-label={t('common.edit')} className="size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"><Pencil className="size-4" /></button>
+                <button onClick={() => setConfirmDelete(c.id)} aria-label={t('common.delete')} className="size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="size-4" /></button>
               </div>
             )}
           </div>
@@ -413,7 +413,7 @@ function ResultsDialog({ campaign: c, onClose, onSave }: {
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-md bg-background rounded-2xl border border-border shadow-2xl p-6 max-h-[90vh] overflow-y-auto space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <h2 className="text-base font-semibold">{t('marketing.resultsTitle', { title: c.title })}</h2>
           <button onClick={onClose} aria-label={t('common.close')} className="size-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent"><X className="size-4" /></button>
         </div>
@@ -497,7 +497,7 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-lg bg-background rounded-2xl border border-border shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-5">
           <h2 className="text-base font-semibold">{campaign ? t('marketing.editCampaign') : t('marketing.newCampaign')}</h2>
           <button onClick={onClose} aria-label={t('common.close')} className="size-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent"><X className="size-4" /></button>
         </div>

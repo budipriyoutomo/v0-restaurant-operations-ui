@@ -143,7 +143,7 @@ export function AssignmentRulesPanel() {
                   {can.manageMasterData && (
                     <td className="px-4 py-3 text-right">
                       <button type="button" onClick={() => remove(r.id)} aria-label={t('common.delete')} title={t('common.delete')}
-                        className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors">
+                        className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-destructive/20 rounded-lg transition-colors">
                         <Trash2 className="size-4 text-muted-foreground hover:text-destructive" aria-hidden />
                       </button>
                     </td>

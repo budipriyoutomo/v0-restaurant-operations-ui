@@ -28,7 +28,8 @@ import { UnlinkedAssigneeNote } from '@/components/shared/unlinked-assignee-note
 import { SideDrawer } from '@/components/shared/side-drawer'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
-import { FilterChip, FilterToggle, PageHeader } from '@/components/shared/page-header'
+import { PageHeader } from '@/components/shared/page-header'
+import { FilterBar, FilterOptions, FilterSelect } from '@/components/shared/filter-menu'
 
 const PAGE_SIZE = 12
 
@@ -214,8 +215,8 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
     setPage(1)
   }
 
-  const handlePriorityFilter = (p: string) => {
-    setFilterPriority(filterPriority === p ? null : p)
+  const handlePriorityFilter = (p: string | null) => {
+    setFilterPriority(p)
     setPage(1)
   }
 
@@ -232,21 +233,31 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
     )
   }
 
+  const newButton = (
+    <button
+      onClick={() => setCreateOpen(true)}
+      // Phones: floating, thumb-sized and always on screen (Todo-Pilot §15)
+      className="flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors fixed bottom-20 right-4 z-30 h-14 px-5 rounded-full shadow-lg text-sm sm:static sm:h-10 sm:px-4 sm:rounded-lg sm:shadow-sm"
+    >
+      <Plus className="size-4" /> {t('issues.new')}
+    </button>
+  )
+
   return (
     <div className="space-y-5 p-4 sm:p-6">
-      <PageHeader
-        title={view ? t(`issues.view.${view}.title`) : t('issues.title')}
-        description={view ? `${t(`issues.view.${view}.description`)} ${t('issues.savedViewSuffix')}` : t('issues.subtitle')}
-        actions={
-          <button
-            onClick={() => setCreateOpen(true)}
-            // Phones: floating, thumb-sized and always on screen (Todo-Pilot §15)
-            className="flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors fixed bottom-20 right-4 z-30 h-14 px-5 rounded-full shadow-lg text-sm sm:static sm:h-10 sm:px-4 sm:rounded-lg sm:shadow-sm"
-          >
-            <Plus className="size-4" /> {t('issues.new')}
-          </button>
-        }
-      />
+      {routed ? (
+        <PageHeader
+          title={view ? t(`issues.view.${view}.title`) : t('issues.title')}
+          description={view ? `${t(`issues.view.${view}.description`)} ${t('issues.savedViewSuffix')}` : t('issues.subtitle')}
+          actions={newButton}
+        />
+      ) : (
+        // A tab inside another module page: that page already has the title.
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <p className="text-sm text-muted-foreground max-w-2xl">{t(`issues.view.${view}.description`)} {t('issues.savedViewSuffix')}</p>
+          {newButton}
+        </div>
+      )}
 
       {/* Search and Filters — one card, chips instead of raw checkboxes */}
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 space-y-3">
@@ -261,32 +272,20 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
           />
         </div>
 
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs font-medium text-muted-foreground mr-1">{t('issues.priorityFilter')}</span>
-          {priorities.map((p) => (
-            <FilterChip key={p} active={filterPriority === p} onClick={() => handlePriorityFilter(p)}>
-              {label('priority', p)}
-            </FilterChip>
-          ))}
-          <span className="hidden sm:block h-5 w-px bg-border mx-1" aria-hidden="true" />
-          <FilterToggle checked={hideFinished} onChange={(on) => { setHideFinished(on ? '1' : null); setPage(1) }}>
-            {t('issues.hideFinished')}
-          </FilterToggle>
-          <FilterToggle checked={readyOnly} onChange={(on) => { setReadyOnly(on ? '1' : null); setPage(1); setConfirmBulkClose(false) }}>
-            {t('issues.readyOnly')}
-          </FilterToggle>
-        </div>
-
-        {!viewDef && (
-          <div className="flex gap-2 items-center flex-wrap">
-            <span className="text-xs font-medium text-muted-foreground mr-1">{t('issues.categoryFilter')}</span>
-            {activeCategories(categories).map(({ id: cid, name: c }) => (
-              <FilterChip key={cid} active={filterCategory === c} onClick={() => { setFilterCategory(filterCategory === c ? null : c); setPage(1) }}>
-                {label('category', c)}
-              </FilterChip>
-            ))}
-          </div>
-        )}
+        <FilterBar>
+          <FilterSelect label={t('issues.priorityFilter')} allLabel={t('common.all')} value={filterPriority}
+            options={priorities.map((p) => ({ value: p, label: label('priority', p) }))}
+            onChange={handlePriorityFilter} />
+          {!viewDef && (
+            <FilterSelect label={t('issues.categoryFilter')} allLabel={t('common.all')} value={filterCategory}
+              options={activeCategories(categories).map(({ name: c }) => ({ value: c, label: label('category', c) }))}
+              onChange={(c) => { setFilterCategory(c); setPage(1) }} />
+          )}
+          <FilterOptions label={t('common.filterOptions')} items={[
+            { label: t('issues.hideFinished'), checked: hideFinished, onChange: (on) => { setHideFinished(on ? '1' : null); setPage(1) } },
+            { label: t('issues.readyOnly'), checked: readyOnly, onChange: (on) => { setReadyOnly(on ? '1' : null); setPage(1); setConfirmBulkClose(false) } },
+          ]} />
+        </FilterBar>
       </div>
 
         {/* Bulk close of finished work (Todo-Pilot §18) */}
@@ -510,11 +509,11 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
         >
 
               <div className="space-y-3 pb-6 border-b border-border">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-medium text-muted-foreground">{t('common.status')}</span>
                   <StatusBadge status={selectedIssue.status} />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-medium text-muted-foreground">{t('common.priority')}</span>
                   <PriorityBadge priority={selectedIssue.priority} />
                 </div>
@@ -563,11 +562,11 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
               </div>
 
               <div className="space-y-3 pb-6 border-b border-border">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-medium text-muted-foreground">{t('common.createdDate')}</span>
                   <span className="text-sm">{date(selectedIssue.createdDate)}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-medium text-muted-foreground">{t('common.dueDate')}</span>
                   <span className="text-sm">{date(selectedIssue.dueDate)}</span>
                 </div>

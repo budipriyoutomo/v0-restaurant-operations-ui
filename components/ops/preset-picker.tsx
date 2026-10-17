@@ -64,9 +64,9 @@ export function PresetPicker({ onApplied }: { onApplied: () => void }) {
       {selected && (
         <ul className="text-xs grid gap-1 sm:grid-cols-2">
           {selected.templates.map((tpl) => (
-            <li key={tpl.name} className="flex justify-between gap-2 rounded-md border border-border bg-background px-2.5 py-1.5">
-              <span className="truncate">{tpl.name} <span className="text-muted-foreground">· {label('opsShift', tpl.shift)}</span></span>
-              <span className="text-muted-foreground whitespace-nowrap">{freq(tpl.frequency, tpl.dueTime)} · {t('ops.itemCount', { count: tpl.itemCount })}</span>
+            <li key={tpl.name} className="flex flex-col sm:flex-row sm:justify-between gap-0.5 sm:gap-2 rounded-md border border-border bg-background px-2.5 py-1.5">
+              <span className="sm:truncate">{tpl.name} <span className="text-muted-foreground">· {label('opsShift', tpl.shift)}</span></span>
+              <span className="text-muted-foreground sm:whitespace-nowrap">{freq(tpl.frequency, tpl.dueTime)} · {t('ops.itemCount', { count: tpl.itemCount })}</span>
             </li>
           ))}
         </ul>
@@ -74,7 +74,7 @@ export function PresetPicker({ onApplied }: { onApplied: () => void }) {
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-xs">{t('opsPreset.scheduleAt')}
           <select value={outlet} onChange={(e) => setOutlet(e.target.value)}
-            className="block mt-1 h-9 px-2.5 rounded-lg border border-border bg-background text-sm">
+            className="block mt-1 h-10 sm:h-9 px-2.5 rounded-lg border border-border bg-background text-sm">
             <option value="">{t('opsPreset.noSchedule')}</option>
             {outlets.map((o) => <option key={o.id} value={o.name}>{o.name}</option>)}
           </select>

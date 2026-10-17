@@ -113,7 +113,7 @@ export function SignDayDialog({ date: day, outlet, onClose, onSigned }: {
             <h2 id="ops-signday-title" className="font-semibold">{t('opsSignoff.dialogTitle', { date: date(day) })}</h2>
             <p className="text-xs text-muted-foreground">{outlet}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t('common.close')} className="p-1.5 rounded hover:bg-muted"><X className="size-4" /></button>
+          <button type="button" onClick={onClose} aria-label={t('common.close')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-muted"><X className="size-4" /></button>
         </div>
 
         {failed ? <p className="text-sm text-destructive">{t('opsSignoff.failed')}</p>

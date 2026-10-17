@@ -19,7 +19,8 @@ import { useT } from '@/lib/i18n'
 import { formatMoney } from '@/lib/money'
 import { SideDrawer } from '@/components/shared/side-drawer'
 import { EmptyState } from '@/components/shared/empty-state'
-import { FilterChip, PageHeader } from '@/components/shared/page-header'
+import { PageHeader } from '@/components/shared/page-header'
+import { FilterBar, FilterSelect } from '@/components/shared/filter-menu'
 import { StatusBadge } from '@/components/shared/priority-badge'
 
 const typeIcons: Record<ApprovalType, React.ReactNode> = {
@@ -208,7 +209,7 @@ export function ApprovalCenterPage() {
         ))}
       </div>
 
-      {/* Search and Filters — one card, chips */}
+      {/* Search and Filters — one card, dropdown filters */}
       <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 space-y-3">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -221,22 +222,15 @@ export function ApprovalCenterPage() {
           />
         </div>
 
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs font-medium text-muted-foreground mr-1">{t('approvals.statusFilter')}</span>
-          {([['pending', label('approvalStatus', 'pending')], ['approved', label('approvalStatus', 'approved')], ['rejected', label('approvalStatus', 'rejected')], [null, t('common.all')]] as [ApprovalStatus | null, string][]).map(([status, text]) => (
-            <FilterChip key={text} active={filterStatus === status} onClick={() => setFilterStatus(status)}>{text}</FilterChip>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs font-medium text-muted-foreground mr-1">{t('approvals.typeFilter')}</span>
-          {(['procurement', 'marketing', 'training', 'asset-purchase', 'maintenance'] as ApprovalType[]).map((type) => (
-            <FilterChip key={type} active={filterType === type} onClick={() => setFilterType(filterType === type ? null : type)}>
-              {typeIcons[type]}
-              {label('approvalType', type)}
-            </FilterChip>
-          ))}
-        </div>
+        <FilterBar>
+          <FilterSelect label={t('approvals.statusFilter')} allLabel={t('common.all')} value={filterStatus}
+            options={(['pending', 'approved', 'rejected'] as ApprovalStatus[]).map((s) => ({ value: s, label: label('approvalStatus', s) }))}
+            onChange={setFilterStatus} />
+          <FilterSelect label={t('approvals.typeFilter')} allLabel={t('common.all')} value={filterType}
+            options={(['procurement', 'marketing', 'training', 'asset-purchase', 'maintenance'] as ApprovalType[]).map((type) => (
+              { value: type, label: label('approvalType', type), icon: typeIcons[type] }))}
+            onChange={setFilterType} />
+        </FilterBar>
       </div>
 
       {/* Approvals Grid */}
@@ -303,11 +297,11 @@ export function ApprovalCenterPage() {
           onClose={() => setSelectedApproval(null)}
         >
               <div className="space-y-3 pb-6 border-b border-border">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-medium text-muted-foreground">{t('common.type')}</span>
                   <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">{label('approvalType', selectedApproval.type)}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-medium text-muted-foreground">{t('common.status')}</span>
                   <StatusBadge status={selectedApproval.status} />
                 </div>
@@ -339,11 +333,11 @@ export function ApprovalCenterPage() {
               )}
 
               <div className="space-y-3 pb-6 border-b border-border">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-medium text-muted-foreground">{t('approvals.requestedDate')}</span>
                   <span className="text-sm">{date(selectedApproval.requestedDate)}</span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-medium text-muted-foreground">
                     {selectedApproval.purchaseRequestId ? t('approvals.purchaseRequest') : t('approvals.linkedIssue')}
                   </span>

@@ -30,8 +30,16 @@ beforeEach(() => {
     currentUser: { id: 'u1', permissions: { tasks: 'manage' } } as unknown as User,
     issues: [], tasks: [], updateTaskStatus: vi.fn(),
   })
+  screenIs(true)
 })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
+
+/** jsdom has no matchMedia: a wide screen shows the kanban, a phone the status tabs. */
+function screenIs(wide: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: wide, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+  }))
+}
 
 async function renderBoard() {
   render(<TaskCenterPage />)
@@ -57,5 +65,17 @@ describe('TaskCenterPage — server columns (Todo-Pilot §22)', () => {
     expect(screen.getAllByText(/^Task \d+$/)).toHaveLength(50)
     expect(screen.getByText('+ 3 more — narrow the search')).toBeInTheDocument()
     expect(screen.getByText('Total tasks').previousSibling).toHaveTextContent('53')
+  })
+})
+
+describe('TaskCenterPage — on a phone', () => {
+  it('shows status tabs with server counts and one list, not the kanban', async () => {
+    screenIs(false)
+    await renderBoard()
+    expect(screen.queryByRole('region', { name: 'Open' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Open\s*1/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Live task')).toBeInTheDocument()
+    expect(screen.queryByText('Old task')).not.toBeInTheDocument()     // in the Resolved tab
+    expect(screen.getByRole('tab', { name: /Resolved\s*1/ })).toBeInTheDocument()
   })
 })

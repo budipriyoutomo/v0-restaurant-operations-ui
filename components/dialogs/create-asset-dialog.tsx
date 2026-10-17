@@ -106,7 +106,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
         {/* Header */}
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
           <h2 id="create-asset-title" className="text-lg font-bold">{t('createAsset.title')}</h2>
-          <button onClick={() => !isSubmitting && onOpenChange(false)} aria-label={t('common.close')} className="p-1 hover:bg-muted rounded-lg transition-colors">
+          <button onClick={() => !isSubmitting && onOpenChange(false)} aria-label={t('common.close')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 hover:bg-muted rounded-lg transition-colors">
             <X className="size-5 text-muted-foreground" />
           </button>
         </div>

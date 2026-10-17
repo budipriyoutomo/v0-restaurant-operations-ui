@@ -27,6 +27,7 @@ import { useT } from '@/lib/i18n'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { SegmentedTabs } from '@/components/shared/segmented-tabs'
+import { FilterSelect } from '@/components/shared/filter-menu'
 
 type Tab = 'today' | 'history' | 'compliance' | 'setup'
 const STATUSES: OpsRunStatus[] = ['pending', 'in_progress', 'submitted', 'missed']
@@ -168,18 +169,10 @@ function HistoryTab({ refreshKey, onOpen, outlet, setOutlet }: {
       <div className="flex flex-wrap gap-3 items-end p-3 sm:p-4 rounded-2xl border border-border bg-card">
         <label className="text-xs font-medium text-muted-foreground">{t('ops.from')}<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={cn(field, 'block mt-1')} /></label>
         <label className="text-xs font-medium text-muted-foreground">{t('ops.to')}<input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={cn(field, 'block mt-1')} /></label>
-        <label className="text-xs font-medium text-muted-foreground">{t('common.outlet')}
-          <select value={outlet} onChange={(e) => setOutlet(e.target.value)} className={cn(field, 'block mt-1')}>
-            <option value="">{t('ops.allOutlets')}</option>
-            {outlets.map((o) => <option key={o.id} value={o.name}>{o.name}</option>)}
-          </select>
-        </label>
-        <label className="text-xs font-medium text-muted-foreground">{t('common.status')}
-          <select value={status} onChange={(e) => setStatus(e.target.value as OpsRunStatus | '')} className={cn(field, 'block mt-1')}>
-            <option value="">{t('ops.allStatuses')}</option>
-            {STATUSES.map((s) => <option key={s} value={s}>{label('opsRunStatus', s)}</option>)}
-          </select>
-        </label>
+        <FilterSelect label={t('common.outlet')} allLabel={t('ops.allOutlets')} value={outlet || null}
+          options={outlets.map((o) => ({ value: o.name, label: o.name }))} onChange={(v) => setOutlet(v ?? '')} />
+        <FilterSelect label={t('common.status')} allLabel={t('common.all')} value={status || null}
+          options={STATUSES.map((s) => ({ value: s, label: label('opsRunStatus', s) }))} onChange={(v) => setStatus(v ?? '')} />
         <ExportPdfButton outlet={outlet} from={from} to={to} />
       </div>
       {!outlet && <p className="text-xs text-muted-foreground">{t('opsSignoff.pickOutlet')}</p>}
@@ -236,7 +229,7 @@ function SetupTab() {
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('ops.templates')}</h2>
           <div className="flex gap-2">
             {templates.length > 0 && (

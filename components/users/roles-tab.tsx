@@ -35,7 +35,7 @@ export function RolesTab({ canManage }: { canManage: boolean }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-sm text-muted-foreground">
           {t('users.rolesIntro')}
         </p>
@@ -81,7 +81,7 @@ export function RolesTab({ canManage }: { canManage: boolean }) {
                   <div className="flex gap-1 flex-shrink-0">
                     <button
                       onClick={() => setEditing(role)}
-                      className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent"
+                      className="size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent"
                       title={t('common.edit')}
                       aria-label={t('common.edit')}
                     >
@@ -90,7 +90,7 @@ export function RolesTab({ canManage }: { canManage: boolean }) {
                     {!role.is_system && (
                       <button
                         onClick={() => handleDelete(role)}
-                        className="size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        className="size-10 sm:size-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         title={t('common.delete')}
                         aria-label={t('common.delete')}
                       >
@@ -237,7 +237,7 @@ export function RoleEditor({ role, modules, outlets, onClose }: {
           <>
             {/* Module matrix */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                 <p className="text-sm font-semibold">{t('users.moduleAccess')}</p>
                 <div className="flex gap-1">
                   {(['none', 'view', 'manage'] as const).map(l => (

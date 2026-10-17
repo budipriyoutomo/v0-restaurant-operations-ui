@@ -77,10 +77,10 @@ export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?
         <ResponsiveContainer width="100%" height={compact ? 180 : 240}>
           <LineChart data={chartRows}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-            <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--color-muted-foreground)' }} />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--color-muted-foreground)' }} width={30} />
-            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-popover)', color: 'var(--color-foreground)' }} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }} />
+            <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }} width={30} />
+            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-popover)', color: 'var(--color-foreground)' }} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
             {outlets.map((o, i) => (
               <Line key={o} type="monotone" dataKey={o} stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
             ))}

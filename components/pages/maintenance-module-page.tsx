@@ -17,7 +17,10 @@ import { approvalThresholdsByOutlet } from '@/lib/outlet-threshold'
 import { statusLabel, translate, useT, type Locale } from '@/lib/i18n'
 import { SideDrawer } from '@/components/shared/side-drawer'
 import { EmptyState } from '@/components/shared/empty-state'
-import { FilterChip, PageHeader } from '@/components/shared/page-header'
+import { PageHeader } from '@/components/shared/page-header'
+import { FilterBar, FilterSelect } from '@/components/shared/filter-menu'
+import { StatusBoard, type CardDrag } from '@/components/shared/status-board'
+import { useUrlState } from '@/lib/use-route'
 
 // Theme-aware status presentation — matches the Task Center kanban.
 const STATUS_META: Record<IssueStatus, { dot: string; accent: string; ring: string }> = {
@@ -48,8 +51,8 @@ export function MaintenanceModulePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterPriority, setFilterPriority] = useState<Priority | null>(null)
   const [showCreateWO, setShowCreateWO] = useState(false)
-  const [draggingId, setDraggingId] = useState<string | null>(null)
-  const [dragOverCol, setDragOverCol] = useState<IssueStatus | null>(null)
+  // Phones: the status tab, in the URL so refresh and Back keep it
+  const [shownStatus, setShownStatus] = useUrlState('status', null)
 
   // Every category of the maintenance module (Maintenance, HVAC, …), whatever its name (P1).
   const maintenanceIssues = issues.filter((i) => issueModule(i, categories) === 'maintenance')
@@ -84,17 +87,13 @@ export function MaintenanceModulePage() {
 
   const hasFilters = !!searchQuery || !!filterPriority
 
-  function handleDrop(target: IssueStatus) {
-    if (draggingId && can.updateIssueStatus) {
-      const issue = maintenanceIssues.find((i) => i.id === draggingId)
-      if (issue && issue.status !== target) {
-        const why = moveBlockedReason(issue, target, locale)
-        if (why) toast.error(why)
-        else updateIssueStatus(draggingId, target)
-      }
+  function handleDrop(issueId: string, target: IssueStatus) {
+    const issue = maintenanceIssues.find((i) => i.id === issueId)
+    if (issue && issue.status !== target) {
+      const why = moveBlockedReason(issue, target, locale)
+      if (why) toast.error(why)
+      else updateIssueStatus(issueId, target)
     }
-    setDraggingId(null)
-    setDragOverCol(null)
   }
 
   return (
@@ -112,7 +111,7 @@ export function MaintenanceModulePage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <div className="p-4 rounded-2xl border border-border bg-card">
           <p className="text-xs font-medium text-muted-foreground mb-1">{t('maintenance.totalIssues')}</p>
           <p className="text-2xl font-bold">{stats.total}</p>
@@ -140,22 +139,19 @@ export function MaintenanceModulePage() {
           />
         </div>
 
-        <div className="flex gap-2 items-center flex-wrap">
-          <span className="text-xs font-medium text-muted-foreground mr-1">{t('issues.priorityFilter')}</span>
-          {PRIORITIES.map((p) => (
-            <FilterChip key={p} active={filterPriority === p} onClick={() => setFilterPriority(filterPriority === p ? null : p)}>
-              {label('priority', p)}
-            </FilterChip>
-          ))}
+        <FilterBar>
+          <FilterSelect label={t('issues.priorityFilter')} allLabel={t('common.all')} value={filterPriority}
+            options={PRIORITIES.map((p) => ({ value: p, label: label('priority', p) }))}
+            onChange={setFilterPriority} />
           {hasFilters && (
             <button
               onClick={() => { setSearchQuery(''); setFilterPriority(null) }}
-              className="flex items-center gap-1 h-10 sm:h-8 px-3 rounded-full text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="flex items-center gap-1 h-10 sm:h-9 px-3 rounded-full text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <X className="size-3" /> {t('tasks.clear')}
             </button>
           )}
-        </div>
+        </FilterBar>
       </div>
 
       {/* Empty state */}
@@ -163,65 +159,27 @@ export function MaintenanceModulePage() {
         <EmptyState icon={Wrench} title={t('maintenance.empty')} description={t('maintenance.emptyHint')} />
       )}
 
-      {/* Kanban */}
+      {/* Kanban on a wide screen; status tabs + one list on a phone */}
       {maintenanceIssues.length > 0 && (
-        <div className="overflow-x-auto pb-2">
-          <div className="flex gap-4">
-            {byStatus.map((col) => {
-              const isDropTarget = dragOverCol === col.id
-              return (
-                <div
-                  key={col.id}
-                  onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.id) }}
-                  onDragLeave={(e) => {
-                    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverCol(null)
-                  }}
-                  onDrop={() => handleDrop(col.id)}
-                  className={cn(
-                    'flex flex-col w-[16rem] shrink-0 rounded-xl border border-t-4 bg-muted/30 transition-colors',
-                    col.accent,
-                    isDropTarget && cn('ring-2 bg-muted/60', col.ring),
-                  )}
-                >
-                  <div className="flex items-center justify-between px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className={cn('size-2 rounded-full', col.dot)} />
-                      <h3 className="font-semibold text-sm">{col.label}</h3>
-                    </div>
-                    <span className="bg-background text-muted-foreground text-xs font-bold px-2 py-0.5 rounded-full border border-border">
-                      {col.items.length}
-                    </span>
-                  </div>
-
-                  <div className="flex-1 min-h-24 space-y-2 px-2 pb-2">
-                    {col.items.length === 0 ? (
-                      <div className={cn(
-                        'flex items-center justify-center h-24 rounded-lg border border-dashed border-border text-xs text-muted-foreground transition-colors',
-                        isDropTarget && 'border-primary/50 text-foreground',
-                      )}>
-                        {isDropTarget ? t('tasks.dropHere') : t('maintenance.noIssues')}
-                      </div>
-                    ) : (
-                      col.items.map((issue) => (
-                        <IssueCard
-                          key={issue.id}
-                          issue={issue}
-                          woCount={workOrders.filter((wo) => wo.issueId === issue.id).length}
-                          isSelected={selectedIssue?.id === issue.id}
-                          dragging={draggingId === issue.id}
-                          draggable={can.updateIssueStatus}
-                          onSelect={() => setSelectedIssue(issue)}
-                          onDragStart={() => setDraggingId(issue.id)}
-                          onDragEnd={() => { setDraggingId(null); setDragOverCol(null) }}
-                        />
-                      ))
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <StatusBoard
+          label={t('maintenance.title')}
+          columns={byStatus}
+          getId={(issue) => issue.id}
+          value={COLUMN_ORDER.includes(shownStatus as IssueStatus) ? shownStatus as IssueStatus : null}
+          onValueChange={setShownStatus}
+          onDrop={can.updateIssueStatus ? handleDrop : undefined}
+          emptyText={t('maintenance.noIssues')}
+          dropHereText={t('tasks.dropHere')}
+          renderCard={(issue, drag) => (
+            <IssueCard
+              issue={issue}
+              woCount={workOrders.filter((wo) => wo.issueId === issue.id).length}
+              isSelected={selectedIssue?.id === issue.id}
+              drag={drag}
+              onSelect={() => setSelectedIssue(issue)}
+            />
+          )}
+        />
       )}
 
       {/* Detail Panel */}
@@ -295,7 +253,7 @@ export function MaintenanceModulePage() {
                 Linked Work Orders
             ----------------------------------------------------------------- */}
             <div className="border-t border-border pt-4">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
                 <p className="text-xs font-semibold">
                   {t('maintenance.workOrders')}
                   <span className="ml-1.5 text-muted-foreground font-normal">({linkedWOs.length})</span>
@@ -395,33 +353,27 @@ function IssueCard({
   issue,
   woCount,
   isSelected,
-  dragging,
-  draggable,
+  drag,
   onSelect,
-  onDragStart,
-  onDragEnd,
 }: {
   issue: Issue
   woCount: number
   isSelected: boolean
-  dragging: boolean
-  draggable: boolean
+  drag: CardDrag
   onSelect: () => void
-  onDragStart: () => void
-  onDragEnd: () => void
 }) {
   const { t } = useT()
   return (
     <div
-      draggable={draggable}
+      draggable={drag.draggable}
       onClick={onSelect}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      onDragStart={drag.onDragStart}
+      onDragEnd={drag.onDragEnd}
       className={cn(
         'group rounded-lg border bg-card p-3 transition-all hover:shadow-md',
-        draggable && 'cursor-grab active:cursor-grabbing',
+        drag.draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         isSelected ? 'border-primary ring-1 ring-primary shadow-md' : 'border-border hover:border-primary/40',
-        dragging && 'opacity-50 ring-2 ring-primary rotate-1',
+        drag.dragging && 'opacity-50 ring-2 ring-primary rotate-1',
       )}
     >
       <div className="flex items-start gap-2 mb-2">
@@ -430,7 +382,7 @@ function IssueCard({
           issue.priority === 'critical' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'
         )} />
         <h4 className="font-medium text-sm leading-snug line-clamp-2 flex-1">{issue.title}</h4>
-        <GripVertical className="size-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+        {drag.draggable && <GripVertical className="size-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />}
       </div>
       <div className="space-y-1.5 text-xs">
         <div className="flex items-center justify-between gap-2">
