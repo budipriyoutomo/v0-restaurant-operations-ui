@@ -5,10 +5,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { CreateIssueDialog } from './create-issue-dialog'
 import type { Asset, CreateIssueInput } from '@/lib/types'
 import { useIssueStore } from '@/lib/store'
+import { SYSTEM_CATEGORIES } from '@/lib/categories.fixture'
 
 // The assignee picker lists users of the chosen outlet (Todo-Pilot §17).
 const budi = { id: 'u-budi', name: 'Budi', role_name: 'Technician', approval_tier: 'staff' }
 useIssueStore.setState({
+  categories: SYSTEM_CATEGORIES,   // master data (P1)
   assignableUsers: { Jakarta: [budi], Bandung: [] },
   loadAssignableUsers: async () => [budi],
 })

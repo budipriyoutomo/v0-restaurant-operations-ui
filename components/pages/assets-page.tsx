@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Package, Plus, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { issueModule } from '@/lib/categories'
 import { useMyOutlets } from '@/lib/permissions'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { useT } from '@/lib/i18n'
@@ -25,14 +26,14 @@ const rp = (n: number) => formatMoney(n ?? 0)
 export function AssetsPage() {
   // Aggregates every issue/task/approval: loads them all when opened (Todo-Pilot §22)
   useEnsureLoaded('core')
-  const { issues, approvals, pics, createIssue } = useIssueStore()
+  const { issues, approvals, pics, createIssue, categories } = useIssueStore()
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
   const [showCreate, setShowCreate] = useState(false)
   const [tab, setTab] = useState<Tab>('requests')
   const { t, label, date } = useT()
 
-  const requests   = issues.filter((i) => i.category === 'Asset Purchase')
+  const requests   = issues.filter((i) => issueModule(i, categories) === 'asset_purchase')
   const approvalsA = approvals.filter((a) => a.type === 'asset-purchase')
 
   const purchaseStats = {
@@ -153,7 +154,7 @@ export function AssetsPage() {
       <CreateIssueDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        defaultCategory="Asset Purchase"
+        defaultSystemKey="asset_purchase"
         outlets={myOutlets.map((o) => o.name)}
         onSubmit={async (input) => { await createIssue(input) }}
       />

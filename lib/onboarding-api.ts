@@ -1,7 +1,7 @@
 // GET /api/onboarding — what a new company still has to set up (Todo-Pilot §24 / UX-11).
 import { api } from './api-client'
 
-export type OnboardingStepKey = 'outlets' | 'users' | 'masterData' | 'assets' | 'pm' | 'approvalPolicy'
+export type OnboardingStepKey = 'outlets' | 'users' | 'masterData' | 'assets' | 'pm' | 'opsChecklist' | 'approvalPolicy'
 
 export interface Onboarding {
   steps: { key: OnboardingStepKey; done: boolean; count: number }[]
@@ -23,5 +23,6 @@ export const STEP_PAGE: Record<OnboardingStepKey, string> = {
   masterData: 'master-data',
   assets: 'cmms',
   pm: 'cmms',
+  opsChecklist: 'ops?tab=setup',     // built-in template sets live there (Todo-Ops-Checklist Fase 4)
   approvalPolicy: 'master-data',
 }

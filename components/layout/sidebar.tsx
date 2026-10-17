@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Utensils,
   ListChecks,
+  ClipboardList,
 } from 'lucide-react'
 
 interface NavItem {
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
   { id: 'issues',      icon: AlertCircle,     group: 'operations', badgeKey: 'issues' },
   { id: 'tasks',       icon: CheckSquare,     group: 'operations', badgeKey: 'tasks' },
   { id: 'approvals',   icon: CheckCircle2,    group: 'operations', badgeKey: 'approvals' },
+  { id: 'ops',         icon: ClipboardList,   group: 'operations' },   // Daily ops checklists
 
   // OPERATIONS MODULES - Execution domains (Todo-Pilot §6)
   //   Maintenance = outlet queue of maintenance issues · CMMS = equipment, WOs, PM, parts

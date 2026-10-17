@@ -190,7 +190,7 @@ export function TrainingPage() {
       <CreateIssueDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        defaultCategory="Training"
+        defaultSystemKey="training"
         outlets={myOutlets.map(o => o.name)}
         onSubmit={async (input) => { await createIssue(input) }}
       />

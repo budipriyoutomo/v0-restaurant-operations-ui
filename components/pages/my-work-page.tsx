@@ -4,7 +4,7 @@
 // waiting for *me*, computed by the server (GET /api/my-work), each row one tap
 // from its record. Sections the role cannot open come back null and are hidden.
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ClipboardCheck, ListChecks, MessageSquareWarning, RefreshCw, Wrench } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardCheck, ClipboardList, ListChecks, MessageSquareWarning, RefreshCw, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { apiErrorMessage } from '@/lib/api-client'
 import { myWorkApi, type MyWork, type Section } from '@/lib/my-work-api'
@@ -32,6 +32,19 @@ export function MyWorkPage() {
   const rupiah = (n: number | null) => (n == null ? '' : formatMoney(n))
 
   const sections: { id: keyof MyWork; title: string; icon: React.ElementType; section: Section<unknown> | null; rows: Row[] }[] = work ? [
+    {
+      // First: a checklist has a deadline today (Todo-Ops-Checklist Fase 1).
+      id: 'opsChecklists', title: t('myWork.opsChecklists'), icon: ClipboardList, section: work.opsChecklists ?? null,
+      rows: (work.opsChecklists?.items ?? []).map((c) => {
+        const late = c.dueAt !== null && Date.parse(c.dueAt) < Date.now()
+        return {
+          key: c.id, to: recordPath('ops', c.id), number: c.number, title: c.templateName,
+          meta: [c.outlet, c.dueAt ? t('myWork.checklistDue', { time: relative(c.dueAt) }) : '',
+            t('myWork.checklistProgress', { answered: c.answered, total: c.itemCount })].filter(Boolean).join(' · '),
+          badge: late ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/20 text-warning font-semibold">{t('myWork.checklistLate')}</span> : undefined,
+        }
+      }),
+    },
     {
       id: 'approvals', title: t('myWork.approvals'), icon: CheckCircle2, section: work.approvals,
       rows: (work.approvals?.items ?? []).map((a) => ({

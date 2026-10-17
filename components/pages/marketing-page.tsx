@@ -182,7 +182,7 @@ export function MarketingPage() {
       <CreateIssueDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        defaultCategory="Marketing"
+        defaultSystemKey="marketing"
         outlets={myOutlets.map(o => o.name)}
         onSubmit={async (input) => { await createIssue(input) }}
       />

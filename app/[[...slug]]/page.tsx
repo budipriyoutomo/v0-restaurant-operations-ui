@@ -35,6 +35,7 @@ import { ProcurementPage }         from '@/components/pages/procurement-page'
 import { TrainingPage }            from '@/components/pages/training-page'
 import { MarketingPage }           from '@/components/pages/marketing-page'
 import { QAPage }                  from '@/components/pages/qa-page'
+import { OpsChecklistPage }        from '@/components/pages/ops-checklist-page'
 import { GuestPage }               from '@/components/pages/guest-page'
 
 // ── Insights & system ─────────────────────────────────────────────────────────
@@ -136,6 +137,7 @@ function App() {
       case 'issues':        return <IssuesListPage key="issues" />
       case 'tasks':         return <TaskCenterPage />
       case 'approvals':     return <ApprovalCenterPage />
+      case 'ops':           return <OpsChecklistPage />
 
       // ── Operations modules ──────────────────────────────────────────────
       case 'maintenance':   return <MaintenanceModulePage />

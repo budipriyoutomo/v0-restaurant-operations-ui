@@ -6,7 +6,7 @@
 // to must match backend app/services/deep_link.py.
 
 export const PAGE_IDS = [
-  'my-work', 'dashboard', 'issues', 'tasks', 'approvals',
+  'my-work', 'dashboard', 'issues', 'tasks', 'approvals', 'ops',
   'maintenance', 'cmms', 'assets', 'procurement', 'training', 'marketing', 'qa', 'guest-service',
   'it-support',
   'analytics', 'reports',
@@ -14,7 +14,7 @@ export const PAGE_IDS = [
 ] as const
 
 // Pages whose detail drawer is addressed by the URL.
-export const RECORD_PAGES = ['issues', 'it-support', 'approvals', 'cmms'] as const
+export const RECORD_PAGES = ['issues', 'it-support', 'approvals', 'cmms', 'ops'] as const
 
 // URL segment ↔ page id, where they differ.
 const SEGMENT_TO_PAGE: Record<string, string> = { 'work-orders': 'cmms' }
@@ -25,6 +25,7 @@ const ENTITY_SEGMENT: Record<string, string> = {
   issues: 'issues',
   approvals: 'approvals',
   work_orders: 'work-orders',
+  ops_checklists: 'ops',        // daily checklist runs (Todo-Ops-Checklist Fase 3)
 }
 
 export interface Route {

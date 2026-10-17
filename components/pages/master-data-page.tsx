@@ -1,12 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Edit2, Trash2, Search, Loader2, Mail, Phone } from 'lucide-react'
+import { Plus, Edit2, Trash2, Search, Loader2, Mail, Phone, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { NewOutletDialog } from '@/components/dialogs/new-outlet-dialog'
 import { NewCategoryDialog } from '@/components/dialogs/new-category-dialog'
+import { CategoryIcon } from '@/components/shared/category-icon'
+import { activeCategories } from '@/lib/categories'
+import { apiErrorMessage } from '@/lib/api-client'
 import { NewPICDialog } from '@/components/dialogs/new-pic-dialog'
 import { ApprovalPolicyPanel } from '@/components/master-data/approval-policy-panel'
+import { AssignmentRulesPanel } from '@/components/master-data/assignment-rules-panel'
 import { useIssueStore } from '@/lib/store'
 import { MasterCategory, Outlet, OutletStatus, PIC } from '@/lib/types'
 import { useT } from '@/lib/i18n'
@@ -22,13 +26,13 @@ const statusColors: Record<OutletStatus, { bg: string; text: string }> = {
 export function MasterDataPage() {
   const { t, label } = useT()
   const {
-    outlets, categories, pics, masterDataLoading, approvalPolicies,
+    outlets, categories, pics, masterDataLoading, approvalPolicies, assignmentRules,
     createOutlet, updateOutlet, deleteOutlet,
     createCategory, updateCategory, deleteCategory,
     createPIC, updatePIC, deletePIC,
   } = useIssueStore()
 
-  const [activeTab, setActiveTab] = useState<'outlets' | 'categories' | 'pics' | 'policies'>('outlets')
+  const [activeTab, setActiveTab] = useState<'outlets' | 'categories' | 'pics' | 'rules' | 'policies'>('outlets')
   const [searchQuery, setSearchQuery] = useState('')
 
   // Dialog state — null = closed, undefined = create mode, object = edit mode
@@ -45,7 +49,9 @@ export function MasterDataPage() {
       o.code.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredCategories = categories.filter((c) =>
+  // System categories first (canonical order), then the rest; inactive ones last.
+  const sortedCategories = [...activeCategories(categories), ...categories.filter((c) => !c.isActive)]
+  const filteredCategories = sortedCategories.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
@@ -74,8 +80,8 @@ export function MasterDataPage() {
     try {
       await deleteCategory(id)
       toast.success(t('masterData.deleted', { kind: t('masterData.kind.category'), name }), { id: tid })
-    } catch {
-      toast.error(t('masterData.deleteFailedInUse', { kind: t('masterData.kind.category') }), { id: tid })
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('masterData.deleteFailedInUse', { kind: t('masterData.kind.category') })), { id: tid })
     }
   }
 
@@ -92,13 +98,13 @@ export function MasterDataPage() {
   const getCategoryName = (id: string) =>
     categories.find((c) => c.id === id)?.name ?? id
 
-  const getCategoryType = (id: string) =>
-    categories.find((c) => c.id === id)?.type
+  const getCategoryModule = (id: string) =>
+    categories.find((c) => c.id === id)?.module
 
   // -------------------------------------------------------------------------
   // Tab switch helper
   // -------------------------------------------------------------------------
-  const switchTab = (tab: 'outlets' | 'categories' | 'pics' | 'policies') => {
+  const switchTab = (tab: 'outlets' | 'categories' | 'pics' | 'rules' | 'policies') => {
     setActiveTab(tab)
     setSearchQuery('')
   }
@@ -114,7 +120,7 @@ export function MasterDataPage() {
           <h1 className="text-3xl font-bold">{t('masterData.title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">{t('masterData.subtitle')}</p>
         </div>
-        {activeTab !== 'policies' && (
+        {activeTab !== 'policies' && activeTab !== 'rules' && (
           <button
             onClick={() => {
               if (activeTab === 'outlets') setOutletDialog({ open: true })
@@ -131,10 +137,11 @@ export function MasterDataPage() {
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-border">
-        {(['outlets', 'categories', 'pics', 'policies'] as const).map((tab) => {
+        {(['outlets', 'categories', 'pics', 'rules', 'policies'] as const).map((tab) => {
           const count = tab === 'outlets' ? outlets.length
             : tab === 'categories' ? categories.length
             : tab === 'pics' ? pics.length
+            : tab === 'rules' ? assignmentRules.length
             : approvalPolicies.length
           const label = t(`masterData.tab.${tab}`)
           return (
@@ -155,7 +162,7 @@ export function MasterDataPage() {
       </div>
 
       {/* Search */}
-      {activeTab !== 'policies' && (
+      {activeTab !== 'policies' && activeTab !== 'rules' && (
       <div className="flex gap-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -270,20 +277,44 @@ export function MasterDataPage() {
               {filteredCategories.map((category) => (
                 <div
                   key={category.id}
-                  className="p-4 rounded-lg border border-border hover:shadow-sm transition-all hover:border-primary/50"
+                  className={cn(
+                    'p-4 rounded-lg border border-border hover:shadow-sm transition-all hover:border-primary/50',
+                    !category.isActive && 'opacity-60',
+                  )}
                 >
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-bold text-foreground">{category.name}</h3>
-                        <span className={cn(
-                          'text-[10px] font-semibold px-2 py-0.5 rounded-full',
-                          category.type === 'operations' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-800'
-                        )}>
-                          {category.type === 'operations' ? t('masterData.typeOperations') : t('masterData.typeMaintenance')}
-                        </span>
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <span className="flex items-center justify-center size-9 rounded-md bg-muted text-foreground shrink-0">
+                        <CategoryIcon name={category.icon} className="size-4" />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="font-bold text-foreground">{category.name}</h3>
+                          <span className={cn(
+                            'text-[10px] font-semibold px-2 py-0.5 rounded-full',
+                            category.module === 'maintenance' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-700'
+                          )}>
+                            {label('categoryModule', category.module)}
+                          </span>
+                          {category.isSystem && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                              <Lock className="size-2.5" aria-hidden /> {t('masterData.systemBadge')}
+                            </span>
+                          )}
+                          {!category.isActive && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                              {t('masterData.inactiveBadge')}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{category.description}</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          {[
+                            category.defaultGenerateTask && t('categoryDialog.defaultTask'),
+                            category.defaultGenerateApproval && `${t('categoryDialog.defaultApproval')}${category.approvalType ? ` · ${label('approvalType', category.approvalType)}` : ''}`,
+                          ].filter(Boolean).join(' · ') || '—'}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">{category.description}</p>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
@@ -293,13 +324,15 @@ export function MasterDataPage() {
                       >
                         <Edit2 className="size-4 text-muted-foreground hover:text-foreground" />
                       </button>
-                      <button
-                        onClick={() => handleDeleteCategory(category.id, category.name)}
-                        className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors"
-                        title={t('common.delete')} aria-label={t('common.delete')}
-                      >
-                        <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
-                      </button>
+                      {!category.isSystem && (
+                        <button
+                          onClick={() => handleDeleteCategory(category.id, category.name)}
+                          className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors"
+                          title={t('common.delete')} aria-label={t('common.delete')}
+                        >
+                          <Trash2 className="size-4 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -329,6 +362,9 @@ export function MasterDataPage() {
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-lg text-foreground mb-1">{pic.name}</h3>
                       <p className="text-sm text-muted-foreground">{pic.department}</p>
+                      {pic.userName && (
+                        <p className="text-xs text-primary mt-0.5">{t('masterData.linkedUser', { name: pic.userName })}</p>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
@@ -370,15 +406,15 @@ export function MasterDataPage() {
                         <p className="text-sm text-muted-foreground italic">{t('masterData.noAssigned')}</p>
                       ) : (
                         pic.categories.map((catId) => {
-                          const type = getCategoryType(catId)
+                          const isMaintenance = getCategoryModule(catId) === 'maintenance'
                           return (
                             <span
                               key={catId}
                               className={cn(
                                 'text-xs font-semibold px-2.5 py-1 rounded-full',
-                                type === 'operations'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-orange-100 text-orange-800'
+                                isMaintenance
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : 'bg-blue-100 text-blue-700'
                               )}
                             >
                               {getCategoryName(catId)}
@@ -398,6 +434,7 @@ export function MasterDataPage() {
       {/* ------------------------------------------------------------------ */}
       {/* Approval Policies Tab (Tier 2.2)                                     */}
       {/* ------------------------------------------------------------------ */}
+      {activeTab === 'rules' && <AssignmentRulesPanel />}
       {activeTab === 'policies' && <ApprovalPolicyPanel />}
 
       {/* ------------------------------------------------------------------ */}
@@ -424,10 +461,13 @@ export function MasterDataPage() {
         initialData={categoryDialog.data}
         onSubmit={async (data) => {
           if (categoryDialog.data) {
-            await updateCategory(categoryDialog.data.id, data)
+            // A system category keeps its module and stays active — don't send them.
+            const { module, isActive, ...rest } = data
+            await updateCategory(categoryDialog.data.id, categoryDialog.data.isSystem ? rest : { ...rest, module, isActive })
             toast.success(t('masterData.updated', { kind: t('masterData.kind.category'), name: data.name }))
           } else {
-            await createCategory(data)
+            const { isActive: _active, ...input } = data   // eslint-disable-line @typescript-eslint/no-unused-vars
+            await createCategory(input)
             toast.success(t('masterData.created', { kind: t('masterData.kind.category'), name: data.name }))
           }
         }}

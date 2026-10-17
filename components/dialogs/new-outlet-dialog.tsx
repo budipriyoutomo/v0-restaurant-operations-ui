@@ -16,7 +16,9 @@ interface NewOutletDialogProps {
 
 const statuses: OutletStatus[] = ['operational', 'warning', 'critical']
 // approvalThreshold is kept as the raw input string: '' = use the global default.
-const defaultForm = { name: '', code: '', status: 'operational' as OutletStatus, approvalThreshold: '' }
+// The zones RestaurantOps outlets are in; the backend accepts any IANA name.
+const TIMEZONES = ['Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura', 'Asia/Kuala_Lumpur', 'Asia/Singapore']
+const defaultForm = { name: '', code: '', status: 'operational' as OutletStatus, approvalThreshold: '', timezone: 'Asia/Jakarta' }
 
 export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: NewOutletDialogProps) {
   const { t, label } = useT()
@@ -34,6 +36,7 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
             code: initialData.code,
             status: initialData.status,
             approvalThreshold: initialData.approvalThreshold == null ? '' : String(initialData.approvalThreshold),
+            timezone: initialData.timezone ?? 'Asia/Jakarta',
           }
         : defaultForm
       )
@@ -60,6 +63,7 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
         code: formData.code.toUpperCase(),
         status: formData.status,
         approvalThreshold: formData.approvalThreshold === '' ? null : Number(formData.approvalThreshold),
+        timezone: formData.timezone,
       })
       onOpenChange(false)
     } catch (err) {
@@ -134,6 +138,23 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label htmlFor="outlet-timezone" className="block text-sm font-semibold mb-1.5">{t('outletDialog.timezone')}</label>
+            <select id="outlet-timezone"
+              name="timezone"
+              value={formData.timezone}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              {(TIMEZONES.includes(formData.timezone) ? TIMEZONES : [formData.timezone, ...TIMEZONES]).map((tz) => (
+                <option key={tz} value={tz}>
+                  {TIMEZONES.includes(tz) ? t(`outletDialog.tz.${tz.replace('/', '_')}` as 'outletDialog.tz.Asia_Jakarta') : tz}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">{t('outletDialog.timezoneHint')}</p>
           </div>
 
           <div>

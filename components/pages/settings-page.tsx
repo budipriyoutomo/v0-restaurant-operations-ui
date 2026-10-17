@@ -30,6 +30,9 @@ interface AppPreferences {
   waApprovalDecided: boolean
   waWorkOrderAssigned: boolean
   waIssueReadyToClose: boolean
+  waTemperatureExcursion: boolean
+  waOpsMissed: boolean
+  waOpsDueSoon: boolean
   // GM outlet summary (Todo-Pilot §25) — opt-in, read by outlet_comparison_service.
   digestDaily: boolean
   digestWeekly: boolean
@@ -51,17 +54,23 @@ const DEFAULT_PREFS: AppPreferences = {
   waApprovalDecided:   true,
   waWorkOrderAssigned: true,
   waIssueReadyToClose: true,
+  waTemperatureExcursion: true,
+  waOpsMissed: true,
+  waOpsDueSoon: true,
   digestDaily:         false,
   digestWeekly:        false,
 }
 
 // Label: t('settings.ev.<ev>'), description: t('settings.wa.<ev>') / t('settings.email.<ev>').
-const WA_EVENTS: { key: keyof AppPreferences; ev: 'approvalPending' | 'approvalEscalated' | 'approvalDecided' | 'woAssigned' | 'readyToClose' }[] = [
+const WA_EVENTS: { key: keyof AppPreferences; ev: 'approvalPending' | 'approvalEscalated' | 'approvalDecided' | 'woAssigned' | 'readyToClose' | 'tempExcursion' | 'opsMissed' | 'opsDueSoon' }[] = [
   { key: 'waApprovalPending',   ev: 'approvalPending' },
   { key: 'waApprovalEscalated', ev: 'approvalEscalated' },
   { key: 'waApprovalDecided',   ev: 'approvalDecided' },
   { key: 'waWorkOrderAssigned', ev: 'woAssigned' },
   { key: 'waIssueReadyToClose', ev: 'readyToClose' },
+  { key: 'waTemperatureExcursion', ev: 'tempExcursion' },   // Todo-Ops-Checklist Fase 2
+  { key: 'waOpsMissed',  ev: 'opsMissed' },     // Fase 3
+  { key: 'waOpsDueSoon', ev: 'opsDueSoon' },    // Fase 3
 ]
 const EMAIL_EVENTS: { key: keyof AppPreferences; ev: 'approvalPending' | 'approvalEscalated' | 'approvalDecided' | 'woAssigned' }[] = [
   { key: 'emailApprovalPending',   ev: 'approvalPending' },

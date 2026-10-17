@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
-import { MasterCategory, PIC } from '@/lib/types'
+import type { AssignableUser, MasterCategory, PIC } from '@/lib/types'
+import { useIssueStore } from '@/lib/store'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
 interface NewPICDialogProps {
@@ -18,12 +19,13 @@ interface NewPICDialogProps {
     phone: string
     department: string
     categories: string[]
+    userId: string | null
   }) => Promise<void> | void
 }
 
 // Stored as these values; shown as t('picDialog.dept.<value>').
 const departments = ['Engineering', 'Operations', 'Maintenance', 'Quality', 'Supply Chain', 'Finance'] as const
-const defaultForm = { name: '', email: '', phone: '', department: 'Engineering', categories: [] as string[] }
+const defaultForm = { name: '', email: '', phone: '', department: 'Engineering', categories: [] as string[], userId: null as string | null }
 
 export function NewPICDialog({ open, onOpenChange, categories, initialData, onSubmit }: NewPICDialogProps) {
   const { t } = useT()
@@ -32,6 +34,12 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
   const [error, setError] = useState<string | null>(null)
 
   const isEdit = !!initialData
+  // The PIC's account (P2): every active user of the company.
+  const loadAssignableUsers = useIssueStore((s) => s.loadAssignableUsers)
+  const [users, setUsers] = useState<AssignableUser[]>([])
+  useEffect(() => {
+    if (open) loadAssignableUsers('').then(setUsers).catch(() => setUsers([]))
+  }, [open, loadAssignableUsers])
 
   useEffect(() => {
     if (open) {
@@ -42,6 +50,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
             phone: initialData.phone,
             department: initialData.department,
             categories: [...initialData.categories],
+            userId: initialData.userId ?? null,
           }
         : defaultForm
       )
@@ -156,6 +165,23 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label htmlFor="pic-user" className="block text-sm font-semibold mb-1.5">{t('picDialog.userAccount')}</label>
+            <select id="pic-user"
+              value={formData.userId ?? ''}
+              onChange={(e) => setFormData((prev) => ({ ...prev, userId: e.target.value || null }))}
+              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="">{t('picDialog.noUser')}</option>
+              {/* Keep the current link visible even if the user list has not loaded / excludes them. */}
+              {formData.userId && !users.some((u) => u.id === formData.userId) && (
+                <option value={formData.userId}>{initialData?.userName ?? formData.userId}</option>
+              )}
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name} · {u.role_name}</option>)}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">{t('picDialog.userHint')}</p>
           </div>
 
           <div>

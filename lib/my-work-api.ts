@@ -13,6 +13,10 @@ export interface MyWork {
   readyToClose: Section<{ id: string; number: string; title: string; outlet: string; status: string }> | null
   guestWaiting: Section<{ id: string; issueId: string; issueNumber: string; title: string; outlet: string;
     channel: string; reportedAt: string | null }> | null
+  // Today's daily checklists at my outlets still to fill in (Todo-Ops-Checklist Fase 1)
+  opsChecklists?: Section<{ id: string; number: string; templateName: string; shift: string; outlet: string;
+    status: string; opensAt: string | null; dueAt: string | null; closesAt: string | null;
+    answered: number; itemCount: number }> | null
 }
 
 export const myWorkApi = {

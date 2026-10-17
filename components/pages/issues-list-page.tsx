@@ -10,7 +10,8 @@ import { useDebounced, usePagedList } from '@/lib/use-paged-list'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { apiErrorMessage } from '@/lib/api-client'
 import { useMyOutlets, usePermissions } from '@/lib/permissions'
-import { Issue, IssueCategory, IssueStatus } from '@/lib/types'
+import type { CategoryModule, CategorySystemKey, Issue, IssueStatus } from '@/lib/types'
+import { activeCategories } from '@/lib/categories'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
 import { approvalThresholdsByOutlet } from '@/lib/outlet-threshold'
 import { approvalBadge, linkedWorkOrder, slaState } from '@/lib/issue-card'
@@ -21,6 +22,7 @@ import { navigate, useRecordRoute, useRoute, useUrlState } from '@/lib/use-route
 import { NotFoundView } from '@/components/shared/not-found-view'
 import { AssigneePicker } from '@/components/shared/assignee-picker'
 import { IssuePhotos } from '@/components/shared/issue-photos'
+import { IssueComments } from '@/components/shared/issue-comments'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { UnlinkedAssigneeNote } from '@/components/shared/unlinked-assignee-note'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
@@ -28,28 +30,25 @@ import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 const PAGE_SIZE = 12
 
 // Saved views (Todo-Pilot §6): QA & Compliance, Guest Service and IT Support are
-// the Issues list pinned to one category, not separate half-built modules.
+// the Issues list pinned to one category module (P1: every category in it, e.g.
+// Compliance + Food Safety), not separate half-built modules.
 // Their page ids stay, so the existing per-module permissions still apply.
 export type IssueViewId = 'qa' | 'guest-service' | 'it-support'
 
 // Title & description: t('issues.view.<id>.title|description').
-const ISSUE_VIEWS: Record<IssueViewId, { category: IssueCategory }> = {
-  qa:              { category: 'Compliance' },
-  'guest-service': { category: 'Guest Service' },
-  'it-support':    { category: 'IT Support' },
+const ISSUE_VIEWS: Record<IssueViewId, { module: CategoryModule; systemKey: CategorySystemKey }> = {
+  qa:              { module: 'compliance',    systemKey: 'compliance' },
+  'guest-service': { module: 'guest_service', systemKey: 'guest_service' },
+  'it-support':    { module: 'it_support',    systemKey: 'it_support' },
 }
-
-const CATEGORIES: IssueCategory[] = [
-  'Maintenance', 'IT Support', 'Compliance', 'Training', 'Procurement', 'Marketing', 'Asset Purchase', 'Guest Service', 'Other',
-]
 
 export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   const viewDef = view ? ISSUE_VIEWS[view] : undefined
   const {
     issues, tasks, approvals, workOrders, outlets, pics, assets, createIssue, updateIssueStatus,
     cancelIssue, reopenIssue, reviseApproval, bulkCloseIssues, assignIssue,
-    uploadIssuePhoto, loadIssuePhotos, resolveQr, currentUser,
-    upsertIssues, fetchIssue, loadIssueChildren,
+    uploadIssuePhoto, loadIssuePhotos, loadIssueComments, addIssueComment, resolveQr, currentUser,
+    upsertIssues, fetchIssue, loadIssueChildren, categories,
   } = useIssueStore()
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
@@ -85,7 +84,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   const searchQuery = searchQueryParam ?? ''
   const [filterPriority, setFilterPriority] = useUrlState('priority', null, routed)
   const [filterCategoryParam, setFilterCategory] = useUrlState('category', null, routed)
-  const filterCategory = filterCategoryParam as IssueCategory | null
+  const filterCategory = filterCategoryParam   // category name (master data)
   const [hideFinishedParam, setHideFinished] = useUrlState('open', null, routed)
   const hideFinished = hideFinishedParam === '1'
   // "Siap ditutup" (Todo-Pilot §18 / UX-5): finished work waiting for the close.
@@ -114,11 +113,12 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   // Filters and paging run on the server (Todo-Pilot §22); the rows go into the
   // store cache so a status change or reassignment updates the card at once.
   const debouncedSearch = useDebounced(searchQuery)
-  const category = viewDef?.category ?? filterCategory
-  const filterKey = [debouncedSearch, filterPriority, category, hideFinished, readyOnly, filterOutlet, lateOnly].join('|')
+  const category = viewDef ? null : filterCategory
+  const viewModule = viewDef?.module ?? null
+  const filterKey = [debouncedSearch, filterPriority, category, viewModule, hideFinished, readyOnly, filterOutlet, lateOnly].join('|')
   useEffect(() => { setPage(1) }, [filterKey])
   const list = usePagedList<Issue>('/api/issues', {
-    q: debouncedSearch.trim(), priority: filterPriority, category, active: hideFinished, ready: readyOnly,
+    q: debouncedSearch.trim(), priority: filterPriority, category, module: viewModule, active: hideFinished, ready: readyOnly,
     outlet: filterOutlet, late: lateOnly,
   }, { page, pageSize: PAGE_SIZE, onItems: upsertIssues })
   const pagedIssues = (list.ids ?? []).map((id) => issues.find((i) => i.id === id)).filter((i): i is Issue => !!i)
@@ -322,9 +322,9 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
         {!viewDef && (
           <div className="flex gap-1 items-center flex-wrap">
             <span className="text-xs font-medium text-muted-foreground">{t('issues.categoryFilter')}</span>
-            {CATEGORIES.map((c) => (
+            {activeCategories(categories).map(({ id: cid, name: c }) => (
               <button
-                key={c}
+                key={cid}
                 onClick={() => { setFilterCategory(filterCategory === c ? null : c); setPage(1) }}
                 className={cn(
                   'px-2.5 py-1 rounded-full text-xs font-semibold transition-colors',
@@ -572,6 +572,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
               </div>
 
               <IssuePhotos issueId={selectedIssue.id} count={selectedIssue.photoCount ?? 0} load={loadIssuePhotos} />
+              <IssueComments issueId={selectedIssue.id} load={loadIssueComments} add={addIssueComment} />
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -834,7 +835,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
         outlets={myOutlets.map((o) => o.name)}
         approvalThresholds={approvalThresholdsByOutlet(myOutlets)}
         assets={assets}
-        defaultCategory={viewDef?.category}
+        defaultSystemKey={viewDef?.systemKey}
         onSubmit={handleCreate}
         quick={quickReport}
         whatsappOptIn={Boolean(currentUser?.whatsapp_number)}

@@ -2,14 +2,16 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import {
-  X, CheckSquare, CheckCircle2, Sparkles, Wrench, Monitor, ShieldCheck, GraduationCap, ShoppingCart,
-  Megaphone, Package, MessageSquareWarning, CircleHelp, Camera, QrCode, MessageCircle,
+  X, CheckSquare, CheckCircle2, Sparkles, Wrench, Camera, QrCode, MessageCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { apiErrorMessage, QueuedError } from '@/lib/api-client'
 import { newKey } from '@/lib/offline-queue'
-import { CATEGORY_DEFAULTS, CreateIssueInput, IssueCategory, Priority, Asset, QRResolveResult } from '@/lib/types'
+import type { CategorySystemKey, CreateIssueInput, Priority, Asset, QRResolveResult } from '@/lib/types'
+import { activeCategories, allowsWorkOrder, categoryBySystemKey, defaultsFor } from '@/lib/categories'
+import { useIssueStore } from '@/lib/store'
+import { CategoryIcon } from '@/components/shared/category-icon'
 import { AssigneePicker } from '@/components/shared/assignee-picker'
 import { ScanTab } from '@/components/cmms/qr-dialog'
 import { useT } from '@/lib/i18n'
@@ -23,8 +25,10 @@ interface CreateIssueDialogProps {
   outlets?: string[]
   /** Assets from store — shown in WO asset selector when Maintenance category */
   assets?: Asset[]
-  /** Pre-select a category and lock the selector */
-  defaultCategory?: IssueCategory
+  /** Pre-select this system category (P1: categories are master data). The
+   *  picker then offers only the categories of its module — e.g. Maintenance,
+   *  HVAC, Plumbing on the Maintenance page — and is read-only when that is one. */
+  defaultSystemKey?: CategorySystemKey
   /** Effective WO approval threshold (IDR) per outlet name (Todo-Pilot §5).
    *  Outlets not listed use DEFAULT_APPROVAL_THRESHOLD. */
   approvalThresholds?: Record<string, number>
@@ -42,15 +46,6 @@ interface CreateIssueDialogProps {
   resolveQr?: (token: string) => Promise<QRResolveResult>
 }
 
-const CATEGORY_ICONS: Record<IssueCategory, React.ElementType> = {
-  'Maintenance': Wrench, 'IT Support': Monitor, 'Compliance': ShieldCheck, 'Training': GraduationCap,
-  'Procurement': ShoppingCart, 'Marketing': Megaphone, 'Asset Purchase': Package,
-  'Guest Service': MessageSquareWarning, 'Other': CircleHelp,
-}
-
-const CATEGORIES: IssueCategory[] = [
-  'Maintenance', 'IT Support', 'Compliance', 'Training', 'Procurement', 'Marketing', 'Asset Purchase', 'Guest Service', 'Other',
-]
 const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'critical']
 
 // Mirrors backend settings.APPROVAL_THRESHOLD_DEFAULT; the backend decides.
@@ -59,18 +54,24 @@ export const DEFAULT_APPROVAL_THRESHOLD = 1_000_000
 const rupiah = (n: number) => formatMoney(n)
 
 export function CreateIssueDialog({
-  open, onOpenChange, outlets, assets, defaultCategory, approvalThresholds, onSubmit,
+  open, onOpenChange, outlets, assets, defaultSystemKey, approvalThresholds, onSubmit,
   quick = false, whatsappOptIn = false, onUploadPhoto, resolveQr,
 }: CreateIssueDialogProps) {
   const id = useId()
   const { t, label } = useT()
   const outletOptions   = outlets ?? []
+  // Categories are master data (P1). A page pinned to one module offers only
+  // that module's categories; the default is its system category.
+  const allCategories = useIssueStore((s) => s.categories)
+  const pinned = defaultSystemKey ? categoryBySystemKey(allCategories, defaultSystemKey) : undefined
+  const categoryOptions = activeCategories(allCategories).filter((c) => !pinned || c.module === pinned.module)
+  const defaultCategoryId = (pinned ?? categoryBySystemKey(categoryOptions, 'maintenance') ?? categoryOptions[0])?.id ?? ''
 
   const [form, setForm] = useState({
     title: '',
     description: '',
     outlet: outletOptions[0] ?? '',
-    category: (defaultCategory ?? 'Maintenance') as IssueCategory,
+    category: defaultCategoryId,   // category id
     priority: 'medium' as Priority,
     assignee: 'Unassigned',
     assigneeUserId: null as string | null,   // a user, not a name (Todo-Pilot §17)
@@ -97,7 +98,8 @@ export function CreateIssueDialog({
   // Quick report ends on a confirmation (Todo-Pilot §20).
   const [sent, setSent] = useState<{ number: string; outlet: string; photo: 'queued' | 'failed' | null } | null>(null)
 
-  const isMaintenance = form.category === 'Maintenance'
+  const selectedCategory = categoryOptions.find((c) => c.id === form.category)
+  const isMaintenance = allowsWorkOrder(selectedCategory?.module)
   const threshold = approvalThresholds?.[form.outlet] ?? DEFAULT_APPROVAL_THRESHOLD
   // Strictly above, like backend work_order_service.needs_approval.
   const needsApproval = form.estimatedCost !== '' && Number(form.estimatedCost) > threshold
@@ -107,7 +109,7 @@ export function CreateIssueDialog({
         title: '',
         description: '',
         outlet: outletOptions[0] ?? '',
-        category: defaultCategory ?? 'Maintenance',
+        category: defaultCategoryId,
         priority: 'medium',
         assignee: 'Unassigned',
         assigneeUserId: null,
@@ -132,24 +134,33 @@ export function CreateIssueDialog({
     if (open) reset()
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Master data may arrive after the dialog opened.
+  useEffect(() => {
+    if (!form.category && defaultCategoryId) setForm((prev) => ({ ...prev, category: defaultCategoryId }))
+  }, [defaultCategoryId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Smart default: whenever category changes (and user hasn't manually
-  // overridden the toggles yet), pre-fill Task/Approval suggestions.
+  // overridden the toggles yet), pre-fill Task/Approval suggestions from the
+  // category's own defaults (editable in Master Data).
   useEffect(() => {
     if (!touchedToggles) {
-      const defaults = CATEGORY_DEFAULTS[form.category]
+      const defaults = defaultsFor(selectedCategory)
       setGenerateTask(defaults.task)
       setGenerateApproval(defaults.approval)
     }
-  }, [form.category, touchedToggles])
+  }, [form.category, selectedCategory?.defaultGenerateTask, selectedCategory?.defaultGenerateApproval, touchedToggles]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Quick report needs only a title (and an outlet); the full form also asks
   // for a description and a due date.
-  const isComplete = quick
+  const isComplete = Boolean(selectedCategory) && (quick
     ? Boolean(form.title.trim() && form.outlet)
-    : Boolean(form.title.trim() && form.description.trim() && form.dueDate && form.outlet)
+    : Boolean(form.title.trim() && form.description.trim() && form.dueDate && form.outlet))
 
   // A scanned asset sticker fills in where and what (Todo-Pilot §20).
   const handleQr = ({ asset }: QRResolveResult) => {
+    // An asset problem is a maintenance one unless the page is pinned elsewhere.
+    const scannedCategoryId = pinned ? defaultCategoryId
+      : (categoryBySystemKey(categoryOptions, 'maintenance')?.id ?? defaultCategoryId)
     setScanOpen(false)
     setScannedAsset(`${asset.name} (${asset.number})`)
     setForm((prev) => {
@@ -159,12 +170,12 @@ export function CreateIssueDialog({
         ...prev,
         outlet,
         ...(moved ? { assignee: 'Unassigned', assigneeUserId: null } : {}),
-        category: defaultCategory ?? 'Maintenance',
+        category: scannedCategoryId,
         description: prev.description.trim() ? prev.description : `${asset.name} (${asset.number}): `,
         assetId: asset.id,
       }
     })
-    if (!quick && (defaultCategory ?? 'Maintenance') === 'Maintenance') {
+    if (!quick && allowsWorkOrder(categoryOptions.find((c) => c.id === scannedCategoryId)?.module)) {
       setTouchedToggles(true)
       setGenerateWorkOrder(true)
     }
@@ -192,7 +203,8 @@ export function CreateIssueDialog({
         title: form.title,
         description: form.description,
         outlet: form.outlet,
-        category: form.category,
+        category: selectedCategory?.name ?? '',
+        categoryId: selectedCategory?.id,
         priority: form.priority,
         assignee: quick ? 'Unassigned' : form.assignee,
         assigneeUserId: quick ? null : form.assigneeUserId,
@@ -349,33 +361,33 @@ export function CreateIssueDialog({
           {/* Category */}
           <div>
             <label htmlFor={`${id}-category`} className="block text-sm font-semibold mb-1.5">{t('common.category')}</label>
-            {quick && !defaultCategory ? (
+            {quick && !pinned ? (
               // Big tap targets with an icon — faster than a dropdown on a phone.
               <div id={`${id}-category`} role="radiogroup" aria-label={t('common.category')} className="grid grid-cols-3 gap-2">
-                {CATEGORIES.map((c) => {
-                  const Icon = CATEGORY_ICONS[c]
-                  const on = form.category === c
+                {categoryOptions.map((c) => {
+                  const on = form.category === c.id
                   return (
-                    <label key={c} className={cn(
+                    <label key={c.id} className={cn(
                       'min-h-16 flex flex-col items-center justify-center gap-1 rounded-md border p-2 text-center text-[11px] font-medium cursor-pointer transition-colors',
                       'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/50',
                       on ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/40')}>
-                      <input type="radio" name="category" value={c} checked={on} onChange={handleChange} className="sr-only" />
-                      <Icon className="size-5" aria-hidden />
-                      {label('category', c)}
+                      <input type="radio" name="category" value={c.id} checked={on} onChange={handleChange} className="sr-only" />
+                      <CategoryIcon name={c.icon} className="size-5" />
+                      {label('category', c.name)}
                     </label>
                   )
                 })}
               </div>
-            ) : defaultCategory ? (
+            ) : pinned && categoryOptions.length <= 1 ? (
               <div id={`${id}-category`} role="textbox" aria-readonly="true"
                 className="w-full px-3 py-2 rounded-md border border-border bg-muted/40 text-sm text-muted-foreground">
-                {label('category', defaultCategory)}
+                {label('category', pinned.name)}
               </div>
             ) : (
               <select id={`${id}-category`} name="category" value={form.category} onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-                {CATEGORIES.map((c) => <option key={c} value={c}>{label('category', c)}</option>)}
+                {categoryOptions.length === 0 && <option value="">{t('createIssue.noCategories')}</option>}
+                {categoryOptions.map((c) => <option key={c.id} value={c.id}>{label('category', c.name)}</option>)}
               </select>
             )}
           </div>

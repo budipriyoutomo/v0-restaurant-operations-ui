@@ -61,6 +61,10 @@ import {
   UpdatePMScheduleInput,
   RunPMGeneratorResult,
   ApprovalPolicy,
+  AssignmentRule,
+  IssueComment,
+  CreateAssignmentRuleInput,
+  UpdateAssignmentRuleInput,
   CreateApprovalPolicyInput,
   UpdateApprovalPolicyInput,
   CMMSAnalytics,
@@ -173,6 +177,8 @@ interface IssueCoreState {
   createIssue: (input: CreateIssueInput) => Promise<Issue>
   uploadIssuePhoto: (issueId: string, file: File, caption?: string) => Promise<IssuePhoto>
   loadIssuePhotos: (issueId: string) => Promise<IssuePhoto[]>
+  loadIssueComments: (issueId: string) => Promise<IssueComment[]>
+  addIssueComment: (issueId: string, body: string) => Promise<IssueComment>
   updateIssueStatus: (issueId: string, status: Issue['status']) => void
   cancelIssue:       (issueId: string, reason?: string) => Promise<Issue>
   bulkCloseIssues:   (issueIds: string[]) => Promise<BulkCloseResult>
@@ -257,6 +263,13 @@ interface IssueCoreState {
   createBudget: (outletId: string, period: string, amount: number) => Promise<Budget>
   updateBudget: (id: string, amount: number) => Promise<Budget>
   deleteBudget: (id: string) => Promise<void>
+
+  // Assignee routing rules (Todo-Ops-Checklist P2)
+  assignmentRules: AssignmentRule[]
+  loadAssignmentRules: () => Promise<void>
+  createAssignmentRule: (input: CreateAssignmentRuleInput) => Promise<AssignmentRule>
+  updateAssignmentRule: (id: string, input: UpdateAssignmentRuleInput) => Promise<AssignmentRule>
+  deleteAssignmentRule: (id: string) => Promise<void>
 
   // Approval policies (Tier 2.2)
   approvalPolicies: ApprovalPolicy[]
@@ -380,6 +393,8 @@ const EMPTY_DATA = {
 
   approvalPolicies: [],
   policiesLoading:  false,
+
+  assignmentRules: [],
 
   cmmsAnalytics:        null,
   cmmsAnalyticsLoading: false,
@@ -812,6 +827,21 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
 
   loadIssuePhotos: async (issueId) => {
     return api.get<IssuePhoto[]>(`/api/issues/${issueId}/photos`)
+  },
+
+  // Comments (Todo-Ops-Checklist P3). Through the offline queue: throws
+  // QueuedError when stored for later.
+  loadIssueComments: async (issueId) => {
+    return api.get<IssueComment[]>(`/api/issues/${issueId}/comments`)
+  },
+
+  addIssueComment: async (issueId, body) => {
+    return api.mutateOrQueue<IssueComment>({
+      method: 'POST',
+      path: `/api/issues/${issueId}/comments`,
+      body: { body },
+      label: `Komentar laporan ${issueId.slice(0, 8)}`,
+    })
   },
 
   // -------------------------------------------------------------------------
@@ -1429,6 +1459,9 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
     const category = await api.patch<MasterCategory>(`/api/categories/${id}`, input)
     set((state) => ({
       categories: state.categories.map((c) => c.id === id ? category : c),
+      // issues.category is the denormalized name — the server renamed them too (P1).
+      issues: state.issues.map((i) => i.categoryId === id
+        ? { ...i, category: category.name, categoryModule: category.module } : i),
     }))
     return category
   },
@@ -1441,6 +1474,30 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
       get().loadMasterData()
       throw e
     }
+  },
+
+  // -------------------------------------------------------------------------
+  // Assignee routing rules (Todo-Ops-Checklist P2)
+  // -------------------------------------------------------------------------
+  loadAssignmentRules: async () => {
+    set({ assignmentRules: await api.get<AssignmentRule[]>('/api/issue-assignment-rules') })
+  },
+
+  createAssignmentRule: async (input) => {
+    const rule = await api.post<AssignmentRule>('/api/issue-assignment-rules', input)
+    await get().loadAssignmentRules()   // server order: category, then all outlets first
+    return rule
+  },
+
+  updateAssignmentRule: async (id, input) => {
+    const rule = await api.patch<AssignmentRule>(`/api/issue-assignment-rules/${id}`, input)
+    set((state) => ({ assignmentRules: state.assignmentRules.map((r) => r.id === id ? rule : r) }))
+    return rule
+  },
+
+  deleteAssignmentRule: async (id) => {
+    await api.delete(`/api/issue-assignment-rules/${id}`)
+    set((state) => ({ assignmentRules: state.assignmentRules.filter((r) => r.id !== id) }))
   },
 
   // -------------------------------------------------------------------------

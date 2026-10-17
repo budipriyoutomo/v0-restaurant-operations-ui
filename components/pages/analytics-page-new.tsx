@@ -8,6 +8,9 @@ import { QAScoresPanel } from '@/components/qa/qa-scores-panel'
 import { useT } from '@/lib/i18n'
 import { issueWorkState } from '@/lib/issue-work-state'
 import { GuestKpiPanel } from '@/components/guest/guest-kpi-panel'
+import { OpsKpiPanel } from '@/components/ops/kpi-panel'
+import { navigate } from '@/lib/use-route'
+import { hasPermission } from '@/lib/access'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 
 const STATUS_ORDER: IssueStatus[] = ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed', 'cancelled']
@@ -27,6 +30,7 @@ const PRIORITY_TEXT: Record<Priority, string> = {
 export function AnalyticsDashboardPage() {
   // Aggregates every issue/task/approval: loads them all when opened (Todo-Pilot §22)
   useEnsureLoaded('core')
+  const currentUser = useIssueStore((s) => s.currentUser)
   const { issues, tasks, approvals } = useIssueStore()
   const { t, label } = useT()
 
@@ -278,6 +282,14 @@ export function AnalyticsDashboardPage() {
           )}
         </ChartCard>
       </div>
+
+      {/* Daily checklist compliance per outlet, worst first (Todo-Ops-Checklist Fase 3) */}
+      {hasPermission(currentUser, 'ops') && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold">{t('analytics.opsCompliance')}</h2>
+          <OpsKpiPanel compact onOutlet={(o) => navigate(`/ops?tab=history&outlet=${encodeURIComponent(o)}`)} />
+        </div>
+      )}
 
       {/* QA audit scores per outlet + monthly trend (Todo-Pilot §7) */}
       <div className="space-y-2">

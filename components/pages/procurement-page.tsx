@@ -129,7 +129,7 @@ export function ProcurementPage() {
       <CreateIssueDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        defaultCategory="Procurement"
+        defaultSystemKey="procurement"
         outlets={myOutlets.map(o => o.name)}
         onSubmit={async (input) => { await createIssue(input) }}
       />

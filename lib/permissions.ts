@@ -41,6 +41,8 @@ export function usePermissions() {
     manageGuest: manage('guest-service'),
     // QA audits: run audits, edit checklist templates (Todo-Pilot §7)
     manageQA: manage('qa'),
+    // Daily ops checklists: templates, schedules, run-now (Todo-Ops-Checklist); filling in = ops:view
+    manageOps: manage('ops'),
     // Asset create/edit/delete
     manageAssets: manage('assets'),
     // Work orders, PM schedules, spare parts

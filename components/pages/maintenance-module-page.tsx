@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Search, AlertCircle, Wrench, Calendar, User, Plus, GripVertical, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
+import { issueModule } from '@/lib/categories'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { Issue, IssueStatus, Priority } from '@/lib/types'
@@ -32,7 +33,7 @@ const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low']
 
 export function MaintenanceModulePage() {
   useEnsureLoaded('core', 'cmms')
-  const { issues, updateIssueStatus, workOrders, assets, pics, createWorkOrder, createIssue } = useIssueStore()
+  const { issues, updateIssueStatus, workOrders, assets, pics, createWorkOrder, createIssue, categories } = useIssueStore()
   const { can } = usePermissions()
   const { t, label, status, date, locale } = useT()
   const myOutlets = useMyOutlets()
@@ -47,7 +48,8 @@ export function MaintenanceModulePage() {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<IssueStatus | null>(null)
 
-  const maintenanceIssues = issues.filter((i) => i.category === 'Maintenance')
+  // Every category of the maintenance module (Maintenance, HVAC, …), whatever its name (P1).
+  const maintenanceIssues = issues.filter((i) => issueModule(i, categories) === 'maintenance')
 
   const filtered = maintenanceIssues.filter((i) => {
     const q = searchQuery.toLowerCase()
@@ -392,7 +394,7 @@ export function MaintenanceModulePage() {
       <CreateIssueDialog
         open={showReport}
         onOpenChange={setShowReport}
-        defaultCategory="Maintenance"
+        defaultSystemKey="maintenance"
         outlets={myOutlets.map((o) => o.name)}
         approvalThresholds={approvalThresholdsByOutlet(myOutlets)}
         assets={assets}

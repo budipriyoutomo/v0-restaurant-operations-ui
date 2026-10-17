@@ -28,16 +28,27 @@ export interface ClosureBlocker {
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
 
-export type IssueCategory =
-  | 'Maintenance'
-  | 'IT Support'
-  | 'Compliance'
-  | 'Training'
-  | 'Procurement'
-  | 'Marketing'
-  | 'Asset Purchase'
-  | 'Guest Service'
-  | 'Other'
+// Issue categories are master data (Todo-Ops-Checklist P1): names are data,
+// behaviour follows the module. See lib/categories.ts.
+export type CategoryModule =
+  | 'maintenance'
+  | 'it_support'
+  | 'compliance'
+  | 'guest_service'
+  | 'asset_purchase'
+  | 'general'
+
+export type CategorySystemKey =
+  | 'maintenance'
+  | 'it_support'
+  | 'compliance'
+  | 'training'
+  | 'procurement'
+  | 'marketing'
+  | 'asset_purchase'
+  | 'guest_service'
+  | 'other'
+  | 'food_safety'
 
 export type ApprovalType =
   | 'procurement'
@@ -63,38 +74,15 @@ export interface ApprovalStep {
   createdAt: string
 }
 
-// Maps an Issue category to the Approval "type" badge used in the
-// Approval Center. Only categories that can carry an approval need an entry.
-export const CATEGORY_TO_APPROVAL_TYPE: Partial<Record<IssueCategory, ApprovalType>> = {
-  Maintenance: 'maintenance',
-  Procurement: 'procurement',
-  Marketing: 'marketing',
-  Training: 'training',
-  'Asset Purchase': 'asset-purchase',
-}
-
-// Default suggestion rules: when creating an Issue with this category,
-// should the UI pre-check "Generate Task" / "Generate Approval"?
-// These are *defaults* the user can override in the Create Issue form.
-export const CATEGORY_DEFAULTS: Record<IssueCategory, { task: boolean; approval: boolean }> = {
-  Maintenance: { task: true, approval: false },
-  'IT Support': { task: true, approval: false },
-  Compliance: { task: true, approval: false },
-  Training: { task: true, approval: true },
-  Procurement: { task: true, approval: true },
-  Marketing: { task: true, approval: true },
-  'Asset Purchase': { task: true, approval: true },
-  'Guest Service': { task: true, approval: false },
-  Other: { task: true, approval: false },
-}
-
 export interface Issue {
   id: string
   number: string // e.g. ISS-2026-00145
   title: string
   description: string
   outlet: string
-  category: IssueCategory
+  category: string                         // category name (master data)
+  categoryId?: string | null
+  categoryModule?: CategoryModule | null   // behaviour of that category
   priority: Priority
   status: IssueStatus
   assignee: string
@@ -106,7 +94,7 @@ export interface Issue {
   // Relations — populated automatically when child records are generated
   taskIds: string[]
   approvalId: string | null
-  workOrderId: string | null  // populated when Maintenance issue auto-generates a WO
+  workOrderId: string | null  // populated when a maintenance-module issue auto-generates a WO
   closureBlockers: ClosureBlocker[]  // non-empty → Resolve/Close is refused by the API
   // "Siap ditutup" (Todo-Pilot §18): derived records all finished, Issue not closed yet
   readyToClose?: boolean
@@ -195,13 +183,22 @@ export interface Outlet {
   // null = outlet uses approvalThresholdDefault (global).
   approvalThreshold: number | null
   approvalThresholdDefault: number
+  timezone?: string                 // IANA, e.g. Asia/Jakarta (daily checklist times)
 }
 
 export interface MasterCategory {
   id: string
   name: string
   description: string
-  type: CategoryType
+  type: CategoryType                  // legacy, derived from module
+  module: CategoryModule
+  systemKey: CategorySystemKey | null
+  isSystem: boolean                   // system rows: rename ok; no delete / deactivate / module change
+  isActive: boolean
+  defaultGenerateTask: boolean
+  defaultGenerateApproval: boolean
+  approvalType: ApprovalType | null   // null → procurement
+  icon: string | null                 // lucide icon name, kebab-case
 }
 
 export interface PIC {
@@ -211,6 +208,8 @@ export interface PIC {
   phone: string
   department: string
   categories: string[] // list of MasterCategory IDs
+  userId?: string | null    // linked user account (P2): gets the PIC's categories when no rule applies
+  userName?: string | null
 }
 
 export interface CreateOutletInput {
@@ -218,6 +217,7 @@ export interface CreateOutletInput {
   code: string
   status: OutletStatus
   approvalThreshold?: number | null
+  timezone?: string
 }
 
 export interface UpdateOutletInput {
@@ -225,18 +225,28 @@ export interface UpdateOutletInput {
   code?: string
   status?: OutletStatus
   approvalThreshold?: number | null   // null clears the override
+  timezone?: string
 }
 
 export interface CreateCategoryInput {
   name: string
   description: string
-  type: CategoryType
+  module: CategoryModule
+  defaultGenerateTask?: boolean
+  defaultGenerateApproval?: boolean
+  approvalType?: ApprovalType | null
+  icon?: string | null
 }
 
 export interface UpdateCategoryInput {
   name?: string
   description?: string
-  type?: CategoryType
+  module?: CategoryModule
+  isActive?: boolean
+  defaultGenerateTask?: boolean
+  defaultGenerateApproval?: boolean
+  approvalType?: ApprovalType | null
+  icon?: string | null
 }
 
 export interface CreatePICInput {
@@ -245,6 +255,7 @@ export interface CreatePICInput {
   phone: string
   department: string
   categories: string[]
+  userId?: string | null
 }
 
 export interface UpdatePICInput {
@@ -253,7 +264,229 @@ export interface UpdatePICInput {
   phone?: string
   department?: string
   categories?: string[]
+  userId?: string | null   // null unlinks
 }
+
+// Assignee routing, category × outlet → user (Todo-Ops-Checklist P2). A new
+// Issue without assignee goes to the (category, outlet) rule → the
+// (category, all outlets) rule → the category's PIC with a user → Unassigned.
+// Comments on an Issue (Todo-Ops-Checklist P3). system = written by a service,
+// e.g. a daily checklist item failing again on an open Issue.
+export type IssueCommentKind = 'user' | 'system'
+
+export interface IssueComment {
+  id: string
+  issueId: string
+  body: string
+  kind: IssueCommentKind
+  authorUserId: string | null
+  authorName: string
+  createdAt: string
+}
+
+// ── Daily ops checklist (Todo-Ops-Checklist Fase 1) ─────────────────────────
+export type OpsShift = 'opening' | 'midday' | 'closing' | 'other'
+export type OpsItemType = 'check' | 'number' | 'temperature'
+export type OpsResult = 'pass' | 'fail' | 'na'
+export type OpsRunStatus = 'pending' | 'in_progress' | 'submitted' | 'missed'
+// daily: daysOfWeek filter · weekly: its one weekday · monthly: dayOfMonth (Fase 4)
+export type OpsScheduleFrequency = 'daily' | 'weekly' | 'monthly'
+
+export interface OpsTemplateItem {
+  id: string
+  title: string
+  section: string
+  itemType: OpsItemType
+  minValue: number | null
+  maxValue: number | null
+  unit: string
+  requiresPhoto: boolean
+  isCritical: boolean
+  issueCategoryId: string | null   // null → Compliance
+  assetId?: string | null          // temperature item measuring one monitored asset (Fase 2)
+  assetName?: string | null
+}
+
+export type OpsTemplateItemInput = Omit<OpsTemplateItem, 'id'> & { id?: string }
+
+export interface OpsTemplate {
+  id: string
+  name: string
+  description: string
+  shift: OpsShift
+  isActive: boolean
+  items: OpsTemplateItem[]
+}
+
+export interface OpsSchedule {
+  id: string
+  templateId: string
+  templateName: string
+  shift: OpsShift
+  outlet: string
+  outletId: string
+  timezone: string
+  frequency: OpsScheduleFrequency
+  daysOfWeek: number[]            // ISO 1–7; empty = every day; weekly = exactly one
+  dayOfMonth: number | null       // monthly: 1–31, a shorter month → its last day
+  dueTime: string                 // HH:MM, outlet wall clock
+  openMinutesBefore: number
+  graceMinutes: number
+  isActive: boolean
+}
+
+export interface OpsPhoto {
+  id: string
+  fileUrl: string
+  thumbnailUrl: string
+  createdAt: string
+}
+
+export interface OpsRunItem {
+  id: string
+  templateItemId: string | null
+  title: string
+  section: string
+  itemType: OpsItemType
+  minValue: number | null
+  maxValue: number | null
+  unit: string
+  requiresPhoto: boolean
+  isCritical: boolean
+  assetId?: string | null          // QR scan of this asset jumps to the item
+  assetName?: string | null
+  result: OpsResult | null
+  value: number | null
+  notes: string
+  correctiveAction: string | null
+  recordedAt: string | null
+  issueId: string | null
+  issueNumber: string | null
+  photos: OpsPhoto[]
+}
+
+export interface OpsRun {
+  id: string
+  number: string                  // OPS-2026-00001
+  scheduleId: string
+  templateId: string
+  templateName: string
+  shift: OpsShift
+  outlet: string
+  outletId: string
+  runDate: string                 // shift date at the outlet
+  opensAt: string
+  dueAt: string
+  closesAt: string
+  status: OpsRunStatus
+  isLate: boolean
+  submittedByName: string | null
+  submittedAt: string | null
+  score: number | null
+  itemCount: number
+  answeredCount: number
+  failedCount: number
+  criticalFailed: boolean
+}
+
+export interface OpsRunDetail extends OpsRun {
+  items: OpsRunItem[]
+}
+
+// Checklist compliance (Todo-Ops-Checklist Fase 3). compliance = on time ÷ scheduled, %.
+export interface OpsKpiCounts {
+  scheduled: number               // runs that were due (finished, or window closed)
+  onTime: number
+  late: number
+  missed: number
+  compliance: number | null
+  avgScore: number | null
+  excursions: number
+  issuesCreated: number
+}
+
+export interface OpsOutletKpi extends OpsKpiCounts {
+  outlet: string
+  outletId: string
+  topFailing: { title: string; count: number }[]
+}
+
+export interface OpsKpis {
+  from: string
+  to: string
+  outlets: OpsOutletKpi[]         // lowest compliance first
+  totals: OpsKpiCounts
+  trend: { weekStart: string; scheduled: number; onTime: number; compliance: number | null }[]
+}
+
+// Manager's daily sign-off (Todo-Ops-Checklist Fase 4). One per outlet per
+// business day (05:00–05:00); digest = SHA-256 of the day's runs + readings.
+export interface OpsDaySummary {
+  runs: number
+  submitted: number
+  late: number
+  missed: number
+  failedItems: number
+  temperatureReadings: number
+  excursions: number
+}
+
+export interface OpsSignoff {
+  id: string
+  outlet: string
+  outletId: string
+  businessDate: string
+  signedByName: string
+  signedAt: string
+  note: string
+  summary: OpsDaySummary          // what the manager saw when signing
+  digest: string
+}
+
+export interface OpsDay {
+  outlet: string
+  outletId: string
+  date: string
+  summary: OpsDaySummary          // now
+  runs: OpsRun[]
+  signoff: OpsSignoff | null
+  canSign: boolean
+  problem: string | null          // why it cannot be signed yet
+  isIntact: boolean | null        // signed data still matches (null = not signed)
+}
+
+// Built-in template sets per outlet type (Fase 4, onboarding UX-11).
+export interface OpsPreset {
+  key: string
+  label: string
+  templates: { name: string; shift: OpsShift; frequency: OpsScheduleFrequency; dueTime: string; itemCount: number }[]
+}
+
+export interface OpsPresetResult {
+  preset: string
+  created: string[]
+  skipped: string[]               // names that already existed
+  schedules: number
+}
+
+export interface AssignmentRule {
+  id: string
+  categoryId: string
+  categoryName: string
+  outletId: string | null      // null = every outlet
+  outlet: string | null
+  assigneeUserId: string
+  assigneeName: string
+  assigneeActive: boolean      // false → skipped when routing
+}
+
+export interface CreateAssignmentRuleInput {
+  categoryId: string
+  outletId: string | null
+  assigneeUserId: string
+}
+
+export type UpdateAssignmentRuleInput = Partial<CreateAssignmentRuleInput>
 
 // =====================================================================
 // Audit log entry from /api/audit-logs
@@ -363,6 +596,44 @@ export interface Asset {
   purchaseCost: number | null    // IDR integer — for repair-vs-replace analytics
   qrToken: string | null         // opaque sticker token (Tier 5.2)
   createdAt: string
+  // Food safety temperature monitoring (Todo-Ops-Checklist Fase 2), °C inclusive
+  tempMonitored?: boolean
+  tempMin?: number | null
+  tempMax?: number | null
+}
+
+export type TemperatureSource = 'checklist' | 'manual' | 'sensor'
+
+export interface TemperatureLog {
+  id: string
+  assetId: string
+  outlet: string
+  value: number
+  minValue: number | null          // limits at the time of the reading
+  maxValue: number | null
+  inRange: boolean
+  correctiveAction: string | null
+  source: TemperatureSource
+  runItemId: string | null
+  issueId: string | null
+  recordedAt: string
+}
+
+// An IoT thermometer on a monitored asset (Fase 4). It posts readings with its
+// own key — returned once, at creation.
+export interface TemperatureSensor {
+  id: string
+  assetId: string
+  name: string
+  keyPrefix: string
+  isActive: boolean
+  lastSeenAt: string | null
+  lastValue: number | null
+  createdAt: string
+}
+
+export interface CreatedTemperatureSensor extends TemperatureSensor {
+  key: string
 }
 
 export interface QRResolveResult {
@@ -482,6 +753,9 @@ export interface CreateAssetInput {
   lastPM?: string
   nextPM?: string
   purchaseCost?: number
+  tempMonitored?: boolean
+  tempMin?: number | null
+  tempMax?: number | null
 }
 
 export interface UpdateAssetInput {
@@ -496,6 +770,9 @@ export interface UpdateAssetInput {
   lastPM?: string
   nextPM?: string
   purchaseCost?: number
+  tempMonitored?: boolean
+  tempMin?: number | null          // null clears
+  tempMax?: number | null
 }
 
 export interface CreateWorkOrderInput {
@@ -995,7 +1272,8 @@ export interface CreateIssueInput {
   title: string
   description: string
   outlet: string
-  category: IssueCategory
+  category: string           // name; categoryId wins when given
+  categoryId?: string
   priority: Priority
   assignee: string
   assigneeUserId?: string | null   // picker choice; wins over `assignee` (Todo-Pilot §17)

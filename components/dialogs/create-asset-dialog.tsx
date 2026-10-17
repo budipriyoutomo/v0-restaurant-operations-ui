@@ -35,6 +35,9 @@ const defaultForm = {
   lastPM: '',
   nextPM: '',
   purchaseCost: '',
+  tempMonitored: false,
+  tempMin: '',
+  tempMax: '',
 }
 
 export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: CreateAssetDialogProps) {
@@ -52,7 +55,10 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isComplete = form.name.trim() && form.category.trim() && form.outlet.trim()
+  const tempMin = form.tempMin.trim() === '' ? null : Number(form.tempMin.replace(',', '.'))
+  const tempMax = form.tempMax.trim() === '' ? null : Number(form.tempMax.replace(',', '.'))
+  const tempValid = !form.tempMonitored || tempMin === null || tempMax === null || tempMin < tempMax
+  const isComplete = form.name.trim() && form.category.trim() && form.outlet.trim() && tempValid
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -77,6 +83,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
         lastPM:       form.lastPM || undefined,
         nextPM:       form.nextPM || undefined,
         purchaseCost: form.purchaseCost ? Number(form.purchaseCost) : undefined,
+        ...(form.tempMonitored ? { tempMonitored: true, tempMin, tempMax } : {}),
       })
       onOpenChange(false)
     } catch (err) {
@@ -216,6 +223,29 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
               <input id={`${id}-purchaseCost`} type="number" min={0} name="purchaseCost" placeholder={t('createAsset.purchasePlaceholder')}
                 value={form.purchaseCost} onChange={handleChange}
                 className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
+            </div>
+            {/* Food safety temperature monitoring (Todo-Ops-Checklist Fase 2) */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-xs font-semibold">
+                <input type="checkbox" checked={form.tempMonitored} className="size-4 accent-primary"
+                  onChange={(e) => setForm((prev) => ({ ...prev, tempMonitored: e.target.checked }))} />
+                {t('temp.monitor')}
+              </label>
+              {form.tempMonitored && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor={`${id}-tempMin`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('temp.min')} (°C)</label>
+                    <input id={`${id}-tempMin`} inputMode="decimal" name="tempMin" value={form.tempMin} onChange={handleChange}
+                      className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                  </div>
+                  <div>
+                    <label htmlFor={`${id}-tempMax`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('temp.max')} (°C)</label>
+                    <input id={`${id}-tempMax`} inputMode="decimal" name="tempMax" value={form.tempMax} onChange={handleChange}
+                      className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                  </div>
+                  {!tempValid && <p className="col-span-2 text-[11px] text-destructive">{t('temp.minBelowMax')}</p>}
+                </div>
+              )}
             </div>
           </div>
 

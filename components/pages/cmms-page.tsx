@@ -14,6 +14,7 @@ import { PartsInventoryPanel } from '@/components/cmms/parts-inventory-panel'
 import { AuthedImage } from '@/components/shared/authed-image'
 import { QrDialog } from '@/components/cmms/qr-dialog'
 import { useIssueStore } from '@/lib/store'
+import { TemperaturePanel } from '@/components/ops/temperature-panel'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 import { woPrimaryAction } from '@/lib/action-reasons'
 import { ListSkeleton } from '@/components/shared/skeleton'
@@ -731,6 +732,7 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
 // ---------------------------------------------------------------------------
 function AssetDetailPanel({ asset, onClose, onSelectWO }: { asset: Asset; onClose: () => void; onSelectWO: (woId: string) => void }) {
   const { workOrders, loadAssetHistory, loadAssetSummary } = useIssueStore()
+  const liveAsset = useIssueStore((s) => s.assets.find((a) => a.id === asset.id)) ?? asset
   const { t, label, date } = useT()
   const [summary, setSummary] = useState<AssetSummary | null>(null)
   const [history, setHistory] = useState<WorkOrder[] | null>(null)
@@ -837,6 +839,9 @@ function AssetDetailPanel({ asset, onClose, onSelectWO }: { asset: Asset; onClos
           </div>
         )}
       </div>
+
+      {/* Food safety temperature (Todo-Ops-Checklist Fase 2) — the store's copy, so a settings change shows at once */}
+      <TemperaturePanel asset={liveAsset} />
     </div>
   )
 }
