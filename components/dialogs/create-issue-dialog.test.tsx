@@ -213,6 +213,12 @@ describe('quick report mode (Todo-Pilot §20)', () => {
     expect(screen.getByRole('radio', { name: 'IT Support' })).toBeInTheDocument()
   })
 
+  it('picks the outlet when the outlet list arrives after the dialog opened', () => {
+    const { rerender, onSubmit, onOpenChange } = quick({ outlets: [] })
+    rerender(<CreateIssueDialog open quick onOpenChange={onOpenChange} outlets={['Jakarta']} assets={assets} onSubmit={onSubmit} />)
+    expect(screen.getByText('Jakarta')).toBeInTheDocument()
+  })
+
   it('without any outlet says who to ask instead of offering free text', () => {
     quick({ outlets: [] })
     expect(screen.getByRole('alert')).toHaveTextContent(/not assigned to an outlet/i)

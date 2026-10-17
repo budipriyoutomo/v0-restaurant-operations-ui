@@ -32,7 +32,7 @@ export function OutletComparison() {
   const q = (outlet: string, extra: string) => `/issues?outlet=${encodeURIComponent(outlet)}&${extra}`
 
   const cell = (r: OutletRow, flag: OutletFlag | null, text: string, label: string, to: string) => (
-    <td className="px-3 py-2 text-right">
+    <td className="px-4 py-3 text-right">
       <button type="button" onClick={() => navigate(to)} aria-label={label}
         data-flag={flag && r.flags.includes(flag) ? 'true' : undefined}
         className={cn('min-w-10 min-h-9 px-2 rounded-md tabular-nums hover:bg-muted',
@@ -60,7 +60,7 @@ export function OutletComparison() {
         <div className="flex rounded-md border border-border overflow-hidden" role="group" aria-label={t('outletCompare.period')}>
           {PERIODS.map((p) => (
             <button key={p} type="button" aria-pressed={days === p} onClick={() => setDays(p)}
-              className={cn('px-3 h-8 text-xs font-medium', days === p ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}>
+              className={cn('px-3 h-10 sm:h-8 text-xs font-medium', days === p ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}>
               {t('outletCompare.days', { n: p })}
             </button>
           ))}

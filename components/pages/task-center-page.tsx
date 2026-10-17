@@ -11,6 +11,10 @@ import { taskMoveBlock, type Reason } from '@/lib/action-reasons'
 import { toast } from 'sonner'
 import { api } from '@/lib/api-client'
 import { useDebounced, usePagedList } from '@/lib/use-paged-list'
+import { FilterChip, PageHeader } from '@/components/shared/page-header'
+import { PriorityBadge } from '@/components/shared/priority-badge'
+import { useOutletFilter } from '@/lib/permissions'
+import { outletQuery } from '@/lib/outlet-filter'
 
 // Cards per column; the rest is counted (Todo-Pilot §22).
 const COLUMN_LIMIT = 50
@@ -33,13 +37,6 @@ const STATUS_META: Record<TaskStatus, { dot: string; accent: string; ring: strin
 const COLUMN_ORDER: TaskStatus[] = ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed']
 
 // Labels: label('priority', p).
-const PRIORITY_META: Record<Priority, { badge: string }> = {
-  critical: { badge: 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300' },
-  high: { badge: 'bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300' },
-  medium: { badge: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' },
-  low: { badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' },
-}
-
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low']
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -67,7 +64,8 @@ export function TaskCenterPage() {
   // Each column is a page from the server (Todo-Pilot §22): filters run there,
   // and a column shows at most COLUMN_LIMIT cards with the rest counted.
   const debouncedSearch = useDebounced(searchQuery)
-  const params = { q: debouncedSearch.trim(), priority: filterPriority }
+  const { outlet } = useOutletFilter()            // top bar outlet filter
+  const params = { q: debouncedSearch.trim(), priority: filterPriority, outlet }
   const pages = {} as Record<TaskStatus, ReturnType<typeof usePagedList<Task>>>
   for (const status of COLUMN_ORDER) {
     // eslint-disable-next-line react-hooks/rules-of-hooks -- fixed list of columns
@@ -82,9 +80,10 @@ export function TaskCenterPage() {
   const [overdue, setOverdue] = useState<number | null>(null)
   useEffect(() => {
     let live = true
-    api.getPage<Task>('/api/tasks?late=true&limit=1').then((r) => { if (live) setOverdue(r.total) }).catch(() => {})
+    const o = outletQuery(outlet)
+    api.getPage<Task>(`/api/tasks?late=true&limit=1${o ? `&${o}` : ''}`).then((r) => { if (live) setOverdue(r.total) }).catch(() => {})
     return () => { live = false }
-  }, [listVersion])
+  }, [listVersion, outlet])
   const stats = useMemo(() => {
     const total = COLUMN_ORDER.reduce((n, st) => n + pages[st].total, 0)
     const done = pages.resolved.total + pages.closed.total
@@ -113,16 +112,8 @@ export function TaskCenterPage() {
   const hasFilters = !!searchQuery || !!filterPriority
 
   return (
-    <div className="flex flex-col h-full p-6 gap-5">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('tasks.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('tasks.subtitle')}
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col h-full p-4 sm:p-6 gap-5">
+      <PageHeader title={t('tasks.title')} description={t('tasks.subtitle')} />
 
       {/* Overview stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -133,38 +124,29 @@ export function TaskCenterPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+      <div className="flex flex-col lg:flex-row gap-3 lg:items-center rounded-2xl border border-border bg-card p-3 sm:p-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
             type="text"
             placeholder={t('tasks.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full h-11 pl-10 pr-4 rounded-xl border border-transparent bg-muted/60 text-sm placeholder:text-muted-foreground focus:outline-none focus:bg-background focus:border-primary/40 focus:ring-4 focus:ring-primary/10 transition-colors"
           />
         </div>
 
-        <div className="flex gap-1.5 items-center">
+        <div className="flex gap-2 items-center flex-wrap">
           <span className="text-xs font-medium text-muted-foreground mr-1">{t('issues.priorityFilter')}</span>
           {PRIORITIES.map((p) => (
-            <button
-              key={p}
-              onClick={() => setFilterPriority(filterPriority === p ? null : p)}
-              className={cn(
-                'px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ',
-                filterPriority === p
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/60 text-muted-foreground hover:bg-muted',
-              )}
-            >
+            <FilterChip key={p} active={filterPriority === p} onClick={() => setFilterPriority(filterPriority === p ? null : p)}>
               {label('priority', p)}
-            </button>
+            </FilterChip>
           ))}
           {hasFilters && (
             <button
               onClick={() => { setSearchQuery(''); setFilterPriority(null) }}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="flex items-center gap-1 h-10 sm:h-8 px-3 rounded-full text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <X className="size-3" /> {t('tasks.clear')}
             </button>
@@ -228,7 +210,7 @@ export function TaskCenterPage() {
                     ))
                   )}
                   {column.more > 0 && (
-                    <p className="text-center text-[11px] text-muted-foreground py-1">{t('tasks.more', { count: column.more })}</p>
+                    <p className="text-center text-xs text-muted-foreground py-1">{t('tasks.more', { count: column.more })}</p>
                   )}
                 </div>
               </div>
@@ -308,10 +290,8 @@ function TaskCard({
     >
       {/* Top row: priority + task number + drag handle */}
       <div className="flex items-center gap-2 mb-2">
-        <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-semibold', PRIORITY_META[task.priority].badge)}>
-          {label('priority', task.priority)}
-        </span>
-        <span className="font-mono text-[10px] text-muted-foreground">{task.number}</span>
+        <PriorityBadge priority={task.priority} />
+        <span className="font-mono text-xs text-muted-foreground">{task.number}</span>
         <GripVertical className="size-3.5 text-muted-foreground/40 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
 
@@ -326,9 +306,9 @@ function TaskCard({
         <span
           title={unlinkedAssigneeWarning(task, locale) ?? task.assignee}
           className={cn(
-            'flex items-center justify-center size-6 rounded-full text-[10px] font-bold shrink-0',
+            'flex items-center justify-center size-6 rounded-full text-xs font-bold shrink-0',
             // amber = a name that is not a user: nobody gets notified (Todo-Pilot §17)
-            unlinkedAssigneeWarning(task, locale) ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-400' : 'bg-primary/10 text-primary',
+            unlinkedAssigneeWarning(task, locale) ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 ring-1 ring-amber-400' : 'bg-primary/10 text-primary',
           )}
         >
           {initials(task.assignee)}
@@ -347,7 +327,7 @@ function TaskCard({
 
       {/* Footer: issue link + accessible status move (keyboard / touch fallback) */}
       <div className="mt-2.5 pt-2.5 border-t border-border flex items-center justify-between gap-2">
-        <span className="font-mono text-[10px] text-primary font-semibold">{task.issueNumber}</span>
+        <span className="font-mono text-xs text-primary font-semibold">{task.issueNumber}</span>
         <select
           value={task.status}
           onChange={(e) => onMove(task.id, e.target.value as TaskStatus)}
@@ -355,7 +335,7 @@ function TaskCard({
           aria-label={t('tasks.moveTo')}
           disabled={!!block}
           aria-describedby={block ? `${task.id}-block` : undefined}
-          className="text-[11px] border border-border rounded-md px-1.5 py-0.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-10 sm:h-8 text-xs border border-border rounded-lg px-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {COLUMN_ORDER.map((id) => (
             <option key={id} value={id}>{label('status', id)}</option>
@@ -363,7 +343,7 @@ function TaskCard({
         </select>
       </div>
       {block && (
-        <p id={`${task.id}-block`} className="mt-1.5 text-[11px] text-muted-foreground">{t(block.key, block.params)}</p>
+        <p id={`${task.id}-block`} className="mt-1.5 text-xs text-muted-foreground">{t(block.key, block.params)}</p>
       )}
     </div>
   )

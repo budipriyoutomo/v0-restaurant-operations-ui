@@ -14,9 +14,10 @@ import { platformApi, type CreatedCompany, type PlatformCompany } from '@/lib/pl
 import { slugify, validateNewCompany, type NewCompanyErrors, type NewCompanyForm } from '@/lib/platform'
 import { useT } from '@/lib/i18n'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { ListSkeleton } from '@/components/shared/skeleton'
 
 const EMPTY_FORM: NewCompanyForm = { name: '', adminName: '', adminEmail: '', adminPassword: '', outletName: '' }
-const inputClass = 'w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50'
+const inputClass = 'w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40'
 
 export function PlatformPage() {
   const { t } = useT()
@@ -59,7 +60,7 @@ export function PlatformPage() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground hidden sm:inline">{currentUser?.email}</span>
-            <button onClick={logout} className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border hover:bg-muted/50 text-xs font-semibold">
+            <button onClick={logout} className="flex items-center gap-1.5 px-3 h-9 rounded-lg border border-border hover:bg-muted/50 text-sm font-medium">
               <LogOut className="size-3.5" /> {t('platform.signOut')}
             </button>
           </div>
@@ -74,7 +75,7 @@ export function PlatformPage() {
               {t('platform.summary', { count: companies.length, active })}
             </p>
           </div>
-          <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90">
+          <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
             <Plus className="size-4" /> {t('platform.newCompany')}
           </button>
         </div>
@@ -87,16 +88,16 @@ export function PlatformPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="text-left px-4 py-2.5 font-semibold">{t('platform.company')}</th>
-                <th className="text-right px-4 py-2.5 font-semibold">{t('platform.users')}</th>
-                <th className="text-right px-4 py-2.5 font-semibold">{t('platform.outlets')}</th>
-                <th className="text-left px-4 py-2.5 font-semibold">{t('common.status')}</th>
-                <th className="text-right px-4 py-2.5 font-semibold"><span className="sr-only">{t('common.actions')}</span></th>
+                <th className="text-left px-4 py-3.5 font-semibold">{t('platform.company')}</th>
+                <th className="text-right px-4 py-3.5 font-semibold">{t('platform.users')}</th>
+                <th className="text-right px-4 py-3.5 font-semibold">{t('platform.outlets')}</th>
+                <th className="text-left px-4 py-3.5 font-semibold">{t('common.status')}</th>
+                <th className="text-right px-4 py-3.5 font-semibold"><span className="sr-only">{t('common.actions')}</span></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">{t('common.loading')}</td></tr>
+                <tr><td colSpan={5} className="px-4 py-3"><ListSkeleton rows={3} className="p-0 sm:p-0" /></td></tr>
               ) : companies.length === 0 ? (
                 <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">{t('platform.none')}</td></tr>
               ) : companies.map((c) => (
@@ -115,15 +116,15 @@ export function PlatformPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => setRenaming(c)} className="flex items-center gap-1 px-2.5 h-7 rounded-md border border-border text-xs hover:bg-muted/50">
+                      <button onClick={() => setRenaming(c)} className="flex items-center gap-1 px-2.5 h-9 rounded-lg border border-border text-xs hover:bg-muted/50">
                         <Pencil className="size-3" /> {t('platform.rename')}
                       </button>
                       {c.is_active ? (
-                        <button onClick={() => setConfirmDeactivate(c)} className="flex items-center gap-1 px-2.5 h-7 rounded-md border border-destructive/40 text-destructive text-xs hover:bg-destructive/10">
+                        <button onClick={() => setConfirmDeactivate(c)} className="flex items-center gap-1 px-2.5 h-9 rounded-lg border border-destructive/40 text-destructive text-xs hover:bg-destructive/10">
                           <Power className="size-3" /> {t('platform.deactivate')}
                         </button>
                       ) : (
-                        <button onClick={() => setActive(c, true)} className="flex items-center gap-1 px-2.5 h-7 rounded-md border border-border text-xs hover:bg-muted/50">
+                        <button onClick={() => setActive(c, true)} className="flex items-center gap-1 px-2.5 h-9 rounded-lg border border-border text-xs hover:bg-muted/50">
                           <Power className="size-3" /> {t('platform.activate')}
                         </button>
                       )}
@@ -149,10 +150,10 @@ export function PlatformPage() {
             {t('platform.deactivateText', { name: confirmDeactivate.name })}
           </p>
           <div className="flex justify-end gap-2 pt-4">
-            <button onClick={() => setConfirmDeactivate(null)} className="px-4 h-9 rounded-md border border-border text-sm">{t('common.cancel')}</button>
+            <button onClick={() => setConfirmDeactivate(null)} className="px-4 h-9 rounded-lg border border-border text-sm">{t('common.cancel')}</button>
             <button
               onClick={async () => { const c = confirmDeactivate; setConfirmDeactivate(null); await setActive(c, false) }}
-              className="px-4 h-9 rounded-md bg-destructive text-white text-sm font-semibold"
+              className="px-4 h-9 rounded-lg bg-destructive text-white text-sm font-semibold"
             >
               {t('platform.yesDeactivate')}
             </button>
@@ -174,8 +175,8 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   useModalKeyboard(panelRef, onClose)
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div ref={panelRef} role="dialog" aria-label={title} className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
+      <div ref={panelRef} role="dialog" aria-label={title} className="bg-background rounded-2xl border border-border shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <h2 className="text-base font-bold">{title}</h2>
           <button type="button" aria-label={t('common.close')} onClick={onClose} className="p-1 hover:bg-muted rounded-md">
@@ -237,11 +238,11 @@ function CreateCompanyDialog({ onClose, onCreated }: { onClose: () => void; onCr
             )}
           </dl>
           {created.admin_password && (
-            <p className="text-xs text-amber-700">{t('platform.passwordOnce')}</p>
+            <p className="text-xs text-amber-700 dark:text-amber-400">{t('platform.passwordOnce')}</p>
           )}
         </div>
         <div className="flex justify-end pt-4">
-          <button onClick={onClose} className="px-4 h-9 rounded-md bg-primary text-primary-foreground text-sm font-semibold">{t('platform.done')}</button>
+          <button onClick={onClose} className="px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold">{t('platform.done')}</button>
         </div>
       </Modal>
     )
@@ -272,8 +273,8 @@ function CreateCompanyDialog({ onClose, onCreated }: { onClose: () => void; onCr
           <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{serverError}</p>
         )}
         <div className="flex justify-end gap-2 pt-2">
-          <button type="button" onClick={onClose} disabled={busy} className="px-4 h-9 rounded-md border border-border text-sm">{t('common.cancel')}</button>
-          <button type="submit" disabled={busy} className="px-4 h-9 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60">
+          <button type="button" onClick={onClose} disabled={busy} className="px-4 h-9 rounded-lg border border-border text-sm">{t('common.cancel')}</button>
+          <button type="submit" disabled={busy} className="px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60">
             {busy ? t('platform.creating') : t('platform.create')}
           </button>
         </div>
@@ -312,8 +313,8 @@ function RenameDialog({ company, onClose, onSaved }: { company: PlatformCompany;
         </div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-4 h-9 rounded-md border border-border text-sm">{t('common.cancel')}</button>
-          <button type="submit" disabled={busy || !name.trim()} className="px-4 h-9 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60">{t('common.save')}</button>
+          <button type="button" onClick={onClose} className="px-4 h-9 rounded-lg border border-border text-sm">{t('common.cancel')}</button>
+          <button type="submit" disabled={busy || !name.trim()} className="px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60">{t('common.save')}</button>
         </div>
       </form>
     </Modal>

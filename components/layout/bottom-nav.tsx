@@ -33,13 +33,13 @@ export function BottomNav({ currentPage }: { currentPage: string }) {
             <li key={id}>
               <button type="button" onClick={() => navigate(to)} aria-current={active ? 'page' : undefined}
                 aria-label={badge ? `${label} (${badge})` : label}
-                className={cn('w-full h-14 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium relative',
+                className={cn('w-full h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-medium relative',
                   active ? 'text-primary' : 'text-muted-foreground',
                   id === 'report' && 'text-primary')}>
                 <span className={cn('relative', id === 'report' && 'size-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center')}>
                   <Icon className="size-5" />
                   {!!badge && badge > 0 && (
-                    <span className="absolute -top-1 -right-2 min-w-4 h-4 px-1 rounded-full bg-destructive text-white text-[10px] font-bold flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-2.5 min-w-5 h-5 px-1 rounded-full bg-destructive text-white text-xs font-bold ring-2 ring-background flex items-center justify-center">
                       {badge > 9 ? '9+' : badge}
                     </span>
                   )}

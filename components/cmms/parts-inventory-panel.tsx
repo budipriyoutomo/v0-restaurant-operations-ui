@@ -9,6 +9,7 @@ import { CreatePartInput } from '@/lib/types'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 
 const EMPTY: CreatePartInput = {
   sku: '', name: '', category: 'General', unit: 'pcs',
@@ -83,7 +84,7 @@ export function PartsInventoryPanel() {
             </p>
           </div>
           {lowCount > 0 && (
-            <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold border bg-warning/15 text-warning border-warning/30">
+            <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold border bg-warning/15 text-warning border-warning/30">
               <AlertTriangle className="size-3" /> {t('parts.lowStock', { count: lowCount })}
             </span>
           )}
@@ -91,7 +92,7 @@ export function PartsInventoryPanel() {
         {can.manageCMMS && (
           <button
             onClick={() => setShowForm((v) => !v)}
-            className="flex items-center gap-1.5 px-2.5 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             {showForm ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
             {showForm ? t('common.close') : t('parts.newPart')}
@@ -104,39 +105,39 @@ export function PartsInventoryPanel() {
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">{t('parts.sku')}</span>
             <input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })}
-              className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
+              className="h-9 rounded-lg border border-border bg-background px-2 text-xs" />
           </label>
           <label className="flex flex-col gap-1 text-xs sm:col-span-2">
             <span className="font-semibold text-muted-foreground">{t('parts.name')}</span>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
+              className="h-9 rounded-lg border border-border bg-background px-2 text-xs" />
           </label>
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">{t('parts.unit')}</span>
             <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
+              className="h-9 rounded-lg border border-border bg-background px-2 text-xs" />
           </label>
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">{t('parts.unitCost')}</span>
             <input type="number" min={0} value={form.unitCost}
               onChange={(e) => setForm({ ...form, unitCost: Number(e.target.value) })}
-              className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
+              className="h-9 rounded-lg border border-border bg-background px-2 text-xs" />
           </label>
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">{t('parts.initialStock')}</span>
             <input type="number" min={0} value={form.stockQty}
               onChange={(e) => setForm({ ...form, stockQty: Number(e.target.value) })}
-              className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
+              className="h-9 rounded-lg border border-border bg-background px-2 text-xs" />
           </label>
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">{t('parts.reorderLevel')}</span>
             <input type="number" min={0} value={form.reorderLevel}
               onChange={(e) => setForm({ ...form, reorderLevel: Number(e.target.value) })}
-              className="h-8 rounded-md border border-border bg-background px-2 text-xs" />
+              className="h-9 rounded-lg border border-border bg-background px-2 text-xs" />
           </label>
           <div className="flex items-end justify-end sm:col-span-1">
             <button onClick={handleSave} disabled={saving}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
               {saving && <Loader2 className="size-3.5 animate-spin" />} {t('common.save')}
             </button>
           </div>
@@ -146,39 +147,37 @@ export function PartsInventoryPanel() {
       {partsLoading ? (
         <p className="text-xs text-muted-foreground text-center py-6">{t('parts.loading')}</p>
       ) : parts.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-10 text-xs text-muted-foreground">
-          {t('parts.empty')}
-        </div>
+        <SharedEmptyState title={t('parts.empty')} className="py-10 text-sm" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left py-2 font-semibold">{t('parts.sku')}</th>
-                <th className="text-left py-2 font-semibold">{t('parts.name')}</th>
-                <th className="text-right py-2 font-semibold">{t('parts.price')}</th>
-                <th className="text-right py-2 font-semibold">{t('parts.stock')}</th>
-                <th className="text-right py-2 font-semibold">{t('parts.reorder')}</th>
-                <th className="py-2" />
+                <th className="text-left py-2.5 font-semibold">{t('parts.sku')}</th>
+                <th className="text-left py-2.5 font-semibold">{t('parts.name')}</th>
+                <th className="text-right py-2.5 font-semibold">{t('parts.price')}</th>
+                <th className="text-right py-2.5 font-semibold">{t('parts.stock')}</th>
+                <th className="text-right py-2.5 font-semibold">{t('parts.reorder')}</th>
+                <th className="py-2.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {parts.map((p) => (
                 <tr key={p.id} className={cn('hover:bg-accent/40 transition-colors', !p.isActive && 'opacity-50')}>
-                  <td className="py-2 font-mono">{p.sku}</td>
-                  <td className="py-2 font-semibold">{p.name}</td>
-                  <td className="py-2 text-right text-muted-foreground">{fmtRp(p.unitCost)}</td>
-                  <td className="py-2 text-right">
+                  <td className="py-2.5 font-mono">{p.sku}</td>
+                  <td className="py-2.5 font-semibold">{p.name}</td>
+                  <td className="py-2.5 text-right text-muted-foreground">{fmtRp(p.unitCost)}</td>
+                  <td className="py-2.5 text-right">
                     <button onClick={() => can.manageCMMS && restock(p.id, p.stockQty)}
                       className={cn('font-semibold', p.lowStock ? 'text-warning' : 'text-foreground', can.manageCMMS && 'hover:underline')}>
                       {p.stockQty} {p.unit}
                     </button>
                   </td>
-                  <td className="py-2 text-right text-muted-foreground">{p.reorderLevel}</td>
-                  <td className="py-2 text-right">
+                  <td className="py-2.5 text-right text-muted-foreground">{p.reorderLevel}</td>
+                  <td className="py-2.5 text-right">
                     {can.manageCMMS && (
                       <button onClick={() => handleDelete(p.id, p.name)}
-                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title={t('common.delete')} aria-label={t('common.delete')}>
+                        className="size-9 rounded-lg flex items-center justify-center hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title={t('common.delete')} aria-label={t('common.delete')}>
                         <Trash2 className="size-3.5" />
                       </button>
                     )}

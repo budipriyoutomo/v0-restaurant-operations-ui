@@ -74,7 +74,7 @@ export function OnboardingChecklist() {
           <li key={s.key}>
             {s.done ? (
               <p className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground line-through">
-                <CheckCircle2 className="size-4 text-emerald-700 shrink-0" /> {t(`onboarding.step.${s.key}`)}
+                <CheckCircle2 className="size-4 text-emerald-700 dark:text-emerald-400 shrink-0" /> {t(`onboarding.step.${s.key}`)}
               </p>
             ) : (
               <button type="button" onClick={() => navigate(pagePath(STEP_PAGE[s.key]))}

@@ -7,6 +7,9 @@ import type { User } from '@/lib/types'
 
 const api = vi.hoisted(() => ({ get: vi.fn(), patch: vi.fn(), post: vi.fn(), delete: vi.fn() }))
 vi.mock('@/lib/api-client', async (orig) => ({ ...(await orig<typeof import('@/lib/api-client')>()), api }))
+// One theme source for the app: next-themes (top bar menu and this switch).
+const theme = vi.hoisted(() => ({ resolvedTheme: 'light', setTheme: vi.fn() }))
+vi.mock('next-themes', () => ({ useTheme: () => theme }))
 
 import { SettingsPage } from './settings-page'
 
@@ -34,5 +37,29 @@ describe('SettingsPage', () => {
     render(<SettingsPage />)
     await screen.findByRole('switch', { name: 'Dark Mode' })
     expect(screen.queryByRole('switch', { name: /outlet summary/ })).not.toBeInTheDocument()
+  })
+
+  it('Dark Mode follows the app theme and does not overwrite it on open', async () => {
+    useIssueStore.setState({ currentUser: { id: 'u3', name: 'Sari Dewi', email: 'sari@x.test', role_name: 'Manager', permissions: {} } as unknown as User })
+    api.get.mockResolvedValue({ darkMode: false })
+    document.documentElement.classList.add('dark')
+    theme.resolvedTheme = 'dark'
+    render(<SettingsPage />)
+    const sw = await screen.findByRole('switch', { name: 'Dark Mode' })
+    expect(sw).toHaveAttribute('aria-checked', 'true')
+    expect(document.documentElement.classList.contains('dark')).toBe(true)     // the stored pref did not flip it
+    await userEvent.click(sw)
+    expect(theme.setTheme).toHaveBeenCalledWith('light')
+    document.documentElement.classList.remove('dark')
+    theme.resolvedTheme = 'light'
+  })
+
+  it('shows who is signed in', async () => {
+    useIssueStore.setState({ currentUser: { id: 'u3', name: 'Sari Dewi', email: 'sari@x.test', role_name: 'Manager', company_name: 'PT Rasa', permissions: {} } as unknown as User })
+    render(<SettingsPage />)
+    const profile = await screen.findByRole('region', { name: 'Profile' })
+    expect(profile).toHaveTextContent('Sari Dewi')
+    expect(profile).toHaveTextContent('sari@x.test')
+    expect(profile).toHaveTextContent('PT Rasa')
   })
 })

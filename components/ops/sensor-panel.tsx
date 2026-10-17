@@ -83,13 +83,13 @@ export function SensorPanel({ asset }: { asset: Asset }) {
               return (
                 <li key={s.id} className={cn('py-1.5 flex items-center gap-2', !s.isActive && 'opacity-60')}>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{s.name} <span className="font-mono text-[10px] text-muted-foreground">{s.keyPrefix}…</span></p>
+                    <p className="font-medium truncate">{s.name} <span className="font-mono text-xs text-muted-foreground">{s.keyPrefix}…</span></p>
                     <p className="text-muted-foreground">
                       {!s.isActive ? t('tempSensor.revoked')
                         : s.lastSeenAt ? t('tempSensor.lastSeen', { when: relative(s.lastSeenAt), value: s.lastValue ?? '—' })
                           : t('tempSensor.neverSeen')}
                       {offline && (
-                        <span className="ml-2 text-amber-700 inline-flex items-center gap-1">
+                        <span className="ml-2 text-amber-700 dark:text-amber-400 inline-flex items-center gap-1">
                           <WifiOff className="size-3" aria-hidden /> {t('tempSensor.offline')}
                         </span>
                       )}
@@ -109,12 +109,12 @@ export function SensorPanel({ asset }: { asset: Asset }) {
         <div role="status" className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2.5 space-y-1.5">
           <p className="text-xs font-semibold">{t('tempSensor.keyOnce')}</p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 min-w-0 break-all text-[11px] font-mono" data-testid="sensor-key">{newKey}</code>
+            <code className="flex-1 min-w-0 break-all text-xs font-mono" data-testid="sensor-key">{newKey}</code>
             <button type="button" onClick={copy} aria-label={t('tempSensor.copy')}
               className="p-1.5 rounded border border-border hover:bg-muted"><Copy className="size-3.5" /></button>
           </div>
-          <p className="text-[11px] text-muted-foreground">{t('tempSensor.howTo')}</p>
-          <button type="button" onClick={() => setNewKey(null)} className="text-[11px] font-semibold text-primary">{t('tempSensor.done')}</button>
+          <p className="text-xs text-muted-foreground">{t('tempSensor.howTo')}</p>
+          <button type="button" onClick={() => setNewKey(null)} className="text-xs font-semibold text-primary">{t('tempSensor.done')}</button>
         </div>
       )}
 
@@ -122,7 +122,7 @@ export function SensorPanel({ asset }: { asset: Asset }) {
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={100}
           aria-label={t('tempSensor.name')} placeholder={t('tempSensor.namePlaceholder')} className={cn(field, 'flex-1 h-9')} />
         <button type="button" onClick={add} disabled={!name.trim() || saving}
-          className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
+          className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
           {saving ? t('common.saving') : t('tempSensor.add')}
         </button>
       </div>

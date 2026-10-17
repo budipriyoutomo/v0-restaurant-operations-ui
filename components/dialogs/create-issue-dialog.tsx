@@ -138,6 +138,10 @@ export function CreateIssueDialog({
   useEffect(() => {
     if (!form.category && defaultCategoryId) setForm((prev) => ({ ...prev, category: defaultCategoryId }))
   }, [defaultCategoryId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const firstOutlet = outletOptions[0] ?? ''
+  useEffect(() => {
+    if (!form.outlet && firstOutlet) setForm((prev) => ({ ...prev, outlet: firstOutlet }))
+  }, [firstOutlet]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Smart default: whenever category changes (and user hasn't manually
   // overridden the toggles yet), pre-fill Task/Approval suggestions from the
@@ -251,9 +255,9 @@ export function CreateIssueDialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={`${id}-heading`}
-        className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        className="bg-background rounded-2xl border border-border shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
           <h2 id={`${id}-heading`} className="text-lg font-bold">{quick ? t('createIssue.quickTitle') : t('createIssue.title')}</h2>
@@ -261,7 +265,7 @@ export function CreateIssueDialog({
             type="button"
             aria-label={t('common.close')}
             onClick={() => !isSubmitting && onOpenChange(false)}
-            className="p-1 hover:bg-muted rounded-md transition-colors"
+            className="p-1 hover:bg-muted rounded-lg transition-colors"
           >
             <X className="size-5 text-muted-foreground" />
           </button>
@@ -269,23 +273,23 @@ export function CreateIssueDialog({
 
         {sent ? (
           <div className="p-6 space-y-4 text-center" role="status">
-            <CheckCircle2 className="size-12 text-emerald-700 mx-auto" />
+            <CheckCircle2 className="size-12 text-emerald-700 dark:text-emerald-400 mx-auto" />
             <p className="text-lg font-bold">{t('createIssue.sent', { number: sent.number })}</p>
             <p className="text-sm text-muted-foreground">{t('createIssue.sentHint', { outlet: sent.outlet })}</p>
             {whatsappOptIn && (
-              <p className="flex items-center justify-center gap-1.5 text-sm text-emerald-700">
+              <p className="flex items-center justify-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
                 <MessageCircle className="size-4" /> {t('createIssue.whatsapp')}
               </p>
             )}
-            {sent.photo === 'queued' && <p className="text-sm text-amber-700">{t('createIssue.photoQueued')}</p>}
+            {sent.photo === 'queued' && <p className="text-sm text-amber-700 dark:text-amber-400">{t('createIssue.photoQueued')}</p>}
             {sent.photo === 'failed' && <p className="text-sm text-destructive">{t('createIssue.photoFailed')}</p>}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={reset}
-                className="flex-1 min-h-11 px-4 py-2 rounded-md border border-border font-medium text-sm hover:bg-muted/50">
+                className="flex-1 min-h-11 px-4 py-2 rounded-lg border border-border font-medium text-sm hover:bg-muted/50">
                 {t('createIssue.reportAnother')}
               </button>
               <button type="button" onClick={() => onOpenChange(false)}
-                className="flex-1 min-h-11 px-4 py-2 rounded-md bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90">
+                className="flex-1 min-h-11 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90">
                 {t('createIssue.done')}
               </button>
             </div>
@@ -296,7 +300,7 @@ export function CreateIssueDialog({
           {resolveQr && (
             <div>
               <button type="button" onClick={() => setScanOpen((v) => !v)} aria-expanded={scanOpen}
-                className="w-full min-h-11 flex items-center justify-center gap-2 rounded-md border border-dashed border-primary/50 text-sm font-medium text-primary hover:bg-primary/5">
+                className="w-full min-h-11 flex items-center justify-center gap-2 rounded-lg border border-dashed border-primary/50 text-sm font-medium text-primary hover:bg-primary/5">
                 <QrCode className="size-4" /> {t('createIssue.scanQr')}
               </button>
               {scanOpen && <div className="mt-3"><ScanTab resolveQr={resolveQr} onResolved={handleQr} /></div>}
@@ -312,7 +316,7 @@ export function CreateIssueDialog({
             <input
               id={`${id}-title`} type="text" name="title" placeholder={t('createIssue.titlePlaceholder')}
               value={form.title} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
 
@@ -324,7 +328,7 @@ export function CreateIssueDialog({
             <textarea
               id={`${id}-description`} name="description" placeholder={t('createIssue.descriptionPlaceholder')}
               value={form.description} onChange={handleChange} rows={3}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 resize-none"
             />
           </div>
 
@@ -338,21 +342,21 @@ export function CreateIssueDialog({
             </label>
             {quick && outletOptions.length === 0 ? (
               // The server would refuse a typed name: staff only report for their own outlets.
-              <p id={`${id}-outlet`} role="alert" className="px-3 py-2 rounded-md border border-amber-500/40 bg-amber-500/10 text-sm text-amber-800 dark:text-amber-300">
+              <p id={`${id}-outlet`} role="alert" className="px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-sm text-amber-800 dark:text-amber-300">
                 {t('createIssue.noOutletAccess')}
               </p>
             ) : quick && outletOptions.length === 1 ? (
               // One outlet: nothing to choose (Todo-Pilot §20).
-              <p id={`${id}-outlet`} className="px-3 py-2 rounded-md border border-border bg-muted/40 text-sm">{form.outlet}</p>
+              <p id={`${id}-outlet`} className="px-3 py-2 rounded-lg border border-border bg-muted/40 text-sm">{form.outlet}</p>
             ) : outletOptions.length === 0 ? (
               <input
                 id={`${id}-outlet`} type="text" name="outlet" placeholder={t('createIssue.outletPlaceholder')}
                 value={form.outlet} onChange={handleChange}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
               />
             ) : (
               <select id={`${id}-outlet`} name="outlet" value={form.outlet} onChange={handleChange}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
                 {outletOptions.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             )}
@@ -368,7 +372,7 @@ export function CreateIssueDialog({
                   const on = form.category === c.id
                   return (
                     <label key={c.id} className={cn(
-                      'min-h-16 flex flex-col items-center justify-center gap-1 rounded-md border p-2 text-center text-[11px] font-medium cursor-pointer transition-colors',
+                      'relative min-h-16 flex flex-col items-center justify-center gap-1 rounded-lg border p-2 text-center text-xs font-medium cursor-pointer transition-colors',
                       'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/50',
                       on ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/40')}>
                       <input type="radio" name="category" value={c.id} checked={on} onChange={handleChange} className="sr-only" />
@@ -380,12 +384,12 @@ export function CreateIssueDialog({
               </div>
             ) : pinned && categoryOptions.length <= 1 ? (
               <div id={`${id}-category`} role="textbox" aria-readonly="true"
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/40 text-sm text-muted-foreground">
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 text-muted-foreground">
                 {label('category', pinned.name)}
               </div>
             ) : (
               <select id={`${id}-category`} name="category" value={form.category} onChange={handleChange}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
                 {categoryOptions.length === 0 && <option value="">{t('createIssue.noCategories')}</option>}
                 {categoryOptions.map((c) => <option key={c.id} value={c.id}>{label('category', c.name)}</option>)}
               </select>
@@ -396,7 +400,7 @@ export function CreateIssueDialog({
           <div>
             <label htmlFor={`${id}-priority`} className="block text-sm font-semibold mb-1.5">{t('common.priority')}</label>
             <select id={`${id}-priority`} name="priority" value={form.priority} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
               {PRIORITIES.map((p) => <option key={p} value={p}>{label('priority', p)}</option>)}
             </select>
           </div>
@@ -418,7 +422,7 @@ export function CreateIssueDialog({
             <label htmlFor={`${id}-dueDate`} className="block text-sm font-semibold mb-1.5">{t('common.dueDate')} <span className="text-destructive">*</span></label>
             <input
               id={`${id}-dueDate`} type="date" name="dueDate" value={form.dueDate} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
 
@@ -431,7 +435,7 @@ export function CreateIssueDialog({
               </p>
             </div>
 
-            <label className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/30 cursor-pointer transition-colors">
+            <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer transition-colors">
               <input
                 type="checkbox"
                 checked={generateTask}
@@ -449,7 +453,7 @@ export function CreateIssueDialog({
             {/* Work Order toggle — Maintenance category only */}
             {isMaintenance && (
               <>
-                <label className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/30 cursor-pointer transition-colors">
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer transition-colors">
                   <input
                     type="checkbox"
                     checked={generateWorkOrder}
@@ -476,7 +480,7 @@ export function CreateIssueDialog({
                           name="assetId"
                           value={form.assetId}
                           onChange={handleChange}
-                          className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
                         >
                           <option value="">{t('createIssue.selectAsset')}</option>
                           {assets.map((a) => (
@@ -487,7 +491,7 @@ export function CreateIssueDialog({
                         // No free-text box here on purpose: assetId is a UUID
                         // foreign key, so an asset *name* typed in by hand can
                         // only ever be rejected by the server.
-                        <p className="px-3 py-2 rounded-md border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
+                        <p className="px-3 py-2 rounded-lg border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
                           {t('createIssue.noAssets')}
                         </p>
                       )}
@@ -501,10 +505,10 @@ export function CreateIssueDialog({
                         placeholder={t('createIssue.costPlaceholder')}
                         value={form.estimatedCost}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
                       />
                       {needsApproval && (
-                        <p className="text-xs text-amber-700 mt-1">
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
                           {t('createIssue.needsApproval', { threshold: rupiah(threshold) })}
                         </p>
                       )}
@@ -514,7 +518,7 @@ export function CreateIssueDialog({
               </>
             )}
 
-            <label className="flex items-start gap-3 p-3 rounded-md border border-border hover:bg-muted/30 cursor-pointer transition-colors">
+            <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer transition-colors">
               <input
                 type="checkbox"
                 checked={generateApproval}
@@ -536,7 +540,7 @@ export function CreateIssueDialog({
                   id={`${id}-approvalAmount`}
                   type="number" name="approvalAmount" placeholder={t('createIssue.amountPlaceholder')}
                   value={form.approvalAmount} onChange={handleChange}
-                  className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
                 />
               </div>
             )}
@@ -549,7 +553,7 @@ export function CreateIssueDialog({
             <div>
               <label htmlFor={`${id}-photo`} className="block text-sm font-semibold mb-1.5">{t('createIssue.photo')}</label>
               {photo ? (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-muted/20 text-sm">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20 text-sm">
                   <Camera className="size-4 text-muted-foreground" />
                   <span className="flex-1 truncate">{photo.name}</span>
                   <button type="button" onClick={() => setPhoto(null)} aria-label={t('createIssue.removePhoto')}
@@ -558,25 +562,25 @@ export function CreateIssueDialog({
               ) : (
                 <input id={`${id}-photo`} type="file" accept="image/*" capture="environment"
                   onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-                  className="w-full text-sm file:mr-3 file:min-h-11 file:px-4 file:rounded-md file:border-0 file:bg-primary/10 file:text-primary file:font-medium" />
+                  className="w-full text-sm file:mr-3 file:min-h-11 file:px-4 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:font-medium" />
               )}
               <p className="text-xs text-muted-foreground mt-1">{t('createIssue.photoHint')}</p>
             </div>
           )}
 
           {submitError && (
-            <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {submitError}
             </p>
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t border-border">
+          <div className="sticky bottom-0 bg-background flex gap-3 py-4 border-t border-border">
             <button
               type="button"
               onClick={() => !isSubmitting && onOpenChange(false)}
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
+              className="flex-1 h-10 px-4 rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
               {t('common.cancel')}
             </button>
@@ -584,7 +588,7 @@ export function CreateIssueDialog({
               type="submit"
               disabled={!isComplete || isSubmitting}
               className={cn(
-                'flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors',
+                'flex-1 h-10 px-4 rounded-lg font-semibold text-sm transition-colors',
                 isComplete && !isSubmitting
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-muted text-muted-foreground cursor-not-allowed'

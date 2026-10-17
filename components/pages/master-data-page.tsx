@@ -16,6 +16,8 @@ import { MasterCategory, Outlet, OutletStatus, PIC } from '@/lib/types'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
+import { ListSkeleton } from '@/components/shared/skeleton'
+import { PageHeader } from '@/components/shared/page-header'
 
 const statusColors: Record<OutletStatus, { bg: string; text: string }> = {
   operational: { bg: 'bg-success/20', text: 'text-success' },
@@ -113,27 +115,27 @@ export function MasterDataPage() {
   // Render
   // -------------------------------------------------------------------------
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-4 sm:p-6 space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('masterData.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('masterData.subtitle')}</p>
-        </div>
-        {activeTab !== 'policies' && activeTab !== 'rules' && (
+      <PageHeader
+        title={t('masterData.title')}
+        description={t('masterData.subtitle')}
+        actions={<>
+          {activeTab !== 'policies' && activeTab !== 'rules' && (
           <button
             onClick={() => {
               if (activeTab === 'outlets') setOutletDialog({ open: true })
               else if (activeTab === 'categories') setCategoryDialog({ open: true })
               else setPicDialog({ open: true })
             }}
-            className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus className="size-4" />
             {t(`masterData.new.${activeTab}`)}
           </button>
         )}
-      </div>
+      </>}
+      />
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-border">
@@ -165,23 +167,25 @@ export function MasterDataPage() {
       {activeTab !== 'policies' && activeTab !== 'rules' && (
       <div className="flex gap-3">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
             type="text"
             placeholder={t(`masterData.search.${activeTab as 'outlets' | 'categories' | 'pics'}`)}
             aria-label={t('common.search')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full h-11 pl-10 pr-4 rounded-xl border border-transparent bg-muted/60 text-sm placeholder:text-muted-foreground focus:outline-none focus:bg-background focus:border-primary/40 focus:ring-4 focus:ring-primary/10 transition-colors"
           />
         </div>
       </div>
       )}
 
       {/* Loading state */}
-      {masterDataLoading && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-          <Loader2 className="size-4 animate-spin" />
+      {/* First load: placeholders. A reload keeps the tables and shows a spinner. */}
+      {masterDataLoading && outlets.length === 0 && <ListSkeleton rows={3} className="p-0 sm:p-0" />}
+      {masterDataLoading && outlets.length > 0 && (
+        <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
           {t('common.loading')}
         </div>
       )}
@@ -291,24 +295,24 @@ export function MasterDataPage() {
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-bold text-foreground">{category.name}</h3>
                           <span className={cn(
-                            'text-[10px] font-semibold px-2 py-0.5 rounded-full',
-                            category.module === 'maintenance' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-700'
+                            'text-xs font-semibold px-2 py-0.5 rounded-full',
+                            category.module === 'maintenance' ? 'bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
                           )}>
                             {label('categoryModule', category.module)}
                           </span>
                           {category.isSystem && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                               <Lock className="size-2.5" aria-hidden /> {t('masterData.systemBadge')}
                             </span>
                           )}
                           {!category.isActive && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                               {t('masterData.inactiveBadge')}
                             </span>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">{category.description}</p>
-                        <p className="text-[11px] text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {[
                             category.defaultGenerateTask && t('categoryDialog.defaultTask'),
                             category.defaultGenerateApproval && `${t('categoryDialog.defaultApproval')}${category.approvalType ? ` · ${label('approvalType', category.approvalType)}` : ''}`,
@@ -413,8 +417,8 @@ export function MasterDataPage() {
                               className={cn(
                                 'text-xs font-semibold px-2.5 py-1 rounded-full',
                                 isMaintenance
-                                  ? 'bg-orange-100 text-orange-800'
-                                  : 'bg-blue-100 text-blue-700'
+                                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300'
+                                  : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
                               )}
                             >
                               {getCategoryName(catId)}

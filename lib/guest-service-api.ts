@@ -14,7 +14,8 @@ export interface NewGuestCase {
 }
 
 export const guestApi = {
-  list: () => api.get<GuestCase[]>('/api/guest-cases'),
+  list: (outlet: string | null = null) =>
+    api.get<GuestCase[]>(outlet ? `/api/guest-cases?outlet=${encodeURIComponent(outlet)}` : '/api/guest-cases'),
   get: (id: string) => api.get<GuestCase>(`/api/guest-cases/${id}`),
   kpis: (months = 3) => api.get<GuestKpis>(`/api/guest-cases/kpis?months=${months}`),
   create: (body: NewGuestCase, idempotencyKey: string) =>

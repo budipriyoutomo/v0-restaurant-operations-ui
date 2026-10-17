@@ -9,6 +9,7 @@ import { BudgetStatusEntry } from '@/lib/types'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 
 const rp = (n: number) => formatMoney(n ?? 0)
 
@@ -73,7 +74,7 @@ export function BudgetPanel() {
           </div>
           {can.manageBudgets && (
             <button onClick={() => setShowForm((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90">
+              className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
               <Plus className="size-3.5" /> {t('budget.set')}
             </button>
           )}
@@ -85,7 +86,7 @@ export function BudgetPanel() {
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">{t('common.outlet')}</span>
             <select value={form.outletId} onChange={(e) => setForm((f) => ({ ...f, outletId: e.target.value }))}
-              className="h-8 rounded-md border border-border bg-background px-2 text-xs">
+              className="h-9 rounded-lg border border-border bg-background px-2 text-xs">
               <option value="">{t('budget.outletOption')}</option>
               {outlets.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
@@ -93,10 +94,10 @@ export function BudgetPanel() {
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">{t('budget.amount', { period })}</span>
             <input type="number" min={0} value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-              className="h-8 w-40 rounded-md border border-border bg-background px-2 text-xs" />
+              className="h-9 w-40 rounded-lg border border-border bg-background px-2 text-xs" />
           </label>
           <button onClick={handleCreate} disabled={saving}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
+            className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
             {saving && <Loader2 className="size-3.5 animate-spin" />} {t('common.save')}
           </button>
         </div>
@@ -105,9 +106,7 @@ export function BudgetPanel() {
       {loading ? (
         <p className="text-xs text-muted-foreground text-center py-6">{t('purchasing.loading')}</p>
       ) : rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-8 text-xs text-muted-foreground">
-          {t('budget.empty', { period })}
-        </div>
+        <SharedEmptyState title={t('budget.empty', { period })} className="py-8 text-sm" />
       ) : (
         <div className="space-y-3">
           {rows.map((r) => (
@@ -115,9 +114,9 @@ export function BudgetPanel() {
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-sm font-semibold">{r.outlet}</span>
                 {r.overBudget ? (
-                  <span className="flex items-center gap-1 text-[11px] font-semibold text-destructive"><AlertTriangle className="size-3.5" /> {t('budget.over')}</span>
+                  <span className="flex items-center gap-1 text-xs font-semibold text-destructive"><AlertTriangle className="size-3.5" /> {t('budget.over')}</span>
                 ) : r.warning ? (
-                  <span className="flex items-center gap-1 text-[11px] font-semibold text-warning"><AlertTriangle className="size-3.5" /> {t('budget.near')}</span>
+                  <span className="flex items-center gap-1 text-xs font-semibold text-warning"><AlertTriangle className="size-3.5" /> {t('budget.near')}</span>
                 ) : null}
               </div>
               <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -125,11 +124,11 @@ export function BudgetPanel() {
                   r.overBudget ? 'bg-destructive' : r.warning ? 'bg-warning' : 'bg-success')}
                   style={{ width: `${Math.min(100, r.pct)}%` }} />
               </div>
-              <div className="flex items-center justify-between mt-1.5 text-[11px] text-muted-foreground">
+              <div className="flex items-center justify-between mt-1.5 text-xs text-muted-foreground">
                 <span>{rp(r.spent)} / {rp(r.amount)} ({r.pct}%)</span>
                 <span className={cn(r.remaining < 0 && 'text-destructive font-semibold')}>{t('budget.remaining', { amount: rp(r.remaining) })}</span>
               </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
+              <div className="text-xs text-muted-foreground mt-0.5">
                 WO {rp(r.spentWorkOrders)} · PO {rp(r.spentPurchaseOrders)}
               </div>
             </div>

@@ -9,6 +9,7 @@ import { CreatePMScheduleInput, PMIntervalType, PMTriggerType } from '@/lib/type
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { AssigneePicker } from '@/components/shared/assignee-picker'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 
 const EMPTY_FORM: CreatePMScheduleInput = {
   assetId: '',
@@ -139,7 +140,7 @@ export function PMSchedulePanel() {
               <button
                 onClick={handleRun}
                 disabled={running}
-                className="flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg border border-border text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50"
               >
                 {running ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
                 {t('pm.runNow')}
@@ -147,7 +148,7 @@ export function PMSchedulePanel() {
             )}
             <button
               onClick={() => setShowForm((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
             >
               {showForm ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
               {showForm ? t('common.close') : t('pm.newSchedule')}
@@ -165,7 +166,7 @@ export function PMSchedulePanel() {
               <select
                 value={form.assetId}
                 onChange={(e) => setForm({ ...form, assetId: e.target.value, assigneeUserId: undefined, assigneeName: '' })}
-                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
               >
                 <option value="">{t('pm.pickAssetOption')}</option>
                 {assets.map((a) => (
@@ -179,7 +180,7 @@ export function PMSchedulePanel() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder={t('pm.namePlaceholder')}
-                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
               />
             </label>
           </div>
@@ -190,7 +191,7 @@ export function PMSchedulePanel() {
               <select
                 value={form.triggerType}
                 onChange={(e) => setForm({ ...form, triggerType: e.target.value as PMTriggerType })}
-                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
               >
                 <option value="calendar">{t('pm.triggerCalendar')}</option>
                 <option value="meter">{t('pm.triggerMeter')}</option>
@@ -205,7 +206,7 @@ export function PMSchedulePanel() {
                   value={form.meterInterval ?? 0}
                   onChange={(e) => setForm({ ...form, meterInterval: Number(e.target.value) })}
                   placeholder={t('pm.meterPlaceholder')}
-                  className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                  className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
                 />
               </label>
             ) : (
@@ -217,12 +218,12 @@ export function PMSchedulePanel() {
                       type="number" min={1}
                       value={form.intervalValue}
                       onChange={(e) => setForm({ ...form, intervalValue: Number(e.target.value) })}
-                      className="h-8 w-14 rounded-md border border-border bg-background px-2 text-xs"
+                      className="h-9 w-14 rounded-lg border border-border bg-background px-2 text-xs"
                     />
                     <select
                       value={form.intervalType}
                       onChange={(e) => setForm({ ...form, intervalType: e.target.value as PMIntervalType })}
-                      className="h-8 flex-1 rounded-md border border-border bg-background px-1 text-xs"
+                      className="h-9 flex-1 rounded-lg border border-border bg-background px-1 text-xs"
                     >
                       <option value="days">{t('pm.days')}</option>
                       <option value="weeks">{t('pm.weeks')}</option>
@@ -236,7 +237,7 @@ export function PMSchedulePanel() {
                     type="date"
                     value={form.nextDueDate ?? ''}
                     onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })}
-                    className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                    className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
                   />
                 </label>
               </>
@@ -249,7 +250,7 @@ export function PMSchedulePanel() {
                 min={0}
                 value={form.leadTimeDays}
                 onChange={(e) => setForm({ ...form, leadTimeDays: Number(e.target.value) })}
-                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
               />
             </label>
           </div>
@@ -264,10 +265,10 @@ export function PMSchedulePanel() {
                   outlet={formAsset.outlet}
                   value={form.assigneeUserId ?? null}
                   onChange={(userId, name) => setForm({ ...form, assigneeUserId: userId ?? undefined, assigneeName: userId ? name : '' })}
-                  className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
+                  className="h-9 w-full rounded-lg border border-border bg-background px-2 text-xs"
                 />
               ) : (
-                <select id="pm-assignee" disabled className="h-8 rounded-md border border-border bg-background px-2 text-xs">
+                <select id="pm-assignee" disabled className="h-9 rounded-lg border border-border bg-background px-2 text-xs">
                   <option>{t('pm.pickAssetForAssignee')}</option>
                 </select>
               )}
@@ -279,19 +280,19 @@ export function PMSchedulePanel() {
                 onChange={(e) => setChecklistText(e.target.value)}
                 rows={2}
                 placeholder={t('pm.checklistPlaceholder')}
-                className="rounded-md border border-border bg-background px-2 py-1.5 text-xs resize-y"
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs resize-y"
               />
             </label>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-1">
-            <button onClick={resetForm} className="px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent transition-colors">
+            <button onClick={resetForm} className="px-3 h-9 rounded-lg border border-border text-sm font-medium hover:bg-accent transition-colors">
               {t('common.cancel')}
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               {saving && <Loader2 className="size-3.5 animate-spin" />}
               {t('pm.save')}
@@ -308,7 +309,7 @@ export function PMSchedulePanel() {
           <select
             value={meterAsset}
             onChange={(e) => setMeterAsset(e.target.value)}
-            className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+            className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
           >
             <option value="">{t('pm.assetOption')}</option>
             {assets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -317,11 +318,11 @@ export function PMSchedulePanel() {
             type="number" min={0} value={meterValue}
             onChange={(e) => setMeterValue(e.target.value)}
             placeholder={t('pm.meterValue')}
-            className="h-8 w-40 rounded-md border border-border bg-background px-2 text-xs"
+            className="h-9 w-40 rounded-lg border border-border bg-background px-2 text-xs"
           />
           <button
             onClick={handleRecordReading}
-            className="px-2.5 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent transition-colors"
+            className="px-2.5 h-9 rounded-lg border border-border text-sm font-medium hover:bg-accent transition-colors"
           >
             {t('pm.record')}
           </button>
@@ -332,52 +333,50 @@ export function PMSchedulePanel() {
       {pmLoading ? (
         <p className="text-xs text-muted-foreground text-center py-6">{t('pm.loading')}</p>
       ) : pmSchedules.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-10 text-xs text-muted-foreground">
-          {t('pm.empty')}
-        </div>
+        <SharedEmptyState title={t('pm.empty')} className="py-10 text-sm" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left py-2 font-semibold">{t('pm.colSchedule')}</th>
-                <th className="text-left py-2 font-semibold">{t('pm.asset')}</th>
-                <th className="text-left py-2 font-semibold">{t('pm.interval')}</th>
-                <th className="text-left py-2 font-semibold">{t('pm.colDue')}</th>
-                <th className="text-left py-2 font-semibold">{t('wo.checklist')}</th>
-                <th className="text-left py-2 font-semibold">{t('common.status')}</th>
-                {can.managePM && <th className="py-2" />}
+                <th className="text-left py-2.5 font-semibold">{t('pm.colSchedule')}</th>
+                <th className="text-left py-2.5 font-semibold">{t('pm.asset')}</th>
+                <th className="text-left py-2.5 font-semibold">{t('pm.interval')}</th>
+                <th className="text-left py-2.5 font-semibold">{t('pm.colDue')}</th>
+                <th className="text-left py-2.5 font-semibold">{t('wo.checklist')}</th>
+                <th className="text-left py-2.5 font-semibold">{t('common.status')}</th>
+                {can.managePM && <th className="py-2.5" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {pmSchedules.map((s) => (
                 <tr key={s.id} className="hover:bg-accent/40 transition-colors">
-                  <td className="py-2 font-semibold">
+                  <td className="py-2.5 font-semibold">
                     {s.name}
                     {s.triggerType === 'meter' && (
-                      <span className="ml-1.5 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-semibold border bg-primary/10 text-primary border-primary/20">
+                      <span className="ml-1.5 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-xs font-semibold border bg-primary/10 text-primary border-primary/20">
                         <Gauge className="size-2.5" /> {t('pm.meterBadge')}
                       </span>
                     )}
                   </td>
-                  <td className="py-2 text-muted-foreground">{s.assetName}</td>
-                  <td className="py-2 text-muted-foreground">
+                  <td className="py-2.5 text-muted-foreground">{s.assetName}</td>
+                  <td className="py-2.5 text-muted-foreground">
                     {s.triggerType === 'meter'
                       ? t('pm.everyUnits', { n: s.meterInterval ?? 0 })
                       : t('pm.every', { n: s.intervalValue, unit: t(`pm.unit.${s.intervalType}`) })}
                   </td>
-                  <td className="py-2 text-muted-foreground">
+                  <td className="py-2.5 text-muted-foreground">
                     {s.triggerType === 'meter'
                       ? t('pm.meterReading', { value: s.lastMeterValue ?? 0 })
                       : date(s.nextDueDate)}
                   </td>
-                  <td className="py-2 text-muted-foreground">{t('pm.items', { count: s.checklist.length })}</td>
-                  <td className="py-2">
+                  <td className="py-2.5 text-muted-foreground">{t('pm.items', { count: s.checklist.length })}</td>
+                  <td className="py-2.5">
                     <button
                       disabled={!can.managePM}
                       onClick={() => toggleActive(s.id, s.isActive)}
                       className={cn(
-                        'rounded px-1.5 py-0.5 text-[11px] font-semibold border',
+                        'rounded px-1.5 py-0.5 text-xs font-semibold border',
                         s.isActive
                           ? 'bg-success/15 text-success border-success/30'
                           : 'bg-muted text-muted-foreground border-border',
@@ -388,10 +387,10 @@ export function PMSchedulePanel() {
                     </button>
                   </td>
                   {can.managePM && (
-                    <td className="py-2 text-right">
+                    <td className="py-2.5 text-right">
                       <button
                         onClick={() => handleDelete(s.id, s.name)}
-                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        className="size-9 rounded-lg flex items-center justify-center hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                         title={t('pm.delete')}
                         aria-label={t('pm.delete')}
                       >

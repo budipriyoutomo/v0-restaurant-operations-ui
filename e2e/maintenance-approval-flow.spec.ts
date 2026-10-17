@@ -38,6 +38,7 @@ async function goTo(page: Page, menu: string) {
 }
 
 test('maintenance issue > Rp 1 juta: 2-step approval → work order completed → issue closed', async ({ browser, request }) => {
+  test.slow()   // four users sign in one after another: 1.5–2 min on a busy machine
   const title = `E2E kompor bocor gas ${Date.now()}`
 
   // Arrange: a fresh DB gives managers no outlets (migration 031) — grant one.
@@ -53,8 +54,8 @@ test('maintenance issue > Rp 1 juta: 2-step approval → work order completed �
   const dialog = manager.locator('form').filter({ has: manager.getByRole('button', { name: 'Buat Laporan' }) })
   await dialog.getByLabel('Judul').fill(title)
   await dialog.getByLabel('Deskripsi').fill('Bau gas di dapur utama, kompor harus diganti selangnya')
-  await dialog.getByLabel('Outlet').selectOption(OUTLET.name)
-  await dialog.getByLabel('Kategori').selectOption('Maintenance')
+  await dialog.getByLabel('Outlet', { exact: true }).selectOption(OUTLET.name)
+  await dialog.getByLabel('Kategori').selectOption({ label: 'Pemeliharaan' })
   await dialog.getByLabel('Tenggat').fill('2026-12-31')
   await dialog.getByLabel(/buat tugas/i).uncheck()
   await dialog.getByLabel(/buat perintah kerja/i).check()

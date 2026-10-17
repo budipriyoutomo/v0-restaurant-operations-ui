@@ -13,6 +13,9 @@ import { recordPath } from '@/lib/routes'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
 import { formatMoney } from '@/lib/money'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
+import { SegmentedTabs } from '@/components/shared/segmented-tabs'
+import { PageHeader } from '@/components/shared/page-header'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 
 type Tab = 'requests' | 'approvals'
 
@@ -49,45 +52,31 @@ export function AssetsPage() {
   ]
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
+    <div className="p-4 sm:p-6 space-y-5 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('assetsPage.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('assetsPage.subtitle')}
-          </p>
-        </div>
-        <button
+      <PageHeader
+        title={t('assetsPage.title')}
+        description={t('assetsPage.subtitle')}
+        actions={<>
+          <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="size-4" /> {t('assetsPage.new')}
         </button>
-      </div>
+      </>}
+      />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard label={t('assetsPage.total')} value={purchaseStats.total}    color="text-foreground" />
-        <StatCard label={t('assetsPage.pending')} value={purchaseStats.pending}  color="text-amber-700"  />
+        <StatCard label={t('assetsPage.pending')} value={purchaseStats.pending}  color="text-amber-700 dark:text-amber-400"  />
         <StatCard label={label('approvalStatus', 'approved')} value={purchaseStats.approved} color="text-success"    />
         <StatCard label={label('approvalStatus', 'rejected')} value={purchaseStats.rejected} color="text-destructive" />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
-        {tabDefs.map((td) => (
-          <button
-            key={td.id}
-            onClick={() => setTab(td.id)}
-            className={cn(
-              'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
-              tab === td.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {td.label} ({td.count})
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs label={t('nav.assets')} value={tab} onChange={setTab}
+        tabs={tabDefs.map((td) => ({ id: td.id, label: <>{td.label} <span className="text-muted-foreground tabular-nums">{td.count}</span></> }))} />
 
       {/* Tab: Asset Requests */}
       {tab === 'requests' && (
@@ -99,12 +88,12 @@ export function AssetsPage() {
               <button type="button" key={r.id} onClick={() => navigate(recordPath('issues', r.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-mono text-muted-foreground">{r.number}</span>
+                    <span className="text-xs font-mono text-muted-foreground">{r.number}</span>
                     <PriorityBadge priority={r.priority} />
                   </div>
                   <p className="text-sm font-semibold">{r.title}</p>
                   {r.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.description}</p>}
-                  <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                     <span>{r.outlet}</span>
                     <span>·</span>
                     <span>{r.assignee || t('common.unassigned')}</span>
@@ -128,11 +117,11 @@ export function AssetsPage() {
               <button type="button" key={a.id} onClick={() => navigate(recordPath('approvals', a.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-mono text-muted-foreground">{a.number}</span>
-                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-semibold text-muted-foreground">{t('assetsPage.assetTag')}</span>
+                    <span className="text-xs font-mono text-muted-foreground">{a.number}</span>
+                    <span className="text-xs bg-muted px-2 py-0.5 rounded-md font-semibold text-muted-foreground">{t('assetsPage.assetTag')}</span>
                   </div>
                   <p className="text-sm font-semibold">{a.title}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                     <span>{a.outlet}</span>
                     <span>·</span>
                     <span>{t('assetsPage.by', { name: a.requester })}</span>
@@ -140,7 +129,7 @@ export function AssetsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700" />}
+                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700 dark:text-amber-400" />}
                   {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
                   {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
                   <StatusBadge status={a.status} />
@@ -169,8 +158,8 @@ export function AssetsPage() {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="p-4 rounded-lg border border-border bg-muted/20">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
+    <div className="p-4 rounded-2xl border border-border bg-card">
+      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
       <p className={cn('text-2xl font-bold', color)}>{value}</p>
     </div>
   )
@@ -178,10 +167,6 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 
 function EmptyState({ icon: Icon, message, hint }: { icon: React.ElementType; message: string; hint: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-xl">
-      <Icon className="size-8 text-muted-foreground mb-3" />
-      <p className="text-sm font-medium">{message}</p>
-      <p className="text-xs text-muted-foreground mt-1 max-w-xs">{hint}</p>
-    </div>
+    <SharedEmptyState icon={Icon} title={message} description={hint} />
   )
 }

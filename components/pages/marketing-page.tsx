@@ -5,7 +5,7 @@ import { Megaphone, Plus, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2,
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
-import { useMyOutlets, usePermissions } from '@/lib/permissions'
+import { useMyOutlets, useOutletFilter, usePermissions } from '@/lib/permissions'
 import { Campaign, CampaignResultsInput, CampaignStatus, CampaignType, CreateCampaignInput } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
@@ -15,12 +15,16 @@ import { navigate } from '@/lib/use-route'
 import { recordPath } from '@/lib/routes'
 import { budgetBar, formatMoney, parseMoneyInput, upliftLabel } from '@/lib/campaign'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { SegmentedTabs } from '@/components/shared/segmented-tabs'
+import { PageHeader } from '@/components/shared/page-header'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { byOutlet } from '@/lib/outlet-filter'
 
 type Tab = 'campaigns' | 'approvals' | 'issues'
 
 const STATUS_COLORS: Record<CampaignStatus, string> = {
   draft:     'bg-muted text-muted-foreground',
-  active:    'bg-blue-100 text-blue-700',
+  active:    'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
   completed: 'bg-success/15 text-success',
   cancelled: 'bg-destructive/10 text-destructive',
 }
@@ -31,9 +35,14 @@ export function MarketingPage() {
   useEnsureLoaded('core', 'campaigns')
   const { t, label } = useT()
   const {
-    issues, approvals, outlets, pics, createIssue,
-    campaigns, campaignsLoading, createCampaign, updateCampaign, deleteCampaign, recordCampaignResults,
+    issues: allIssues, approvals: allApprovals, outlets, pics, createIssue,
+    campaigns: allCampaigns, campaignsLoading, createCampaign, updateCampaign, deleteCampaign, recordCampaignResults,
   } = useIssueStore()
+  // Top bar outlet filter; company-wide campaigns (no outlet) always show.
+  const { outlet } = useOutletFilter()
+  const issues = byOutlet(allIssues, outlet)
+  const approvals = byOutlet(allApprovals, outlet)
+  const campaigns = byOutlet(allCampaigns, outlet, { includeShared: true })
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
   const { can } = usePermissions()
@@ -54,17 +63,16 @@ export function MarketingPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('marketing.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('marketing.subtitle')}</p>
-        </div>
-        {tab === 'campaigns' ? (
+    <div className="p-4 sm:p-6 space-y-5 max-w-5xl">
+      <PageHeader
+        title={t('marketing.title')}
+        description={t('marketing.subtitle')}
+        actions={<>
+          {tab === 'campaigns' ? (
           can.manageCampaigns && (
             <button
               onClick={() => { setEditingCampaign(null); setShowCampaignForm(true) }}
-              className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
             >
               <Plus className="size-4" /> {t('marketing.newCampaign')}
             </button>
@@ -72,38 +80,26 @@ export function MarketingPage() {
         ) : (
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus className="size-4" /> {t('marketing.newRequest')}
           </button>
         )}
-      </div>
+      </>}
+      />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard label={t('marketing.totalCampaigns')} value={stats.campaigns} color="text-foreground" />
         <StatCard label={label('campaignStatus', 'active')} value={stats.active}    color="text-blue-600"   />
-        <StatCard label={t('assetsPage.pending')} value={stats.pending}  color="text-amber-700"  />
+        <StatCard label={t('assetsPage.pending')} value={stats.pending}  color="text-amber-700 dark:text-amber-400"  />
         <StatCard label={label('campaignStatus', 'completed')} value={stats.completed} color="text-success"    />
       </div>
 
-      <div className="flex gap-1 border-b border-border">
-        {([
-          { id: 'campaigns',  label: t('marketing.tab.campaigns', { count: campaigns.length }) },
-          { id: 'approvals',  label: t('marketing.tab.approvals', { count: approvalsM.length }) },
-          { id: 'issues',     label: t('marketing.tab.issues', { count: marketingIssues.length }) },
-        ] as const).map(td => (
-          <button
-            key={td.id}
-            onClick={() => setTab(td.id)}
-            className={cn(
-              'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
-              tab === td.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {td.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs label={t('nav.marketing')} value={tab} onChange={setTab} tabs={[
+        { id: 'campaigns',  label: t('marketing.tab.campaigns', { count: campaigns.length }) },
+        { id: 'approvals',  label: t('marketing.tab.approvals', { count: approvalsM.length }) },
+        { id: 'issues',     label: t('marketing.tab.issues', { count: marketingIssues.length }) },
+      ] as const} />
 
       {tab === 'campaigns' && <CampaignSummary refreshKey={campaigns} />}
 
@@ -135,15 +131,15 @@ export function MarketingPage() {
             {approvalsM.map(a => (
               <button type="button" key={a.id} onClick={() => navigate(recordPath('approvals', a.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div className="flex-1 min-w-0">
-                  <span className="text-[11px] font-mono text-muted-foreground">{a.number}</span>
+                  <span className="text-xs font-mono text-muted-foreground">{a.number}</span>
                   <p className="text-sm font-semibold mt-0.5">{a.title}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                     <span>{a.outlet}</span><span>·</span><span>{t('assetsPage.by', { name: a.requester })}</span>
                     {a.amount != null && <><span>·</span><span className="font-semibold text-foreground">{formatMoney(a.amount, a.currency)}</span></>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700" />}
+                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700 dark:text-amber-400" />}
                   {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
                   {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
                   <StatusBadge status={a.status} />
@@ -163,12 +159,12 @@ export function MarketingPage() {
               <button type="button" key={i.id} onClick={() => navigate(recordPath('issues', i.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-mono text-muted-foreground">{i.number}</span>
+                    <span className="text-xs font-mono text-muted-foreground">{i.number}</span>
                     <PriorityBadge priority={i.priority} />
                   </div>
                   <p className="text-sm font-semibold">{i.title}</p>
                   {i.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{i.description}</p>}
-                  <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                     <span>{i.outlet}</span><span>·</span><span>{i.assignee || t('common.unassigned')}</span>
                   </div>
                 </div>
@@ -238,8 +234,8 @@ function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatu
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-snug">{c.title}</p>
               <div className="flex items-center gap-2 mt-1">
-                <span className={cn('text-[10px] px-1.5 py-0.5 rounded font-semibold', STATUS_COLORS[c.status as CampaignStatus])}>{label('campaignStatus', c.status)}</span>
-                <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">{label('campaignType', c.type)}</span>
+                <span className={cn('text-xs px-2 py-0.5 rounded-md font-semibold', STATUS_COLORS[c.status as CampaignStatus])}>{label('campaignStatus', c.status)}</span>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md font-semibold">{label('campaignType', c.type)}</span>
               </div>
             </div>
             {canManage && (
@@ -254,7 +250,7 @@ function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatu
             {c.outlet && <p>{t('training.outlet', { name: c.outlet })}</p>}
             {c.pic && <p>{t('marketing.pic', { name: c.pic })}</p>}
             {c.budget !== null && <p>{t('marketing.budgetLabel')} <span className="font-semibold text-foreground">{formatMoney(c.budget, c.currency)}</span></p>}
-            {c.budget === null && c.budget_legacy && <p className="text-amber-700">{t('marketing.oldBudget', { text: c.budget_legacy })}</p>}
+            {c.budget === null && c.budget_legacy && <p className="text-amber-700 dark:text-amber-400">{t('marketing.oldBudget', { text: c.budget_legacy })}</p>}
             {(c.start_date || c.end_date) && (
               <p className="flex items-center gap-1">
                 <Calendar className="size-3" />
@@ -405,8 +401,8 @@ function ResultsDialog({ campaign: c, onClose, onSave }: {
       <span className="text-xs font-semibold">{label}</span>
       <input inputMode="numeric" value={f[key]} disabled={disabled}
         onChange={(e) => setF((x) => ({ ...x, [key]: e.target.value }))}
-        className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm disabled:opacity-50" />
-      {money && parseMoneyInput(f[key]) !== null && <span className="text-[11px] text-muted-foreground">{formatMoney(parseMoneyInput(f[key]), c.currency)}</span>}
+        className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 disabled:opacity-50" />
+      {money && parseMoneyInput(f[key]) !== null && <span className="text-xs text-muted-foreground">{formatMoney(parseMoneyInput(f[key]), c.currency)}</span>}
     </label>
   )
 
@@ -415,8 +411,8 @@ function ResultsDialog({ campaign: c, onClose, onSave }: {
   useModalKeyboard(panelRef, onClose)
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-md bg-background rounded-2xl border border-border shadow-xl p-6 max-h-[90vh] overflow-y-auto space-y-4">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+      <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-md bg-background rounded-2xl border border-border shadow-2xl p-6 max-h-[90vh] overflow-y-auto space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">{t('marketing.resultsTitle', { title: c.title })}</h2>
           <button onClick={onClose} aria-label={t('common.close')} className="size-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent"><X className="size-4" /></button>
@@ -424,7 +420,7 @@ function ResultsDialog({ campaign: c, onClose, onSave }: {
         {field('actual_cost', t('marketing.actualSpend', { currency: c.currency }), true)}
         <div className="space-y-3 rounded-lg border border-border p-3">
           <p className="text-xs font-semibold">{t('marketing.during')}{c.start_date && ` (${date(c.start_date)} → ${c.end_date ? date(c.end_date) : '?'})`}</p>
-          {!canRecordResults && <p className="text-[11px] text-muted-foreground">{t('marketing.resultsLater')}</p>}
+          {!canRecordResults && <p className="text-xs text-muted-foreground">{t('marketing.resultsLater')}</p>}
           <div className="grid grid-cols-2 gap-3">
             {field('result_transactions', t('marketing.transactions'), false, !canRecordResults)}
             {field('result_revenue', t('marketing.revenueCur', { currency: c.currency }), true, !canRecordResults)}
@@ -437,8 +433,8 @@ function ResultsDialog({ campaign: c, onClose, onSave }: {
         </div>
         {error && <p className="text-xs text-destructive">{error}</p>}
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 h-9 rounded-md border border-border text-sm">{t('common.cancel')}</button>
-          <button onClick={save} disabled={busy} className="px-4 h-9 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50">
+          <button onClick={onClose} className="px-4 h-9 rounded-lg border border-border text-sm">{t('common.cancel')}</button>
+          <button onClick={save} disabled={busy} className="px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50">
             {busy ? t('common.saving') : t('common.save')}
           </button>
         </div>
@@ -499,8 +495,8 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
   useModalKeyboard(panelRef, onClose)
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-lg bg-background rounded-2xl border border-border shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+      <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-lg bg-background rounded-2xl border border-border shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold">{campaign ? t('marketing.editCampaign') : t('marketing.newCampaign')}</h2>
           <button onClick={onClose} aria-label={t('common.close')} className="size-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent"><X className="size-4" /></button>
@@ -511,13 +507,13 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
             <label htmlFor="campaign-title" className="block text-xs font-semibold mb-1">{t('marketing.campaignTitle')}</label>
             <input id="campaign-title" type="text" placeholder={t('marketing.titlePlaceholder')} value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
           <div>
             <label htmlFor="campaign-type" className="block text-xs font-semibold mb-1">{t('common.type')}</label>
             <select id="campaign-type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as CampaignType }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             >
               {CAMPAIGN_TYPES.map((v) => (
                 <option key={v} value={v}>{label('campaignType', v)}</option>
@@ -528,13 +524,13 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
             <label htmlFor="campaign-description" className="block text-xs font-semibold mb-1">{t('common.description')}</label>
             <input id="campaign-description" type="text" placeholder={t('training.descriptionPlaceholder')} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
           <div>
             <label htmlFor="campaign-outlet" className="block text-xs font-semibold mb-1">{t('common.outlet')}</label>
             <select id="campaign-outlet" value={form.outlet} onChange={e => setForm(f => ({ ...f, outlet: e.target.value }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             >
               <option value="">{t('cmms.allOutlets')}</option>
               {outlets.map(o => <option key={o} value={o}>{o}</option>)}
@@ -554,23 +550,23 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
               />
             </div>
             {parseMoneyInput(form.budget) !== null && (
-              <p className="text-[11px] text-muted-foreground mt-1">{formatMoney(parseMoneyInput(form.budget), form.currency)}</p>
+              <p className="text-xs text-muted-foreground mt-1">{formatMoney(parseMoneyInput(form.budget), form.currency)}</p>
             )}
             {campaign?.budget_legacy && campaign.budget === null && (
-              <p className="text-[11px] text-amber-700 mt-1">{t('marketing.oldBudgetShort', { text: campaign.budget_legacy })}</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{t('marketing.oldBudgetShort', { text: campaign.budget_legacy })}</p>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="campaign-start" className="block text-xs font-semibold mb-1">{t('marketing.startDate')}</label>
               <input id="campaign-start" type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
               />
             </div>
             <div>
               <label htmlFor="campaign-end" className="block text-xs font-semibold mb-1">{t('marketing.endDate')}</label>
               <input id="campaign-end" type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
               />
             </div>
           </div>
@@ -578,7 +574,7 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
             <label htmlFor="campaign-pic" className="block text-xs font-semibold mb-1">{t('marketing.picLabel')}</label>
             <input id="campaign-pic" type="text" placeholder="Ahmad Razif" value={form.pic}
               onChange={e => setForm(f => ({ ...f, pic: e.target.value }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
           <div className="flex gap-2 pt-2">
@@ -600,19 +596,15 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="p-4 rounded-lg border border-border bg-muted/20">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
+    <div className="p-4 rounded-2xl border border-border bg-card">
+      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
       <p className={cn('text-2xl font-bold', color)}>{value}</p>
     </div>
   )
 }
 
-function EmptyState({ icon, label, hint }: { icon: React.ReactNode; label: string; hint: string }) {
+function EmptyState({ icon, label, hint }: { icon: React.ReactElement; label: string; hint: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-xl">
-      {icon}
-      <p className="text-sm font-medium mt-3">{label}</p>
-      <p className="text-xs text-muted-foreground mt-1">{hint}</p>
-    </div>
+    <SharedEmptyState icon={icon} title={label} description={hint} />
   )
 }

@@ -425,6 +425,18 @@ describe('IssuesListPage — drill-down from the GM view (Todo-Pilot §25)', () 
     expect(screen.getByRole('button', { name: /Past SLA/ })).toBeInTheDocument()
   })
 
+  it('follows the top bar outlet filter (Todo-UI)', async () => {
+    useIssueStore.setState({
+      currentUser: { ...useIssueStore.getState().currentUser!, all_outlets: true },
+      outlets: [{ id: 'o-dago', name: 'Dago' }, { id: 'o-riau', name: 'Riau' }] as never,
+      outletFilter: 'Riau',
+    })
+    await renderList(<IssuesListPage />)
+    expect(screen.getByText('Riau late')).toBeInTheDocument()
+    expect(screen.queryByText('Dago late')).not.toBeInTheDocument()
+    useIssueStore.setState({ outletFilter: null })
+  })
+
   it('the chips remove their filter', async () => {
     vi.useRealTimers()
     nav.search = '?outlet=Dago'

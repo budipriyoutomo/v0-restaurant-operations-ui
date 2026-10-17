@@ -45,7 +45,8 @@ test('finished work order → "Awaiting Close" on the dashboard → bulk close',
   await page.getByRole('button', { name: /^masuk$/i }).click()
   await page.getByRole('button', { name: /menunggu ditutup/i }).click()
   await expect(page).toHaveURL(/\/issues\?ready=1$/)
-  const card = page.getByText(title).locator('xpath=ancestor::div[contains(@class,"rounded-lg")][1]')
+  // The card is a button named by its number + title (Todo-Pilot §26).
+  const card = page.getByRole('button', { name: new RegExp(title) })
   await expect(card.getByText('Siap ditutup', { exact: true })).toBeVisible()
 
   // 2. Bulk close, after confirming.

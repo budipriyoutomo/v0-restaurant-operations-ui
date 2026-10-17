@@ -13,6 +13,7 @@ import { api, apiErrorMessage, authToken } from './api-client'
 import { canListUsers, canRead, hasPermission } from './access'
 import { rememberLocale, storedLocale, type Locale } from './i18n/locale'
 import { translate } from './i18n/translate'
+import { effectiveOutlet, outletQuery, rememberOutletFilter, storedOutletFilter } from './outlet-filter'
 import {
   AppNotification,
   ApprovalRequest,
@@ -165,6 +166,10 @@ interface IssueCoreState {
   // what has been fetched (pages, records, an issue's children) — not "everything".
   counts: Counts | null
   loadCounts: () => Promise<void>
+  // Top bar outlet filter (outlet name, or null = all my outlets); read it through
+  // useOutletFilter(), which drops an outlet this user cannot see.
+  outletFilter: string | null
+  setOutletFilter: (name: string | null) => void
   listVersion: number                      // bumped by every change → lists on screen refetch
   bumpLists: () => void
   upsertIssues: (items: Issue[]) => void
@@ -372,6 +377,7 @@ const EMPTY_DATA = {
   lastSyncedAt: null as string | null,
   counts: null as Counts | null,
   listVersion: 0,
+  outletFilter: storedOutletFilter(),
 
   outlets:           [],
   categories:        [],
@@ -511,7 +517,14 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
   },
 
   loadCounts: async () => {
-    try { set({ counts: await api.get<Counts>('/api/counts') }) } catch { /* badges keep their last value */ }
+    const q = outletQuery(effectiveOutlet(get().outletFilter, get().currentUser, get().outlets))
+    try { set({ counts: await api.get<Counts>(q ? `/api/counts?${q}` : '/api/counts') }) } catch { /* badges keep their last value */ }
+  },
+
+  setOutletFilter: (name) => {
+    rememberOutletFilter(name)
+    set({ outletFilter: name })
+    get().loadCounts()
   },
 
   bumpLists: () => {
@@ -1413,6 +1426,8 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
         api.get<PIC[]>('/api/pics'),
       ])
       set({ outlets, categories, pics, masterDataLoading: false })
+      // Badges load before the outlets do: recount once the outlet filter can apply.
+      if (get().outletFilter) get().loadCounts()
     } catch (e) {
       set({ masterDataLoading: false, masterDataError: String(e) })
     }

@@ -34,8 +34,8 @@ export function QrDialog({ onClose, onResolved }: {
   useModalKeyboard(panelRef, onClose)
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-lg border border-border shadow-lg max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4" onClick={onClose}>
+      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-2xl border border-border shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="sticky top-0 flex items-center justify-between p-4 border-b border-border bg-background">
           <div className="flex items-center gap-2">
             <QrCode className="size-4 text-primary" />
@@ -143,7 +143,7 @@ export function ScanTab({ resolveQr, onResolved }: {
             )}
         </>
       ) : (
-        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
           <Keyboard className="size-3.5" /> {t('qr.noScanner')}
         </p>
       )}
@@ -155,10 +155,10 @@ export function ScanTab({ resolveQr, onResolved }: {
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); resolve(manual) } }}
           aria-label={t('qr.manualPlaceholder')}
           placeholder={t('qr.manualPlaceholder')}
-          className="flex-1 h-9 rounded-md border border-border bg-muted/20 px-3 text-xs font-mono"
+          className="flex-1 h-9 rounded-lg border border-border bg-muted/20 px-3 text-xs font-mono"
         />
         <button type="button" onClick={() => resolve(manual)} disabled={busy || !manual.trim()}
-          className="px-3 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5">
+          className="px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5">
           {busy ? <Loader2 className="size-3.5 animate-spin" /> : null} {t('qr.open')}
         </button>
       </div>
@@ -185,12 +185,12 @@ function PrintTab({ assets }: { assets: { id: string; name: string; number: stri
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">{t('qr.ready', { count: printable.length })}</p>
         <button onClick={() => window.print()}
-          className="flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent">
+          className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg border border-border text-sm font-medium hover:bg-accent">
           <Printer className="size-3.5" /> {t('qr.printButton')}
         </button>
       </div>
       {printable.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground text-center py-6">{t('qr.noAssets')}</p>
+        <p className="text-xs text-muted-foreground text-center py-6">{t('qr.noAssets')}</p>
       ) : (
         <div id="qr-print-area" className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {printable.map((a) => (
@@ -199,8 +199,8 @@ function PrintTab({ assets }: { assets: { id: string; name: string; number: stri
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={dataUrls[a.id]} alt={a.name} className="w-full max-w-[120px]" />
                 : <div className="w-[120px] h-[120px] animate-pulse bg-muted" />}
-              <p className="text-[10px] font-mono mt-1 text-black">{a.number}</p>
-              <p className="text-[9px] text-neutral-600 truncate w-full">{a.name}</p>
+              <p className="text-xs font-mono mt-1 text-black">{a.number}</p>
+              <p className="text-xs text-neutral-600 truncate w-full">{a.name}</p>
             </div>
           ))}
         </div>

@@ -53,4 +53,23 @@ describe('useModalKeyboard', () => {
     expect(inner).toHaveBeenCalledTimes(1)
     expect(outer).not.toHaveBeenCalled()
   })
+
+  it('leaves keys alone inside another dialog opened on top (e.g. a Radix dialog in a portal)', async () => {
+    const onClose = vi.fn()
+    render(
+      <>
+        <Modal onClose={onClose} />
+        <div role="dialog" aria-label="Create">
+          <input aria-label="Title" />
+          <button>Save</button>
+        </div>
+      </>,
+    )
+    const title = screen.getByLabelText('Title')
+    title.focus()
+    await userEvent.tab()
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveFocus()      // not pulled back into the drawer
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).not.toHaveBeenCalled()                                 // the dialog on top handles its Escape
+  })
 })

@@ -100,20 +100,20 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="create-asset-title"
-        className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        className="bg-background rounded-2xl border border-border shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
           <h2 id="create-asset-title" className="text-lg font-bold">{t('createAsset.title')}</h2>
-          <button onClick={() => !isSubmitting && onOpenChange(false)} aria-label={t('common.close')} className="p-1 hover:bg-muted rounded-md transition-colors">
+          <button onClick={() => !isSubmitting && onOpenChange(false)} aria-label={t('common.close')} className="p-1 hover:bg-muted rounded-lg transition-colors">
             <X className="size-5 text-muted-foreground" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
+            <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
           )}
 
           {/* Name */}
@@ -122,7 +122,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
             <input id={`${id}-name`}
               type="text" name="name" placeholder={t('createAsset.namePlaceholder')}
               value={form.name} onChange={handleChange} autoFocus
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
 
@@ -133,7 +133,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
               type="text" name="category" list="category-suggestions"
               placeholder={t('createAsset.categoryPlaceholder')}
               value={form.category} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
             <datalist id="category-suggestions">
               {CATEGORY_SUGGESTIONS.map((c) => <option key={c} value={c} />)}
@@ -145,14 +145,14 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
             <label htmlFor={`${id}-outlet`} className="block text-sm font-semibold mb-1.5">{t('common.outlet')} <span className="text-destructive">*</span></label>
             {outlets.length > 0 ? (
               <select id={`${id}-outlet`} name="outlet" value={form.outlet} onChange={handleChange}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
                 {outlets.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             ) : (
               <input
                 type="text" name="outlet" placeholder={t('createIssue.outletPlaceholder')}
                 value={form.outlet} onChange={handleChange}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
               />
             )}
           </div>
@@ -161,7 +161,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
           <div>
             <label htmlFor={`${id}-status`} className="block text-sm font-semibold mb-1.5">{t('common.status')}</label>
             <select id={`${id}-status`} name="status" value={form.status} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
               {ASSET_STATUSES.map((s) => (
                 <option key={s} value={s}>{label('assetStatus', s)}</option>
               ))}
@@ -175,7 +175,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
               <input id={`${id}-brand`}
                 type="text" name="brand" placeholder={t('createAsset.brandPlaceholder')}
                 value={form.brand} onChange={handleChange}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
               />
             </div>
             <div>
@@ -183,7 +183,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
               <input id={`${id}-model`}
                 type="text" name="model" placeholder={t('createAsset.modelPlaceholder')}
                 value={form.model} onChange={handleChange}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
               />
             </div>
           </div>
@@ -194,7 +194,7 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
             <input id={`${id}-serialNumber`}
               type="text" name="serialNumber" placeholder={t('createAsset.serialPlaceholder')}
               value={form.serialNumber} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 font-mono"
             />
           </div>
 
@@ -205,24 +205,24 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
               <div>
                 <label htmlFor={`${id}-installDate`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('asset.installDate')}</label>
                 <input id={`${id}-installDate`} type="date" name="installDate" value={form.installDate} onChange={handleChange}
-                  className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                  className="w-full min-h-9 px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40" />
               </div>
               <div>
                 <label htmlFor={`${id}-lastPM`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('asset.lastPm')}</label>
                 <input id={`${id}-lastPM`} type="date" name="lastPM" value={form.lastPM} onChange={handleChange}
-                  className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                  className="w-full min-h-9 px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40" />
               </div>
               <div>
                 <label htmlFor={`${id}-nextPM`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('asset.nextPm')}</label>
                 <input id={`${id}-nextPM`} type="date" name="nextPM" value={form.nextPM} onChange={handleChange}
-                  className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                  className="w-full min-h-9 px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40" />
               </div>
             </div>
             <div>
               <label htmlFor={`${id}-purchaseCost`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('createAsset.purchaseCost')}</label>
               <input id={`${id}-purchaseCost`} type="number" min={0} name="purchaseCost" placeholder={t('createAsset.purchasePlaceholder')}
                 value={form.purchaseCost} onChange={handleChange}
-                className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                className="w-full min-h-9 px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40" />
             </div>
             {/* Food safety temperature monitoring (Todo-Ops-Checklist Fase 2) */}
             <div className="space-y-2">
@@ -236,31 +236,31 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
                   <div>
                     <label htmlFor={`${id}-tempMin`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('temp.min')} (°C)</label>
                     <input id={`${id}-tempMin`} inputMode="decimal" name="tempMin" value={form.tempMin} onChange={handleChange}
-                      className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                      className="w-full min-h-9 px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40" />
                   </div>
                   <div>
                     <label htmlFor={`${id}-tempMax`} className="block text-xs font-semibold mb-1.5 text-muted-foreground">{t('temp.max')} (°C)</label>
                     <input id={`${id}-tempMax`} inputMode="decimal" name="tempMax" value={form.tempMax} onChange={handleChange}
-                      className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                      className="w-full min-h-9 px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40" />
                   </div>
-                  {!tempValid && <p className="col-span-2 text-[11px] text-destructive">{t('temp.minBelowMax')}</p>}
+                  {!tempValid && <p className="col-span-2 text-xs text-destructive">{t('temp.minBelowMax')}</p>}
                 </div>
               )}
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t border-border">
+          <div className="sticky bottom-0 bg-background flex gap-3 py-4 border-t border-border">
             <button
               type="button" onClick={() => !isSubmitting && onOpenChange(false)} disabled={isSubmitting}
-              className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
+              className="flex-1 h-10 px-4 rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit" disabled={!isComplete || isSubmitting}
               className={cn(
-                'flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors',
+                'flex-1 h-10 px-4 rounded-lg font-semibold text-sm transition-colors',
                 isComplete && !isSubmitting
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-muted text-muted-foreground cursor-not-allowed'

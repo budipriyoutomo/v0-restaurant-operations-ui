@@ -59,19 +59,19 @@ export function GuestKpiPanel({ refreshKey = 0, compact = false }: { refreshKey?
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-                  <th className="text-left px-3 py-2 font-semibold">{t('common.outlet')}</th>
-                  <th className="text-right px-3 py-2 font-semibold">{t('guestKpi.cases')}</th>
-                  <th className="text-right px-3 py-2 font-semibold">{t('guestKpi.avgResponse')}</th>
-                  <th className="text-right px-3 py-2 font-semibold hidden sm:table-cell">{t('guestKpi.avgResolution')}</th>
+                  <th className="text-left px-4 py-3 font-semibold">{t('common.outlet')}</th>
+                  <th className="text-right px-4 py-3 font-semibold">{t('guestKpi.cases')}</th>
+                  <th className="text-right px-4 py-3 font-semibold">{t('guestKpi.avgResponse')}</th>
+                  <th className="text-right px-4 py-3 font-semibold hidden sm:table-cell">{t('guestKpi.avgResolution')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {k.perOutlet.map((o) => (
                   <tr key={o.outlet}>
-                    <td className="px-3 py-2">{o.outlet}{o.open > 0 && <span className="ml-1 text-[11px] text-amber-700">{t('guestKpi.openCount', { count: o.open })}</span>}</td>
-                    <td className="px-3 py-2 text-right">{o.cases}</td>
-                    <td className="px-3 py-2 text-right">{formatDuration(o.avgFirstResponseMinutes, locale)}</td>
-                    <td className="px-3 py-2 text-right hidden sm:table-cell">{formatDuration(o.avgResolutionMinutes, locale)}</td>
+                    <td className="px-4 py-3">{o.outlet}{o.open > 0 && <span className="ml-1 text-xs text-amber-700 dark:text-amber-400">{t('guestKpi.openCount', { count: o.open })}</span>}</td>
+                    <td className="px-4 py-3 text-right">{o.cases}</td>
+                    <td className="px-4 py-3 text-right">{formatDuration(o.avgFirstResponseMinutes, locale)}</td>
+                    <td className="px-4 py-3 text-right hidden sm:table-cell">{formatDuration(o.avgResolutionMinutes, locale)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -88,14 +88,14 @@ function Kpi({ icon: Icon, label, value, sub, tone }: {
 }) {
   return (
     <div className="p-4 rounded-xl border border-border bg-card">
-      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
         <Icon className="size-3.5" /> {label}
       </p>
       <p className={cn('text-2xl font-bold mt-1',
-        tone === 'good' && 'text-emerald-700', tone === 'warn' && 'text-amber-700', tone === 'bad' && 'text-red-600')}>
+        tone === 'good' && 'text-emerald-700 dark:text-emerald-400', tone === 'warn' && 'text-amber-700 dark:text-amber-400', tone === 'bad' && 'text-red-600')}>
         {value}
       </p>
-      {sub && <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
     </div>
   )
 }

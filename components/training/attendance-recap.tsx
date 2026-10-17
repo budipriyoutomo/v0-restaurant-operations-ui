@@ -33,7 +33,7 @@ export function AttendanceRecap({ refreshKey = 0 }: { refreshKey?: number }) {
         <RecapTable title={t('attendance.byOutlet')} rows={r.by_outlet} />
         <RecapTable title={t('attendance.byRole')} rows={r.by_role} />
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         {t('attendance.note')}
       </p>
     </div>
@@ -47,24 +47,24 @@ function RecapTable({ title, rows }: { title: string; rows: (AttendanceBucket & 
       <p className="px-3 py-2 text-xs font-semibold border-b border-border bg-muted/40">{title}</p>
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-[11px] text-muted-foreground border-b border-border">
-            <th className="text-left px-3 py-1.5 font-semibold" />
-            <th className="text-right px-3 py-1.5 font-semibold">{label('enrollmentStatus', 'registered')}</th>
-            <th className="text-right px-3 py-1.5 font-semibold">{label('enrollmentStatus', 'attended')}</th>
-            <th className="text-right px-3 py-1.5 font-semibold">{label('enrollmentStatus', 'no-show')}</th>
-            <th className="text-right px-3 py-1.5 font-semibold">{t('attendance.rateShort')}</th>
+          <tr className="text-xs text-muted-foreground border-b border-border">
+            <th className="text-left px-4 py-3 font-semibold" />
+            <th className="text-right px-4 py-3 font-semibold">{label('enrollmentStatus', 'registered')}</th>
+            <th className="text-right px-4 py-3 font-semibold">{label('enrollmentStatus', 'attended')}</th>
+            <th className="text-right px-4 py-3 font-semibold">{label('enrollmentStatus', 'no-show')}</th>
+            <th className="text-right px-4 py-3 font-semibold">{t('attendance.rateShort')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {rows.map((x) => (
             <tr key={x.key}>
-              <td className="px-3 py-2">{x.key}</td>
-              <td className="px-3 py-2 text-right">{x.enrolled}</td>
-              <td className="px-3 py-2 text-right">{x.attended}</td>
-              <td className="px-3 py-2 text-right">{x.no_show}</td>
+              <td className="px-4 py-3">{x.key}</td>
+              <td className="px-4 py-3 text-right">{x.enrolled}</td>
+              <td className="px-4 py-3 text-right">{x.attended}</td>
+              <td className="px-4 py-3 text-right">{x.no_show}</td>
               <td className={cn('px-3 py-2 text-right font-semibold',
                 x.attendance_rate === null ? 'text-muted-foreground'
-                  : x.attendance_rate >= 90 ? 'text-emerald-700' : x.attendance_rate >= 70 ? 'text-amber-700' : 'text-red-600')}>
+                  : x.attendance_rate >= 90 ? 'text-emerald-700 dark:text-emerald-400' : x.attendance_rate >= 70 ? 'text-amber-700 dark:text-amber-400' : 'text-red-600')}>
                 {rateLabel(x.attendance_rate)}
               </td>
             </tr>
@@ -78,9 +78,9 @@ function RecapTable({ title, rows }: { title: string; rows: (AttendanceBucket & 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="p-4 rounded-xl border border-border bg-card">
-      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       <p className="text-2xl font-bold mt-1">{value}</p>
-      {sub && <p className="text-[11px] text-muted-foreground">{sub}</p>}
+      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
     </div>
   )
 }

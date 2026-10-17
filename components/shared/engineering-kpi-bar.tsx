@@ -23,10 +23,10 @@ export function EngineeringKPIBar() {
             <div key={kpi.label} className={`${kpi.color} px-3 py-2 rounded-lg flex flex-col gap-1 transition-all hover:shadow-md`}>
               <div className="flex items-center gap-1.5 mb-0.5">
                 <Icon className="size-3.5" />
-                <span className="text-[10px] font-semibold text-current opacity-75">{kpi.label}</span>
+                <span className="text-xs font-semibold text-current opacity-75">{kpi.label}</span>
               </div>
               <p className="text-sm font-bold text-current">{kpi.value}</p>
-              <p className="text-[10px] text-current opacity-60">{kpi.trend}</p>
+              <p className="text-xs text-current opacity-60">{kpi.trend}</p>
             </div>
           )
         })}

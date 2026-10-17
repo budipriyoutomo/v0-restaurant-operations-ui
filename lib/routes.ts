@@ -13,6 +13,10 @@ export const PAGE_IDS = [
   'master-data', 'users', 'notifications', 'settings',
 ] as const
 
+// Opened from the "forgot password" email (/reset-password?token=…); rendered
+// before sign-in. Must match backend password_reset_service's link.
+export const PUBLIC_RESET_PAGE = 'reset-password'
+
 // Pages whose detail drawer is addressed by the URL.
 export const RECORD_PAGES = ['issues', 'it-support', 'approvals', 'cmms', 'ops'] as const
 

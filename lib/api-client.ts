@@ -157,6 +157,13 @@ export function initOfflineSync(): void {
 
 /** Human-readable message from an API error: FastAPI's `detail` (string, or
  *  {message} as the Issue closure guard returns), else the raw error text. */
+/** HTTP status of a failed API call, or null (network error, not an API error). */
+export function apiStatus(e: unknown): number | null {
+  if (!(e instanceof Error)) return null
+  const m = /^API (\d{3}) /.exec(e.message)
+  return m ? Number(m[1]) : null
+}
+
 export function apiErrorMessage(e: unknown, fallback = 'Request failed.'): string {
   if (!(e instanceof Error)) return fallback
   const json = e.message.slice(e.message.indexOf(': ') + 2)

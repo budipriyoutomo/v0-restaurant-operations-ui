@@ -130,7 +130,7 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
           </div>
           <div className="text-right flex-shrink-0">
             <p className={cn('text-2xl font-bold', TONE_CLASS[scoreTone(score)])}>{score === null ? '—' : `${score}`}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
               {audit.status === 'submitted' ? t('qaRunner.score') : t('qaRunner.preview')}
             </p>
           </div>
@@ -165,13 +165,13 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
       {editable && (
         <div className="sticky bottom-0 bg-background border-t border-border px-4 sm:px-6 py-3 space-y-2">
           {problems.length > 0 && (
-            <details className="text-xs text-amber-800">
+            <details className="text-xs text-amber-800 dark:text-amber-400">
               <summary className="cursor-pointer font-medium">{t('qaRunner.needAttention', { count: problems.length })}</summary>
               <ul className="mt-1 space-y-0.5 list-disc pl-4">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
             </details>
           )}
           <div className="flex gap-2">
-            <button onClick={discard} className="flex items-center gap-1.5 px-3 h-10 rounded-md border border-border text-xs font-semibold hover:bg-muted/50">
+            <button onClick={discard} className="flex items-center gap-1.5 px-3 h-10 rounded-lg border border-border text-sm font-medium hover:bg-muted/50">
               <Trash2 className="size-3.5" /> {t('qaRunner.discard')}
             </button>
             <button
@@ -209,10 +209,10 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-snug">{f.title}</p>
         <div className="flex items-center gap-1 flex-shrink-0">
-          {f.isCritical && <Badge className="bg-red-100 text-red-700"><Star className="size-2.5" /> {t('qaRunner.critical')}</Badge>}
-          {f.requiresPhoto && <Badge className={needsPhoto ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground'}><Camera className="size-2.5" /> {t('qaRunner.photo')}</Badge>}
-          {f.isRepeat && <Badge className="bg-orange-100 text-orange-800"><Repeat className="size-2.5" /> {t('qaRunner.repeat')}</Badge>}
-          <span className="text-[10px] text-muted-foreground">×{f.weight}</span>
+          {f.isCritical && <Badge className="bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300"><Star className="size-2.5" /> {t('qaRunner.critical')}</Badge>}
+          {f.requiresPhoto && <Badge className={needsPhoto ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 'bg-muted text-muted-foreground'}><Camera className="size-2.5" /> {t('qaRunner.photo')}</Badge>}
+          {f.isRepeat && <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300"><Repeat className="size-2.5" /> {t('qaRunner.repeat')}</Badge>}
+          <span className="text-xs text-muted-foreground">×{f.weight}</span>
         </div>
       </div>
 
@@ -256,12 +256,12 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
           <AuthedImage key={p.id} path={p.thumbnailUrl} alt={f.title} className="size-14 rounded-md object-cover border border-border" />
         ))}
         {queuedPhotos > 0 && (
-          <span className="size-14 rounded-md border border-dashed border-border text-[10px] text-muted-foreground flex items-center justify-center text-center px-1">
+          <span className="size-14 rounded-md border border-dashed border-border text-xs text-muted-foreground flex items-center justify-center text-center px-1">
             {t('qaRunner.queued', { count: queuedPhotos })}
           </span>
         )}
         {editable && (
-          <label className="size-14 rounded-md border border-dashed border-border flex flex-col items-center justify-center text-[10px] text-muted-foreground cursor-pointer hover:bg-muted/50">
+          <label className="size-14 rounded-md border border-dashed border-border flex flex-col items-center justify-center text-xs text-muted-foreground cursor-pointer hover:bg-muted/50">
             <Camera className="size-4" /> {t('qaRunner.addPhoto')}
             <input
               type="file" accept="image/*" capture="environment" className="hidden"
@@ -270,7 +270,7 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
           </label>
         )}
         {f.issueId && (
-          <span className="text-[11px] text-red-700 flex items-center gap-1 ml-auto">
+          <span className="text-xs text-red-700 dark:text-red-400 flex items-center gap-1 ml-auto">
             <AlertTriangle className="size-3" /> {t('qaRunner.issueRaised')}
           </span>
         )}
@@ -280,7 +280,7 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
 }
 
 function Badge({ className, children }: { className: string; children: React.ReactNode }) {
-  return <span className={cn('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold', className)}>{children}</span>
+  return <span className={cn('inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold', className)}>{children}</span>
 }
 
 function Shell({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
@@ -291,8 +291,8 @@ function Shell({ onClose, children }: { onClose: () => void; children: React.Rea
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      <div ref={panelRef} role="dialog" aria-modal="true" className="fixed inset-y-0 right-0 w-full sm:max-w-xl bg-background border-l border-border shadow-lg z-50 overflow-y-auto">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={onClose} />
+      <div ref={panelRef} role="dialog" aria-modal="true" className="fixed inset-y-0 right-0 w-full sm:max-w-xl bg-background border-l border-border shadow-2xl z-50 overflow-y-auto">
         <button onClick={onClose} className="absolute right-3 top-3 z-20 p-1 text-muted-foreground hover:text-foreground" aria-label={t('common.close')}>
           <X className="size-5" />
         </button>

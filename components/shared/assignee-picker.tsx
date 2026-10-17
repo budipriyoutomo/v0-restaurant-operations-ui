@@ -44,7 +44,7 @@ export function AssigneePicker({
           const user = users?.find((u) => u.id === v)
           onChange(user ? user.id : null, user ? user.name : UNASSIGNED)   // 'Unassigned' is the API value
         }}
-        className={className ?? 'w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50'}
+        className={className ?? 'w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40'}
       >
         <option value="">{t('common.unassigned')}</option>
         {showLegacy && <option value={LEGACY} disabled>{t('assignee.notAUser', { name: legacyName! })}</option>}

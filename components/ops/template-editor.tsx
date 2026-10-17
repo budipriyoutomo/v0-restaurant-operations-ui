@@ -80,9 +80,9 @@ export function OpsTemplateEditor({ template, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="ops-template-title"
-        className="bg-background rounded-lg border border-border shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        className="bg-background rounded-2xl border border-border shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 z-10 flex items-center justify-between p-5 border-b border-border bg-background">
           <h2 id="ops-template-title" className="text-lg font-bold">{template ? t('ops.editTemplate') : t('ops.newTemplate')}</h2>
           <button onClick={onClose} aria-label={t('common.close')} className="p-1 hover:bg-muted rounded-md"><X className="size-5 text-muted-foreground" /></button>
@@ -147,7 +147,7 @@ export function OpsTemplateEditor({ template, onClose, onSaved }: {
                       <option value="">{t('ops.noAsset')}</option>
                       {monitored.map((a) => <option key={a.id} value={a.id}>{a.name} · {a.outlet} ({a.tempMin ?? '—'} – {a.tempMax ?? '—'} °C)</option>)}
                     </select>
-                    {it.assetId && <p className="text-[11px] text-muted-foreground mt-1">{t('ops.assetLimitsHint')}</p>}
+                    {it.assetId && <p className="text-xs text-muted-foreground mt-1">{t('ops.assetLimitsHint')}</p>}
                   </div>
                 )}
                 {it.itemType !== 'check' && (

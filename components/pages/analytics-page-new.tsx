@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { BarChart3, PieChart, TrendingUp, AlertTriangle, CheckCircle2, Clock, ClipboardList } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
@@ -12,26 +13,36 @@ import { OpsKpiPanel } from '@/components/ops/kpi-panel'
 import { navigate } from '@/lib/use-route'
 import { hasPermission } from '@/lib/access'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
+import { PageHeader } from '@/components/shared/page-header'
+import { StatCard } from '@/components/shared/stat-card'
+import { useOutletFilter } from '@/lib/permissions'
+import { byOutlet } from '@/lib/outlet-filter'
 
 const STATUS_ORDER: IssueStatus[] = ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed', 'cancelled']
+// Every row is labelled, so bars need no hue of their own: one validated chart
+// colour for magnitude (dataviz: --chart-1 passes in light and dark).
+const BAR = 'bg-[var(--chart-1)]'
 const STATUS_COLORS: Record<IssueStatus, string> = {
-  open: 'bg-blue-500', assigned: 'bg-purple-500', 'in-progress': 'bg-amber-500',
-  waiting: 'bg-cyan-500', resolved: 'bg-green-500', closed: 'bg-gray-400', cancelled: 'bg-rose-400',
+  open: BAR, assigned: BAR, 'in-progress': BAR, waiting: BAR, resolved: BAR, closed: BAR, cancelled: BAR,
 }
 
 const PRIORITY_ORDER: Priority[] = ['critical', 'high', 'medium', 'low']
-const PRIORITY_COLORS: Record<Priority, string> = {
-  critical: 'bg-red-500', high: 'bg-orange-500', medium: 'bg-amber-500', low: 'bg-green-500',
-}
+const PRIORITY_COLORS: Record<Priority, string> = { critical: BAR, high: BAR, medium: BAR, low: BAR }
+// Values wear text tokens, never a series colour (dataviz).
 const PRIORITY_TEXT: Record<Priority, string> = {
-  critical: 'text-red-700', high: 'text-orange-700', medium: 'text-amber-700', low: 'text-green-700',
+  critical: 'text-foreground', high: 'text-foreground', medium: 'text-foreground', low: 'text-foreground',
 }
 
 export function AnalyticsDashboardPage() {
   // Aggregates every issue/task/approval: loads them all when opened (Todo-Pilot §22)
   useEnsureLoaded('core')
   const currentUser = useIssueStore((s) => s.currentUser)
-  const { issues, tasks, approvals } = useIssueStore()
+  const store = useIssueStore()
+  // Top bar outlet filter: the core lists are in memory, narrow them here.
+  const { outlet } = useOutletFilter()
+  const issues = useMemo(() => byOutlet(store.issues, outlet), [store.issues, outlet])
+  const tasks = useMemo(() => byOutlet(store.tasks, outlet), [store.tasks, outlet])
+  const approvals = useMemo(() => byOutlet(store.approvals, outlet), [store.approvals, outlet])
   const { t, label } = useT()
 
   // ── Issue aggregates ──────────────────────────────────────────────────────
@@ -99,21 +110,22 @@ export function AnalyticsDashboardPage() {
   const maxTypeCount = Math.max(1, ...approvalByType.map((t) => t.count))
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-4 sm:p-6 space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">{t('analytics.title')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('analytics.subtitle')}</p>
-      </div>
+      <PageHeader
+        title={t('analytics.title')}
+        description={t('analytics.subtitle')}
+      />
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <MetricCard icon={<ClipboardList className="size-4" />} title={t('analytics.totalIssues')} value={totalIssues}    color="bg-blue-100 text-blue-700"    />
-        <MetricCard icon={<TrendingUp    className="size-4" />} title={t('analytics.activeIssues')} value={activeIssues}   color="bg-amber-100 text-amber-800"  />
-        <MetricCard icon={<CheckCircle2  className="size-4" />} title={t('analytics.resolvedClosed')} value={resolvedClosed} color="bg-green-100 text-green-800"  />
-        <MetricCard icon={<AlertTriangle className="size-4" />} title={t('analytics.slaBreaches')} value={slaBreaches}    color="bg-red-100 text-red-700"      />
-        <MetricCard icon={<Clock         className="size-4" />} title={t('analytics.pendingApprovals')} value={pendingApprovals} color="bg-orange-100 text-orange-800" />
-        <MetricCard icon={<BarChart3     className="size-4" />} title={t('analytics.totalTasks')} value={totalTasks}     color="bg-purple-100 text-purple-700" />
+        <StatCard icon={ClipboardList} title={t('analytics.totalIssues')} value={totalIssues} />
+        <StatCard icon={TrendingUp}    title={t('analytics.activeIssues')} value={activeIssues} />
+        <StatCard icon={CheckCircle2}  title={t('analytics.resolvedClosed')} value={resolvedClosed} />
+        {/* Status colour only where the number is a state to act on, with its label */}
+        <StatCard icon={AlertTriangle} title={t('analytics.slaBreaches')} value={slaBreaches} variant={slaBreaches > 0 ? 'critical' : 'default'} />
+        <StatCard icon={Clock}         title={t('analytics.pendingApprovals')} value={pendingApprovals} variant={pendingApprovals > 0 ? 'warning' : 'default'} />
+        <StatCard icon={BarChart3}     title={t('analytics.totalTasks')} value={totalTasks} />
       </div>
 
       {/* Issues by Status + Priority */}
@@ -145,7 +157,6 @@ export function AnalyticsDashboardPage() {
             <div className="space-y-3">
               {issueByPriority.map(({ priority, color, textColor, count }) => (
                 <div key={priority} className="flex items-center gap-3">
-                  <div className={cn('size-3 rounded-full flex-shrink-0', color)} />
                   <div className="flex-1">
                     <div className="flex justify-between mb-1 text-xs">
                       <span className="font-medium">{label('priority', priority)}</span>
@@ -176,7 +187,7 @@ export function AnalyticsDashboardPage() {
                     <span className="text-muted-foreground font-semibold">{count}</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-1.5">
-                    <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${(count / maxCategoryCount) * 100}%` }} />
+                    <div className={cn(BAR, "h-2 rounded-full transition-all")} style={{ width: `${(count / maxCategoryCount) * 100}%` }} />
                   </div>
                 </div>
               ))}
@@ -197,14 +208,14 @@ export function AnalyticsDashboardPage() {
                       <span className="font-semibold text-xs">{outlet}</span>
                       <span className={cn(
                         'text-xs font-bold px-2 py-0.5 rounded-full',
-                        resolvedPct >= 80 ? 'bg-green-100 text-green-800' :
-                        resolvedPct >= 50 ? 'bg-amber-100 text-amber-800' :
-                        'bg-red-100 text-red-700'
+                        resolvedPct >= 80 ? 'bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300' :
+                        resolvedPct >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' :
+                        'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
                       )}>
                         {t('analytics.resolvedPct', { pct: resolvedPct })}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <div className="flex-1">
                         <div className="w-full bg-muted rounded-full h-1.5">
                           <div
@@ -253,11 +264,11 @@ export function AnalyticsDashboardPage() {
               {/* Status summary */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { text: label('approvalStatus', 'pending'),  count: pendingApprovals,  color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
-                  { text: label('approvalStatus', 'approved'), count: approvedApprovals, color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
-                  { text: label('approvalStatus', 'rejected'), count: rejectedApprovals, color: 'text-red-600',   bg: 'bg-red-50 border-red-200' },
+                  { text: label('approvalStatus', 'pending'),  count: pendingApprovals,  color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900' },
+                  { text: label('approvalStatus', 'approved'), count: approvedApprovals, color: 'text-green-700 dark:text-green-300', bg: 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-900' },
+                  { text: label('approvalStatus', 'rejected'), count: rejectedApprovals, color: 'text-red-600 dark:text-red-300',   bg: 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900' },
                 ].map(({ text, count, color, bg }) => (
-                  <div key={text} className={cn('p-3 rounded-md border text-center', bg)}>
+                  <div key={text} className={cn('p-3 rounded-xl border text-center', bg)}>
                     <p className={cn('text-xl font-bold', color)}>{count}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{text}</p>
                   </div>
@@ -273,7 +284,7 @@ export function AnalyticsDashboardPage() {
                       <span className="text-muted-foreground font-semibold">{count}</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-1.5">
-                      <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: `${(count / maxTypeCount) * 100}%` }} />
+                      <div className={cn(BAR, "h-2 rounded-full")} style={{ width: `${(count / maxTypeCount) * 100}%` }} />
                     </div>
                   </div>
                 ))}
@@ -306,21 +317,9 @@ export function AnalyticsDashboardPage() {
   )
 }
 
-function MetricCard({ icon, title, value, color }: { icon: React.ReactNode; title: string; value: number; color: string }) {
-  return (
-    <div className="p-4 rounded-lg border border-border bg-muted/20 hover:shadow-sm transition-shadow">
-      <div className={cn('inline-flex p-1.5 rounded-md mb-3', color)}>
-        {icon}
-      </div>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground mt-1 font-medium">{title}</p>
-    </div>
-  )
-}
-
 function ChartCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="p-6 rounded-lg border border-border bg-muted/20">
+    <div className="p-5 sm:p-6 rounded-2xl border border-border bg-card">
       <div className="flex items-center justify-between mb-5">
         <h3 className="font-semibold">{title}</h3>
         <span className="text-muted-foreground">{icon}</span>

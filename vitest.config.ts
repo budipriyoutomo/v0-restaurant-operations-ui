@@ -20,6 +20,9 @@ export default defineConfig({
           include: ['components/**/*.test.tsx', 'lib/**/*.test.tsx'],
           environment: 'jsdom',
           setupFiles: ['./vitest.setup.ts'],
+          // Dialog tests type a whole form; under a parallel full run they can
+          // pass 5s on a busy machine while taking ~1s alone.
+          testTimeout: 15_000,
         },
       },
     ],

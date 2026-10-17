@@ -30,6 +30,10 @@ export function useModalKeyboard(ref: RefObject<HTMLElement | null>, onClose: ()
 
     const onKey = (e: KeyboardEvent) => {
       if (stack[stack.length - 1] !== token) return
+      // A dialog opened on top of this one but outside it (a Radix dialog in a
+      // portal, e.g. "Create work order" from a drawer) runs its own keyboard.
+      const target = e.target instanceof Element ? e.target : null
+      if (el && target && !el.contains(target) && target.closest('[role="dialog"], [role="alertdialog"]')) return
       if (e.key === 'Escape') {
         e.stopPropagation()
         onCloseRef.current()

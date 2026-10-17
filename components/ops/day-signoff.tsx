@@ -105,7 +105,7 @@ export function SignDayDialog({ date: day, outlet, onClose, onSigned }: {
   const state = signoffState(data)
   const sum = data?.summary
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="ops-signday-title"
         className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-background border border-border p-5 space-y-4">
         <div className="flex items-start justify-between gap-2">
@@ -126,7 +126,7 @@ export function SignDayDialog({ date: day, outlet, onClose, onSigned }: {
                   ['late', sum.late], ['failedItems', sum.failedItems], ['excursions', sum.excursions],
                 ] as const).map(([k, v]) => (
                   <div key={k} className="rounded-lg border border-border p-2">
-                    <dt className="text-[11px] text-muted-foreground">{t(`opsSignoff.sum.${k}`)}</dt>
+                    <dt className="text-xs text-muted-foreground">{t(`opsSignoff.sum.${k}`)}</dt>
                     <dd className={cn('text-lg font-bold tabular-nums',
                       (k === 'missed' || k === 'failedItems' || k === 'excursions') && v > 0 && 'text-red-700 dark:text-red-400')}>{v}</dd>
                   </div>
@@ -137,7 +137,7 @@ export function SignDayDialog({ date: day, outlet, onClose, onSigned }: {
                 <ul className="text-xs divide-y divide-border rounded-lg border border-border">
                   {data.runs.map((r) => (
                     <li key={r.id} className="px-3 py-1.5 flex items-center justify-between gap-2">
-                      <span className="truncate">{r.templateName} <span className="font-mono text-[10px] text-muted-foreground">{r.number}</span></span>
+                      <span className="truncate">{r.templateName} <span className="font-mono text-xs text-muted-foreground">{r.number}</span></span>
                       <span className="whitespace-nowrap">{label('opsRunStatus', r.status)}{r.isLate ? ` · ${t('ops.lateBadge')}` : ''}</span>
                     </li>
                   ))}
@@ -148,12 +148,12 @@ export function SignDayDialog({ date: day, outlet, onClose, onSigned }: {
                 <div className={cn('rounded-lg border p-3 text-sm space-y-1',
                   state === 'changed' ? 'border-red-300 bg-red-50 dark:bg-red-950/30' : 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30')}>
                   <p className="font-semibold inline-flex items-center gap-1.5">
-                    {state === 'changed' ? <AlertTriangle className="size-4 text-red-700" aria-hidden /> : <CheckCircle2 className="size-4 text-emerald-700" aria-hidden />}
+                    {state === 'changed' ? <AlertTriangle className="size-4 text-red-700 dark:text-red-400" aria-hidden /> : <CheckCircle2 className="size-4 text-emerald-700 dark:text-emerald-400" aria-hidden />}
                     {t('opsSignoff.signedBy', { name: data.signoff.signedByName, when: dateTime(data.signoff.signedAt) })}
                   </p>
                   {data.signoff.note && <p className="text-xs">“{data.signoff.note}”</p>}
                   {state === 'changed' && <p className="text-xs text-red-700 dark:text-red-400">{t('opsSignoff.changed')}</p>}
-                  <p className="text-[10px] font-mono text-muted-foreground">{t('opsSignoff.code', { code: data.signoff.digest.slice(0, 12) })}</p>
+                  <p className="text-xs font-mono text-muted-foreground">{t('opsSignoff.code', { code: data.signoff.digest.slice(0, 12) })}</p>
                 </div>
               ) : data.canSign ? (
                 <div className="space-y-2">
@@ -161,9 +161,9 @@ export function SignDayDialog({ date: day, outlet, onClose, onSigned }: {
                   <textarea id="ops-signoff-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={1000}
                     placeholder={t('opsSignoff.notePlaceholder')}
                     className="w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-sm" />
-                  <p className="text-[11px] text-muted-foreground">{t('opsSignoff.statement')}</p>
+                  <p className="text-xs text-muted-foreground">{t('opsSignoff.statement')}</p>
                   <button type="button" onClick={sign} disabled={saving}
-                    className="flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
+                    className="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
                     {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <PenLine className="size-4" aria-hidden />} {t('opsSignoff.sign')}
                   </button>
                 </div>
@@ -205,10 +205,10 @@ export function ExportPdfButton({ outlet, from, to }: { outlet: string; from: st
     <div className="flex flex-col">
       <button type="button" onClick={download} disabled={!!problem || busy}
         title={problem ? t(`opsExport.problem.${problem}`) : undefined}
-        className="flex items-center gap-1.5 h-9 px-3 rounded-md border border-border text-xs font-semibold hover:bg-muted/50 disabled:opacity-50">
+        className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border text-sm font-medium hover:bg-muted/50 disabled:opacity-50">
         {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <FileDown className="size-4" aria-hidden />} {t('opsExport.button')}
       </button>
-      {problem && problem !== 'outlet' && <span className="text-[11px] text-destructive mt-0.5">{t(`opsExport.problem.${problem}`)}</span>}
+      {problem && problem !== 'outlet' && <span className="text-xs text-destructive mt-0.5">{t(`opsExport.problem.${problem}`)}</span>}
     </div>
   )
 }

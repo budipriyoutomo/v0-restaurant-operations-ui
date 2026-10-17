@@ -58,7 +58,7 @@ export function OpsKpiPanel({ onOutlet, compact = false }: { onOutlet: (outlet: 
         <div role="group" aria-label={t('opsKpi.period')} className="flex gap-1">
           {[7, 30].map((d) => (
             <button key={d} type="button" onClick={() => setDays(d)} aria-pressed={days === d}
-              className={cn('h-8 px-3 rounded-md border text-xs font-semibold',
+              className={cn('h-9 px-3 rounded-lg border text-sm font-medium',
                 days === d ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted/50')}>
               {t('opsKpi.lastDays', { days: d })}
             </button>
@@ -69,7 +69,7 @@ export function OpsKpiPanel({ onOutlet, compact = false }: { onOutlet: (outlet: 
       <div className={cn('grid gap-2', compact ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-6')}>
         {tiles.map((tile) => (
           <div key={tile.label} className="rounded-lg border border-border bg-card p-3">
-            <p className="text-[11px] text-muted-foreground">{tile.label}</p>
+            <p className="text-xs text-muted-foreground">{tile.label}</p>
             <p className={cn('text-xl font-bold tabular-nums mt-0.5', TONE_TEXT[tile.tone])}>{tile.value}</p>
           </div>
         ))}
@@ -97,14 +97,14 @@ export function OpsKpiPanel({ onOutlet, compact = false }: { onOutlet: (outlet: 
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden>
                       <div className="h-full rounded-full bg-[var(--chart-1)]" style={{ width: `${o.compliance ?? 0}%` }} />
                     </div>
-                    <p className="text-[11px] text-muted-foreground flex flex-wrap gap-x-3">
+                    <p className="text-xs text-muted-foreground flex flex-wrap gap-x-3">
                       <span>{t('opsKpi.counts', { onTime: o.onTime, late: o.late, missed: o.missed, scheduled: o.scheduled })}</span>
                       {o.avgScore !== null && <span>{t('opsKpi.avgScore', { score: o.avgScore })}</span>}
-                      {o.excursions > 0 && <span className="text-amber-700 inline-flex items-center gap-1"><Thermometer className="size-3" aria-hidden /> {t('opsKpi.excursionCount', { count: o.excursions })}</span>}
+                      {o.excursions > 0 && <span className="text-amber-700 dark:text-amber-400 inline-flex items-center gap-1"><Thermometer className="size-3" aria-hidden /> {t('opsKpi.excursionCount', { count: o.excursions })}</span>}
                       {o.issuesCreated > 0 && <span>{t('opsKpi.issueCount', { count: o.issuesCreated })}</span>}
                     </p>
                     {!compact && o.topFailing.length > 0 && (
-                      <p className="text-[11px] text-red-700 dark:text-red-400 inline-flex items-center gap-1">
+                      <p className="text-xs text-red-700 dark:text-red-400 inline-flex items-center gap-1">
                         <AlertTriangle className="size-3" aria-hidden />
                         {t('opsKpi.topFailing')}: {o.topFailing.map((f) => `${f.title} (${f.count}×)`).join(', ')}
                       </p>
@@ -125,10 +125,10 @@ export function OpsKpiPanel({ onOutlet, compact = false }: { onOutlet: (outlet: 
             {data.trend.map((w) => (
               <div key={w.weekStart} role="listitem" className="flex-1 flex flex-col items-center gap-1"
                 title={`${date(w.weekStart)}: ${w.compliance === null ? '—' : `${w.compliance}%`} (${w.onTime}/${w.scheduled})`}>
-                <span className="text-[10px] tabular-nums text-muted-foreground">{w.compliance === null ? '—' : `${Math.round(w.compliance)}`}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{w.compliance === null ? '—' : `${Math.round(w.compliance)}`}</span>
                 <div className="w-full rounded-t-[4px] bg-[var(--chart-1)]"
                   style={{ height: `${w.compliance === null ? 0 : Math.max(2, (w.compliance / 100) * 56)}px`, opacity: w.scheduled / maxWeek > 0 ? 1 : 0.3 }} />
-                <span className="text-[9px] text-muted-foreground">{w.weekStart.slice(5)}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">{w.weekStart.slice(5)}</span>
               </div>
             ))}
           </div>

@@ -110,7 +110,7 @@ export function OpsSchedulePanel({ schedules, templates, onChanged }: {
           <div>
             <label htmlFor="ops-sch-time" className="block text-xs font-semibold mb-1">{t('ops.dueTime')}</label>
             <input id="ops-sch-time" type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className={field} />
-            <p className="text-[11px] text-muted-foreground mt-1">{t('ops.dueTimeHint')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('ops.dueTimeHint')}</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -135,7 +135,7 @@ export function OpsSchedulePanel({ schedules, templates, onChanged }: {
           <span className="text-xs font-semibold mr-1">{t('opsSchedule.frequency')}</span>
           {FREQUENCIES.map((f) => (
             <button key={f} type="button" role="radio" aria-checked={frequency === f} onClick={() => changeFrequency(f)}
-              className={cn('px-3 h-9 rounded-md border text-xs font-semibold',
+              className={cn('px-3 h-9 rounded-lg border text-sm font-medium',
                 frequency === f ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted/50')}>
               {t(`opsSchedule.freq.${f}`)}
             </button>
@@ -146,7 +146,7 @@ export function OpsSchedulePanel({ schedules, templates, onChanged }: {
             <label htmlFor="ops-sch-dom" className="block text-xs font-semibold mb-1">{t('opsSchedule.dayOfMonth')}</label>
             <input id="ops-sch-dom" type="number" min={1} max={31} value={dayOfMonth ?? ''}
               onChange={(e) => setDayOfMonth(e.target.value ? Number(e.target.value) : null)} className={field} />
-            <p className="text-[11px] text-muted-foreground mt-1">{t('opsSchedule.dayOfMonthHint')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('opsSchedule.dayOfMonthHint')}</p>
           </div>
         ) : (
           <fieldset>
@@ -161,7 +161,7 @@ export function OpsSchedulePanel({ schedules, templates, onChanged }: {
                   ? setDays([d])
                   : setDays((ds) => (on ? ds.filter((x) => x !== d) : [...ds, d].sort())))
                 return (
-                  <label key={d} className={cn('px-3 h-9 inline-flex items-center rounded-md border text-xs font-semibold cursor-pointer',
+                  <label key={d} className={cn('px-3 h-9 inline-flex items-center rounded-lg border text-sm font-medium cursor-pointer',
                     'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/50',
                     on ? 'bg-primary text-primary-foreground border-primary' : 'border-border')}>
                     <input type={frequency === 'weekly' ? 'radio' : 'checkbox'} name="ops-sch-day" className="sr-only"
@@ -175,7 +175,7 @@ export function OpsSchedulePanel({ schedules, templates, onChanged }: {
         )}
         {problem && <p role="alert" className="text-xs text-destructive">{t(`opsSchedule.problem.${problem}`)}</p>}
         <button type="button" onClick={add} disabled={!tplId || !outletName || !!problem || saving}
-          className="flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
+          className="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
           {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />} {t('ops.addSchedule')}
         </button>
         {active.length === 0 && <p className="text-xs text-muted-foreground">{t('ops.needTemplate')}</p>}
@@ -188,21 +188,21 @@ export function OpsSchedulePanel({ schedules, templates, onChanged }: {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs text-muted-foreground">
               <tr>
-                <th className="text-left font-semibold px-3 py-2">{t('ops.template')}</th>
-                <th className="text-left font-semibold px-3 py-2">{t('common.outlet')}</th>
-                <th className="text-left font-semibold px-3 py-2">{t('ops.dueTime')}</th>
-                <th className="text-left font-semibold px-3 py-2">{t('ops.days')}</th>
-                <th className="px-3 py-2" />
+                <th className="text-left font-semibold px-4 py-3">{t('ops.template')}</th>
+                <th className="text-left font-semibold px-4 py-3">{t('common.outlet')}</th>
+                <th className="text-left font-semibold px-4 py-3">{t('ops.dueTime')}</th>
+                <th className="text-left font-semibold px-4 py-3">{t('ops.days')}</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {schedules.map((s) => (
                 <tr key={s.id} className={cn('border-t border-border', !s.isActive && 'opacity-50')}>
-                  <td className="px-3 py-2 font-medium">{s.templateName} <span className="text-xs text-muted-foreground">· {label('opsShift', s.shift)}</span></td>
-                  <td className="px-3 py-2">{s.outlet}</td>
-                  <td className="px-3 py-2 tabular-nums">{s.dueTime} <span className="text-[11px] text-muted-foreground">{s.timezone}</span></td>
-                  <td className="px-3 py-2 text-xs">{whenText(s)}</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                  <td className="px-4 py-3 font-medium">{s.templateName} <span className="text-xs text-muted-foreground">· {label('opsShift', s.shift)}</span></td>
+                  <td className="px-4 py-3">{s.outlet}</td>
+                  <td className="px-4 py-3 tabular-nums">{s.dueTime} <span className="text-xs text-muted-foreground">{s.timezone}</span></td>
+                  <td className="px-4 py-3 text-xs">{whenText(s)}</td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
                     <button type="button" onClick={() => toggle(s)} className="text-xs font-semibold text-primary px-2">
                       {s.isActive ? t('ops.pause') : t('ops.resume')}
                     </button>

@@ -16,5 +16,7 @@ export interface Overview {
 }
 
 export const overviewApi = {
-  get: () => api.get<Overview>('/api/analytics/overview'),
+  /** `outlet` = the top bar's outlet filter (null = all my outlets). */
+  get: (outlet: string | null = null) =>
+    api.get<Overview>(outlet ? `/api/analytics/overview?outlet=${encodeURIComponent(outlet)}` : '/api/analytics/overview'),
 }

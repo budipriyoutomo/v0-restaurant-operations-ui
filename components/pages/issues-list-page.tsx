@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { Search, Plus, AlertTriangle, X, CheckSquare, CheckCircle2, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Lock, Ban, RotateCcw, RefreshCw, Wrench, Clock, Camera, XCircle, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -9,7 +9,7 @@ import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 import { useDebounced, usePagedList } from '@/lib/use-paged-list'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { apiErrorMessage } from '@/lib/api-client'
-import { useMyOutlets, usePermissions } from '@/lib/permissions'
+import { useMyOutlets, useOutletFilter, usePermissions } from '@/lib/permissions'
 import type { CategoryModule, CategorySystemKey, Issue, IssueStatus } from '@/lib/types'
 import { activeCategories } from '@/lib/categories'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
@@ -25,7 +25,10 @@ import { IssuePhotos } from '@/components/shared/issue-photos'
 import { IssueComments } from '@/components/shared/issue-comments'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { UnlinkedAssigneeNote } from '@/components/shared/unlinked-assignee-note'
-import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { SideDrawer } from '@/components/shared/side-drawer'
+import { EmptyState } from '@/components/shared/empty-state'
+import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
+import { FilterChip, FilterToggle, PageHeader } from '@/components/shared/page-header'
 
 const PAGE_SIZE = 12
 
@@ -92,6 +95,9 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   const readyOnly = readyParam === '1'
   // Drill-down from the GM outlet comparison (Todo-Pilot §25).
   const [filterOutlet, setFilterOutlet] = useUrlState('outlet', null, routed)
+  // The top bar's outlet filter; an outlet in the URL (a drill-down link) wins.
+  const { outlet: globalOutlet, setOutlet: setGlobalOutlet } = useOutletFilter()
+  const outlet = filterOutlet ?? globalOutlet
   const [lateParam, setLateOnly] = useUrlState('late', null, routed)
   const lateOnly = lateParam === '1'
   const [confirmBulkClose, setConfirmBulkClose] = useState(false)
@@ -115,19 +121,19 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   const debouncedSearch = useDebounced(searchQuery)
   const category = viewDef ? null : filterCategory
   const viewModule = viewDef?.module ?? null
-  const filterKey = [debouncedSearch, filterPriority, category, viewModule, hideFinished, readyOnly, filterOutlet, lateOnly].join('|')
+  const filterKey = [debouncedSearch, filterPriority, category, viewModule, hideFinished, readyOnly, outlet, lateOnly].join('|')
   useEffect(() => { setPage(1) }, [filterKey])
   const list = usePagedList<Issue>('/api/issues', {
     q: debouncedSearch.trim(), priority: filterPriority, category, module: viewModule, active: hideFinished, ready: readyOnly,
-    outlet: filterOutlet, late: lateOnly,
+    outlet, late: lateOnly,
   }, { page, pageSize: PAGE_SIZE, onItems: upsertIssues })
   const pagedIssues = (list.ids ?? []).map((id) => issues.find((i) => i.id === id)).filter((i): i is Issue => !!i)
   const totalCount = list.total
-  const hasFilters = Boolean(searchQuery || filterPriority || filterCategory || hideFinished || readyOnly || filterOutlet || lateOnly)
+  const hasFilters = Boolean(searchQuery || filterPriority || filterCategory || hideFinished || readyOnly || outlet || lateOnly)
   const noIssuesYet = list.ids !== null && totalCount === 0 && !hasFilters
   const clearFilters = () => {
     setSearchQuery(null); setFilterPriority(null); setFilterCategory(null); setHideFinished(null); setReadyOnly(null)
-    setFilterOutlet(null); setLateOnly(null)
+    setFilterOutlet(null); setLateOnly(null); setGlobalOutlet(null)
   }
   // "Close all" acts on the ready issues shown on this page.
   const readyIds = pagedIssues.filter((i) => i.readyToClose).map((i) => i.id)
@@ -174,9 +180,6 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
     setStatusDropdownOpen(false)
     setLifecycleAction(null)
   }
-  // Escape closes, Tab stays in the drawer, focus returns to the card (Todo-Pilot §26)
-  const drawerRef = useRef<HTMLDivElement>(null)
-  useModalKeyboard(drawerRef, closeDrawer, !!selectedIssue)
 
   const openAction = (action: 'cancel' | 'reopen' | 'revise') => {
     setLifecycleAction(action)
@@ -230,69 +233,66 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{view ? t(`issues.view.${view}.title`) : t('issues.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {view ? `${t(`issues.view.${view}.description`)} ${t('issues.savedViewSuffix')}` : t('issues.subtitle')}
-          </p>
-        </div>
-        <button
-          onClick={() => setCreateOpen(true)}
-          // Phones: floating, thumb-sized and always on screen (Todo-Pilot §15)
-          className="flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors fixed bottom-20 right-4 z-30 h-14 px-5 rounded-full shadow-lg text-sm sm:static sm:h-9 sm:px-4 sm:rounded-md sm:shadow-none sm:text-xs"
-        >
-          <Plus className="size-4" /> {t('issues.new')}
-        </button>
-      </div>
+    <div className="space-y-5 p-4 sm:p-6">
+      <PageHeader
+        title={view ? t(`issues.view.${view}.title`) : t('issues.title')}
+        description={view ? `${t(`issues.view.${view}.description`)} ${t('issues.savedViewSuffix')}` : t('issues.subtitle')}
+        actions={
+          <button
+            onClick={() => setCreateOpen(true)}
+            // Phones: floating, thumb-sized and always on screen (Todo-Pilot §15)
+            className="flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors fixed bottom-20 right-4 z-30 h-14 px-5 rounded-full shadow-lg text-sm sm:static sm:h-10 sm:px-4 sm:rounded-lg sm:shadow-sm"
+          >
+            <Plus className="size-4" /> {t('issues.new')}
+          </button>
+        }
+      />
 
-      {/* Search and Filters */}
-      <div className="space-y-3">
-        <div className="flex gap-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder={t('issues.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-          </div>
+      {/* Search and Filters — one card, chips instead of raw checkboxes */}
+      <div className="rounded-2xl border border-border bg-card p-3 sm:p-4 space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder={t('issues.searchPlaceholder')}
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full h-11 pl-10 pr-4 rounded-xl border border-transparent bg-muted/60 text-sm placeholder:text-muted-foreground focus:outline-none focus:bg-background focus:border-primary/40 focus:ring-4 focus:ring-primary/10 transition-colors"
+          />
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <div className="flex gap-1 items-center">
-            <span className="text-xs font-medium text-muted-foreground">{t('issues.priorityFilter')}</span>
-            {priorities.map((p) => (
-              <button
-                key={p}
-                onClick={() => handlePriorityFilter(p)}
-                className={cn(
-                  'px-2.5 py-1 rounded-full text-xs font-semibold transition-colors capitalize',
-                  filterPriority === p ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                )}
-              >
-                {label('priority', p)}
-              </button>
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs font-medium text-muted-foreground mr-1">{t('issues.priorityFilter')}</span>
+          {priorities.map((p) => (
+            <FilterChip key={p} active={filterPriority === p} onClick={() => handlePriorityFilter(p)}>
+              {label('priority', p)}
+            </FilterChip>
+          ))}
+          <span className="hidden sm:block h-5 w-px bg-border mx-1" aria-hidden="true" />
+          <FilterToggle checked={hideFinished} onChange={(on) => { setHideFinished(on ? '1' : null); setPage(1) }}>
+            {t('issues.hideFinished')}
+          </FilterToggle>
+          <FilterToggle checked={readyOnly} onChange={(on) => { setReadyOnly(on ? '1' : null); setPage(1); setConfirmBulkClose(false) }}>
+            {t('issues.readyOnly')}
+          </FilterToggle>
+        </div>
+
+        {!viewDef && (
+          <div className="flex gap-2 items-center flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground mr-1">{t('issues.categoryFilter')}</span>
+            {activeCategories(categories).map(({ id: cid, name: c }) => (
+              <FilterChip key={cid} active={filterCategory === c} onClick={() => { setFilterCategory(filterCategory === c ? null : c); setPage(1) }}>
+                {label('category', c)}
+              </FilterChip>
             ))}
           </div>
-          <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground ml-2 cursor-pointer">
-            <input type="checkbox" checked={hideFinished} onChange={(e) => { setHideFinished(e.target.checked ? '1' : null); setPage(1) }} />
-            {t('issues.hideFinished')}
-          </label>
-          <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground ml-2 cursor-pointer">
-            <input type="checkbox" checked={readyOnly} onChange={(e) => { setReadyOnly(e.target.checked ? '1' : null); setPage(1); setConfirmBulkClose(false) }} />
-            {t('issues.readyOnly')}
-          </label>
-        </div>
+        )}
+      </div>
 
         {/* Bulk close of finished work (Todo-Pilot §18) */}
         {readyOnly && can.updateIssueStatus && readyIds.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap p-3 rounded-md border border-emerald-200 bg-emerald-50/60 text-xs">
-            <span className="text-emerald-800">
+          <div className="flex items-center gap-2 flex-wrap p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 text-sm dark:bg-emerald-950/30 dark:border-emerald-900">
+            <span className="text-emerald-800 dark:text-emerald-400">
               {readyIds.length === 1 ? t('issues.bulkHintOne') : t('issues.bulkHintMany', { count: readyIds.length })}
             </span>
             {confirmBulkClose ? (
@@ -300,18 +300,18 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                 <button
                   onClick={runBulkClose}
                   disabled={bulkClosing}
-                  className="px-3 h-8 rounded-md bg-emerald-700 text-white font-semibold hover:bg-emerald-800 disabled:opacity-60"
+                  className="px-3.5 h-9 rounded-lg bg-emerald-700 text-white font-semibold hover:bg-emerald-800 disabled:opacity-60"
                 >
                   {readyIds.length === 1 ? t('issues.bulkConfirmOne') : t('issues.bulkConfirmMany', { count: readyIds.length })}
                 </button>
-                <button onClick={() => setConfirmBulkClose(false)} disabled={bulkClosing} className="px-3 h-8 rounded-md border border-border font-semibold">
+                <button onClick={() => setConfirmBulkClose(false)} disabled={bulkClosing} className="px-3.5 h-9 rounded-lg border border-border bg-card font-medium">
                   {t('common.cancel')}
                 </button>
               </>
             ) : (
               <button
                 onClick={() => setConfirmBulkClose(true)}
-                className="px-3 h-8 rounded-md bg-emerald-700 text-white font-semibold hover:bg-emerald-800"
+                className="px-3.5 h-9 rounded-lg bg-emerald-700 text-white font-semibold hover:bg-emerald-800"
               >
                 {t('issues.closeAll', { count: readyIds.length })}
               </button>
@@ -319,24 +319,6 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
           </div>
         )}
 
-        {!viewDef && (
-          <div className="flex gap-1 items-center flex-wrap">
-            <span className="text-xs font-medium text-muted-foreground">{t('issues.categoryFilter')}</span>
-            {activeCategories(categories).map(({ id: cid, name: c }) => (
-              <button
-                key={cid}
-                onClick={() => { setFilterCategory(filterCategory === c ? null : c); setPage(1) }}
-                className={cn(
-                  'px-2.5 py-1 rounded-full text-xs font-semibold transition-colors',
-                  filterCategory === c ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                )}
-              >
-                {label('category', c)}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* Issues count + pagination info */}
       {/* Filters that came from a link (GM view) have no control of their own: show them as removable chips. */}
@@ -350,7 +332,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
           )}
           {lateOnly && (
             <button onClick={() => setLateOnly(null)}
-              className="inline-flex items-center gap-1 min-h-8 px-3 rounded-full bg-red-100 text-red-800 text-xs font-medium hover:bg-red-200">
+              className="inline-flex items-center gap-1 min-h-8 px-3 rounded-full bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 text-xs font-medium hover:bg-red-200">
               {t('issues.chipLate')} <X className="size-3" aria-hidden="true" />
             </button>
           )}
@@ -358,58 +340,42 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
       )}
 
       {totalCount > 0 && (
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            {t('issues.showing', { from: (currentPage - 1) * PAGE_SIZE + 1, to: Math.min(currentPage * PAGE_SIZE, totalCount), total: totalCount })}
-          </span>
-          {totalPages > 1 && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="p-1 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <span className="px-2 font-medium">{currentPage} / {totalPages}</span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="p-1 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            </div>
-          )}
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {t('issues.showing', { from: (currentPage - 1) * PAGE_SIZE + 1, to: Math.min(currentPage * PAGE_SIZE, totalCount), total: totalCount })}
+        </p>
       )}
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
         {list.ids === null ? (
-          <div className="lg:col-span-2"><ListSkeleton rows={4} className="p-0 sm:p-0" /></div>
+          <div className="lg:col-span-2 2xl:col-span-3"><ListSkeleton rows={4} className="p-0 sm:p-0" /></div>
         ) : pagedIssues.length === 0 ? (
           // Empty states say what to do next (Todo-Pilot §24).
           noIssuesYet ? (
-            <div role="status" aria-labelledby="issues-empty-title" className="lg:col-span-2 p-10 rounded-lg border border-dashed border-border text-center space-y-3">
-              <Inbox className="size-10 mx-auto text-muted-foreground" />
-              <p id="issues-empty-title" className="font-semibold">{t('issues.emptyTitle')}</p>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">{t('issues.emptyHint')}</p>
-              <button onClick={() => setCreateOpen(true)}
-                className="inline-flex items-center gap-1.5 min-h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90">
-                <Plus className="size-4" /> {t('issues.createFirst')}
-              </button>
-            </div>
+            <EmptyState
+              className="lg:col-span-2 2xl:col-span-3"
+              icon={Inbox}
+              title={t('issues.emptyTitle')}
+              description={t('issues.emptyHint')}
+              action={
+                <button onClick={() => setCreateOpen(true)}
+                  className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90">
+                  <Plus className="size-4" /> {t('issues.createFirst')}
+                </button>
+              }
+            />
           ) : (
-            <div role="status" aria-labelledby="issues-empty-title" className="lg:col-span-2 p-10 rounded-lg border border-border text-center space-y-3">
-              <p id="issues-empty-title" className="text-muted-foreground">{hasFilters ? t('issues.noMatch') : t('issues.noneFound')}</p>
-              {hasFilters && (
+            <EmptyState
+              className="lg:col-span-2 2xl:col-span-3 bg-card"
+              icon={Search}
+              title={hasFilters ? t('issues.noMatch') : t('issues.noneFound')}
+              action={hasFilters && (
                 <button onClick={clearFilters}
-                  className="inline-flex items-center gap-1.5 min-h-10 px-4 rounded-md border border-border text-sm font-medium hover:bg-muted/50">
+                  className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg border border-border text-sm font-medium hover:bg-muted/50">
                   <X className="size-4" /> {t('issues.clearFilters')}
                 </button>
               )}
-            </div>
+            />
           )
         ) : (
           pagedIssues.map((issue) => {
@@ -429,8 +395,8 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                 onClick={open}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } }}
                 className={cn(
-                  'p-5 rounded-lg border cursor-pointer transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                  selectedIssue?.id === issue.id ? 'bg-primary/10 border-primary shadow-md' : 'bg-muted/20 border-border hover:bg-muted/40'
+                  'p-4 sm:p-5 rounded-xl border bg-card cursor-pointer transition-[border-color,box-shadow] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                  selectedIssue?.id === issue.id ? 'border-primary ring-2 ring-primary/15' : 'border-border hover:border-primary/40'
                 )}
               >
                 <div className="flex items-start justify-between gap-4 mb-3">
@@ -443,25 +409,25 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
 
                 <div id={`card-${issue.id}-meta`}>
                 <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap text-xs text-muted-foreground mb-3">
-                  <span className="bg-muted px-2 py-0.5 rounded">{label('category', issue.category)}</span>
+                  <span className="bg-muted px-2 py-0.5 rounded-md font-medium text-foreground/80">{label('category', issue.category)}</span>
                   <span>{issue.outlet}</span>
                   {sla.kind === 'breached' && (
-                    <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                    <span className="bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
                       <AlertTriangle className="size-3" /> {sla.days === 1 ? t('issues.slaOverdueOne') : t('issues.slaOverdue', { n: sla.days })}
                     </span>
                   )}
                   {sla.kind === 'today' && (
-                    <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                    <span className="bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
                       <Clock className="size-3" /> {t('issues.slaToday')}
                     </span>
                   )}
                   {sla.kind === 'left' && (
-                    <span className={cn('flex items-center gap-1', sla.days === 1 && 'text-amber-800 font-medium')}>
+                    <span className={cn('flex items-center gap-1', sla.days === 1 && 'text-amber-800 dark:text-amber-400 font-medium')}>
                       <Clock className="size-3" /> {sla.days === 1 ? t('issues.slaLeftOne') : t('issues.slaLeft', { n: sla.days })}
                     </span>
                   )}
                   {issue.readyToClose && (
-                    <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                    <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
                       <CheckCircle2 className="size-3" /> {t('issues.readyBadge')}
                     </span>
                   )}
@@ -471,17 +437,17 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                   <div className="flex items-center gap-2 flex-wrap text-xs mb-3">
                     {appr?.kind === 'pending' && (
                       <span className={cn('px-2 py-0.5 rounded font-medium flex items-center gap-1',
-                        appr.escalated ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900')}>
+                        appr.escalated ? 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300' : 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300')}>
                         <CheckCircle2 className="size-3" /> {t('issues.approvalStep', { step: appr.step, total: appr.total })}
                       </span>
                     )}
                     {appr?.kind === 'rejected' && (
-                      <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                      <span className="bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
                         <XCircle className="size-3" /> {t('issues.approvalRejected')}
                       </span>
                     )}
                     {appr?.kind === 'approved' && (
-                      <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                      <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
                         <CheckCircle2 className="size-3" /> {t('issues.approvalApproved')}
                       </span>
                     )}
@@ -518,7 +484,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border text-sm font-medium hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1 px-3.5 h-9 rounded-lg border border-border bg-card text-sm font-medium hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronLeft className="size-4" /> {t('common.prev')}
           </button>
@@ -526,7 +492,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border text-sm font-medium hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1 px-3.5 h-9 rounded-lg border border-border bg-card text-sm font-medium hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {t('common.next')} <ChevronRight className="size-4" />
           </button>
@@ -535,25 +501,13 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
 
       {/* Issue Detail Side Drawer */}
       {selectedIssue && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={closeDrawer} />
-          <div
-            ref={drawerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${t('term.issue')} ${selectedIssue.number}`}
-            className="fixed right-0 top-0 h-screen w-full sm:w-96 bg-background border-l border-border shadow-lg z-50 overflow-y-auto"
-          >
-            <div className="p-6 space-y-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-mono text-xs text-primary font-bold mb-2">{selectedIssue.number}</p>
-                  <h2 className="font-bold text-xl leading-snug pr-4">{selectedIssue.title}</h2>
-                </div>
-                <button onClick={closeDrawer} aria-label={t('common.close')} className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1">
-                  <X className="size-5" />
-                </button>
-              </div>
+        <SideDrawer
+          label={`${t('term.issue')} ${selectedIssue.number}`}
+          number={selectedIssue.number}
+          title={selectedIssue.title}
+          closeLabel={t('common.close')}
+          onClose={closeDrawer}
+        >
 
               <div className="space-y-3 pb-6 border-b border-border">
                 <div className="flex items-center justify-between">
@@ -606,10 +560,6 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                     </>
                   )}
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">{t('common.status')}</p>
-                  <p className="text-sm font-semibold text-foreground">{label('status', selectedIssue.status)}</p>
-                </div>
               </div>
 
               <div className="space-y-3 pb-6 border-b border-border">
@@ -640,13 +590,13 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                   {linkedApproval && (
                     <LinkedRow to={canViewPage('approvals') ? recordPath('approvals', linkedApproval.id) : null}>
                       <div className="flex items-center gap-2 min-w-0">
-                        <CheckCircle2 className="size-3.5 text-amber-700 flex-shrink-0" />
+                        <CheckCircle2 className="size-3.5 text-amber-700 dark:text-amber-400 flex-shrink-0" />
                         <span className="text-xs font-mono font-bold text-primary truncate">{linkedApproval.number}</span>
                       </div>
                       <span className={cn(
                         'text-xs font-semibold px-2 py-0.5 rounded-full capitalize',
-                        linkedApproval.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-                        linkedApproval.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
+                        linkedApproval.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' :
+                        linkedApproval.status === 'approved' ? 'bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
                       )}>
                         {label('approvalStatus', linkedApproval.status)}
                       </span>
@@ -665,32 +615,32 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
               )}
 
               {selectedIssue.slaBreach && (
-                <div className="p-4 rounded-md bg-red-100/50 border border-red-200 space-y-2">
-                  <p className="text-sm font-semibold text-red-700 flex items-center gap-2">
+                <div className="p-4 rounded-md bg-red-100/50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 space-y-2">
+                  <p className="text-sm font-semibold text-red-700 dark:text-red-400 flex items-center gap-2">
                     <AlertTriangle className="size-4" /> {t('issueDrawer.slaBreached')}
                   </p>
-                  <p className="text-xs text-red-700">{t('issueDrawer.slaText')}</p>
+                  <p className="text-xs text-red-700 dark:text-red-400">{t('issueDrawer.slaText')}</p>
                 </div>
               )}
 
               {selectedIssue.readyToClose && (
-                <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2">
+                <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-400 flex items-start gap-2">
                   <CheckCircle2 className="size-4 flex-shrink-0" />
                   <span>{t('issueDrawer.readyText')}</span>
                 </div>
               )}
 
               {selectedIssue.closureBlockers.length > 0 && !FINAL_STATUSES.includes(selectedIssue.status) && (
-                <div className="p-4 rounded-md bg-amber-100/50 border border-amber-200 space-y-2">
-                  <p className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+                <div className="p-4 rounded-md bg-amber-100/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 space-y-2">
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-400 flex items-center gap-2">
                     <Lock className="size-4" /> {t('issueDrawer.blockedTitle')}
                   </p>
-                  <p className="text-xs text-amber-800">{t('issueDrawer.blockedText')}</p>
+                  <p className="text-xs text-amber-800 dark:text-amber-400">{t('issueDrawer.blockedText')}</p>
                   <ul className="space-y-1">
                     {selectedIssue.closureBlockers.map((b) => (
                       <li key={b.id} className="flex items-center justify-between text-xs">
-                        <span className="font-mono font-bold text-amber-900">{b.number}</span>
-                        <span className="text-amber-800">{t(`blocker.${b.type}` as MessageKey)} · {label(b.type === 'work_order' ? 'woStatus' : b.type === 'approval' ? 'approvalStatus' : 'status', b.status)}</span>
+                        <span className="font-mono font-bold text-amber-900 dark:text-amber-400">{b.number}</span>
+                        <span className="text-amber-800 dark:text-amber-400">{t(`blocker.${b.type}` as MessageKey)} · {label(b.type === 'work_order' ? 'woStatus' : b.type === 'approval' ? 'approvalStatus' : 'status', b.status)}</span>
                       </li>
                     ))}
                   </ul>
@@ -764,23 +714,23 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                   {lifecycleAction === null ? (
                     <div className="flex flex-wrap gap-2">
                       {selectedIssue.status === 'waiting' && linkedApproval?.status === 'rejected' && (
-                        <button onClick={() => openAction('revise')} className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-muted/50">
+                        <button onClick={() => openAction('revise')} className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg border border-border text-sm font-medium hover:bg-muted/50">
                           <RefreshCw className="size-3.5" /> {t('issueDrawer.reviseCost')}
                         </button>
                       )}
                       {selectedIssue.status === 'resolved' && (
-                        <button onClick={() => openAction('reopen')} className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-muted/50">
+                        <button onClick={() => openAction('reopen')} className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg border border-border text-sm font-medium hover:bg-muted/50">
                           <RotateCcw className="size-3.5" /> {t('issueDrawer.reopen')}
                         </button>
                       )}
                       {!FINAL_STATUSES.includes(selectedIssue.status) && (
-                        <button onClick={() => openAction('cancel')} className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50">
+                        <button onClick={() => openAction('cancel')} className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg border border-red-200 text-red-700 text-sm font-medium hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40">
                           <Ban className="size-3.5" /> {t('issueDrawer.cancelIssue')}
                         </button>
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-2 p-3 rounded-md border border-border bg-muted/20">
+                    <div className="space-y-2 p-3 rounded-2xl border border-border bg-card">
                       <p className="text-xs font-semibold">
                         {lifecycleAction === 'cancel' && t('issueDrawer.cancelConfirm')}
                         {lifecycleAction === 'reopen' && t('issueDrawer.reopenConfirm')}
@@ -802,7 +752,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                         className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
                       />
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => setLifecycleAction(null)} disabled={actionBusy} className="px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-muted/50">
+                        <button onClick={() => setLifecycleAction(null)} disabled={actionBusy} className="px-3.5 h-9 rounded-lg border border-border text-sm font-medium hover:bg-muted/50">
                           {t('common.back')}
                         </button>
                         <button
@@ -813,7 +763,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                             || (lifecycleAction === 'revise' && (actionAmount === '' || Number(actionAmount) < 0))
                           }
                           className={cn(
-                            'px-3 h-8 rounded-md text-xs font-semibold disabled:opacity-50',
+                            'px-3.5 h-9 rounded-lg text-sm font-semibold disabled:opacity-50',
                             lifecycleAction === 'cancel' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-primary text-primary-foreground hover:bg-primary/90'
                           )}
                         >
@@ -824,9 +774,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                   )}
                 </div>
               )}
-            </div>
-          </div>
-        </>
+        </SideDrawer>
       )}
 
       <CreateIssueDialog
@@ -846,21 +794,6 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   )
 }
 
-function PriorityBadge({ priority }: { priority: string }) {
-  const { label } = useT()
-  return (
-    <span className={cn(
-      'text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap',
-      priority === 'critical' ? 'bg-red-100 text-red-700' :
-      priority === 'high' ? 'bg-orange-100 text-orange-800' :
-      priority === 'medium' ? 'bg-amber-100 text-amber-800' :
-      'bg-green-100 text-green-800'
-    )}>
-      {label('priority', priority)}
-    </span>
-  )
-}
-
 // Lifecycle rules mirrored from the API (Todo-Pilot §1–2): closed/cancelled are
 // final, a resolved Issue can only be closed (or reopened via its own action),
 // and resolved/closed need every derived record finished.
@@ -870,25 +803,6 @@ const CLOSING_STATUSES: IssueStatus[] = ['resolved', 'closed']
 function statusOptions(current: IssueStatus): IssueStatus[] {
   if (current === 'resolved') return ['resolved', 'closed']
   return ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed']
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const { label } = useT()
-  return (
-    <span className={cn(
-      'text-xs font-semibold px-2 py-1 rounded-full',
-      status === 'open' ? 'bg-blue-100 text-blue-700' :
-      status === 'assigned' ? 'bg-purple-100 text-purple-700' :
-      status === 'in-progress' ? 'bg-amber-100 text-amber-800' :
-      status === 'waiting' ? 'bg-cyan-100 text-cyan-700' :
-      status === 'resolved' ? 'bg-green-100 text-green-800' :
-      status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
-      'bg-gray-100 text-gray-700'
-    )}>
-      {/* Issue/Task status, or a linked WO's status */}
-      {label('status', status) !== status ? label('status', status) : label('woStatus', status)}
-    </span>
-  )
 }
 
 // A linked record in the Issue drawer; opens that record when the user may view

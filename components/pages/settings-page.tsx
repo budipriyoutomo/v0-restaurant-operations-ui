@@ -1,14 +1,19 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Sun, Moon, Check, Loader2, Mail, MessageCircle, Send, Languages, CalendarDays } from 'lucide-react'
+import { Sun, Moon, Check, Loader2, Mail, MessageCircle, Send, Languages, CalendarDays, KeyRound } from 'lucide-react'
 import { hasPermission } from '@/lib/access'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { api, apiErrorMessage } from '@/lib/api-client'
 import { useIssueStore } from '@/lib/store'
 import { LOCALES, normalizeLocale, useT } from '@/lib/i18n'
+import { validateChangePassword, type ChangePasswordForm } from '@/lib/password'
+import { passwordApi } from '@/lib/password-api'
 import type { User } from '@/lib/types'
+import { PageHeader } from '@/components/shared/page-header'
+import { useTheme } from 'next-themes'
+import { ListSkeleton } from '@/components/shared/skeleton'
 
 interface AppPreferences {
   darkMode: boolean
@@ -79,12 +84,6 @@ const EMAIL_EVENTS: { key: keyof AppPreferences; ev: 'approvalPending' | 'approv
   { key: 'emailWorkOrderAssigned', ev: 'woAssigned' },
 ]
 
-function applyDarkMode(dark: boolean) {
-  if (typeof document !== 'undefined') {
-    document.documentElement.classList.toggle('dark', dark)
-  }
-}
-
 export function SettingsPage() {
   const { t, locale } = useT()
   const setLocale = useIssueStore((s) => s.setLocale)
@@ -93,6 +92,10 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  // The theme lives in next-themes (also the top bar menu), on this device.
+  // The old account pref `darkMode` is no longer applied: it overwrote that choice.
+  const { resolvedTheme, setTheme } = useTheme()
+  const dark = resolvedTheme === 'dark'
 
   // Load preferences from API on mount
   useEffect(() => {
@@ -100,17 +103,8 @@ export function SettingsPage() {
       .then(remote => {
         const merged = { ...DEFAULT_PREFS, ...remote }
         setPrefs(merged)
-        applyDarkMode(merged.darkMode)
       })
-      .catch(() => {
-        // fall back to current DOM state
-        setPrefs(p => ({
-          ...p,
-          darkMode: typeof document !== 'undefined'
-            ? document.documentElement.classList.contains('dark')
-            : false,
-        }))
-      })
+      .catch(() => { /* defaults stay */ })
       .finally(() => setLoading(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -131,33 +125,32 @@ export function SettingsPage() {
   const toggle = (key: keyof AppPreferences) => {
     const next = { ...prefs, [key]: !prefs[key] }
     setPrefs(next)
-    if (key === 'darkMode') applyDarkMode(next.darkMode)
     save(next)
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
+      <ListSkeleton rows={4} />
     )
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('settings.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('settings.subtitle')}</p>
-        </div>
-        {saving ? (
+    <div className="p-4 sm:p-6 space-y-5 max-w-2xl">
+      <PageHeader
+        title={t('settings.title')}
+        description={t('settings.subtitle')}
+        actions={<>
+          {saving ? (
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
         ) : saved ? (
           <span className="flex items-center gap-1 text-xs text-success font-medium">
             <Check className="size-3.5" /> {t('common.saved')}
           </span>
         ) : null}
-      </div>
+      </>}
+      />
+
+      <ProfileCard />
 
       <SettingGroup label={t('settings.language')}>
         <div className="flex items-center justify-between px-4 py-3.5 gap-4">
@@ -172,20 +165,22 @@ export function SettingsPage() {
             id="settings-language"
             value={locale}
             onChange={(e) => setLocale(normalizeLocale(e.target.value))}
-            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            className="h-9 rounded-lg border border-border bg-background px-2 text-sm"
           >
             {LOCALES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
           </select>
         </div>
       </SettingGroup>
 
+      <PasswordGroup />
+
       <SettingGroup label={t('settings.appearance')}>
         <ToggleRow
-          icon={prefs.darkMode ? <Moon className="size-4" /> : <Sun className="size-4" />}
+          icon={dark ? <Moon className="size-4" /> : <Sun className="size-4" />}
           label={t('settings.darkMode')}
           description={t('settings.darkModeHint')}
-          checked={prefs.darkMode}
-          onChange={() => toggle('darkMode')}
+          checked={dark}
+          onChange={() => setTheme(dark ? 'light' : 'dark')}
         />
       </SettingGroup>
 
@@ -267,7 +262,7 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
     <SettingGroup label="WhatsApp">
       <div className="px-4 py-3.5 space-y-2">
         {serverEnabled === false && (
-          <p className="text-xs text-amber-700 bg-amber-100/60 border border-amber-200 rounded-md px-2.5 py-1.5">
+          <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-100/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md px-2.5 py-1.5">
             {t('settings.wa.notConfigured')}
           </p>
         )}
@@ -281,12 +276,12 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
             value={number}
             onChange={(e) => setNumber(e.target.value)}
             placeholder="0812 3456 7890"
-            className="flex-1 h-9 px-3 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="flex-1 h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
           <button
             onClick={saveNumber}
             disabled={!dirty || busy !== null}
-            className="px-3 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50"
+            className="px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
           >
             {busy === 'save' ? t('common.saving') : t('common.save')}
           </button>
@@ -294,12 +289,12 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
             onClick={sendTest}
             disabled={!hasNumber || dirty || busy !== null || serverEnabled === false}
             title={t('settings.wa.testTitle')}
-            className="flex items-center gap-1 px-3 h-9 rounded-md border border-border text-xs font-semibold hover:bg-muted/50 disabled:opacity-50"
+            className="flex items-center gap-1 px-3 h-9 rounded-lg border border-border text-sm font-medium hover:bg-muted/50 disabled:opacity-50"
           >
             <Send className="size-3.5" /> {busy === 'test' ? t('settings.wa.sending') : t('settings.wa.test')}
           </button>
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {t('settings.wa.numberHint')}
         </p>
       </div>
@@ -324,14 +319,106 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
   )
 }
 
+// ---------------------------------------------------------------------------
+// Security — change my own password
+// ---------------------------------------------------------------------------
+const EMPTY_PW: ChangePasswordForm = { current: '', next: '', confirm: '' }
+
+function PasswordGroup() {
+  const { t, locale } = useT()
+  const [form, setForm] = useState<ChangePasswordForm>(EMPTY_PW)
+  const [touched, setTouched] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const errors = validateChangePassword(form, locale)
+  const shown = touched ? errors : {}
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setTouched(true)
+    if (Object.keys(errors).length || busy) return
+    setBusy(true)
+    try {
+      await passwordApi.changeOwn(form.current, form.next)
+      setForm(EMPTY_PW)
+      setTouched(false)
+      toast.success(t('password.changed'))
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t('password.changeFailed')))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const fields: { key: keyof ChangePasswordForm; label: string; autoComplete: string }[] = [
+    { key: 'current', label: t('password.current'), autoComplete: 'current-password' },
+    { key: 'next',    label: t('password.new'),     autoComplete: 'new-password' },
+    { key: 'confirm', label: t('password.confirm'), autoComplete: 'new-password' },
+  ]
+
+  return (
+    <SettingGroup label={t('password.group')}>
+      <form onSubmit={submit} className="px-4 py-3.5 space-y-3" noValidate>
+        <p className="text-sm font-medium flex items-center gap-2">
+          <KeyRound className="size-4 text-muted-foreground" /> {t('password.change')}
+        </p>
+        {fields.map(({ key, label, autoComplete }) => (
+          <label key={key} className="block">
+            <span className="block text-xs font-medium mb-1">{label}</span>
+            <input
+              type="password"
+              autoComplete={autoComplete}
+              value={form[key]}
+              onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+              aria-invalid={!!shown[key]}
+              className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            {shown[key] && <span className="block text-xs text-destructive mt-1">{shown[key]}</span>}
+          </label>
+        ))}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">{t('password.hint')}</p>
+          <button
+            type="submit"
+            disabled={busy}
+            className="px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex-shrink-0"
+          >
+            {busy ? t('common.saving') : t('password.change')}
+          </button>
+        </div>
+      </form>
+    </SettingGroup>
+  )
+}
+
 function SettingGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border overflow-hidden">
-      <div className="px-4 py-2.5 bg-muted/30 border-b border-border">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      </div>
+    <section aria-label={label} className="rounded-2xl border border-border bg-card overflow-hidden">
+      <h2 className="px-4 pt-4 pb-2 text-sm font-semibold text-foreground">{label}</h2>
       <div className="divide-y divide-border">{children}</div>
-    </div>
+    </section>
+  )
+}
+
+/** Who is signed in — the top bar's "Profile" lands here. */
+function ProfileCard() {
+  const { t } = useT()
+  const user = useIssueStore((s) => s.currentUser)
+  if (!user) return null
+  const name = user.name ?? ''
+  const initials = name.split(' ').filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+  return (
+    <section aria-label={t('settings.profile')} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4">
+      <span className="size-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-lg font-bold flex-shrink-0" aria-hidden="true">
+        {initials}
+      </span>
+      <div className="min-w-0">
+        <p className="font-semibold text-base truncate">{name}</p>
+        <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+          {[user.role_name, user.company_name].filter(Boolean).join(' · ')}
+        </p>
+      </div>
+    </section>
   )
 }
 

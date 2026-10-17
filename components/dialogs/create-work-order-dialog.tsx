@@ -110,9 +110,9 @@ export function CreateWorkOrderDialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="create-wo-title"
-        className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        className="bg-background rounded-2xl border border-border shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
           <div>
@@ -121,33 +121,33 @@ export function CreateWorkOrderDialog({
               <p className="text-xs text-muted-foreground mt-0.5">{t('createWo.linkedTo')} <span className="font-mono font-semibold text-primary">{defaultIssueNumber}</span></p>
             )}
           </div>
-          <button onClick={() => !isSubmitting && onOpenChange(false)} aria-label={t('common.close')} className="p-1 hover:bg-muted rounded-md transition-colors">
+          <button onClick={() => !isSubmitting && onOpenChange(false)} aria-label={t('common.close')} className="p-1 hover:bg-muted rounded-lg transition-colors">
             <X className="size-5 text-muted-foreground" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
+            <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
           )}
 
           {/* Asset */}
           <div>
             <label htmlFor={`${id}-asset`} className="block text-sm font-semibold mb-1.5">{t('createIssue.asset')} <span className="text-destructive">*</span></label>
             {assets.length === 0 ? (
-              <p className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-md">
+              <p className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg">
                 {t('createWo.noAssets')}
               </p>
             ) : (
               <select id={`${id}-asset`} name="assetId" value={form.assetId} onChange={handleChange}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
                 {assets.map((a) => (
                   <option key={a.id} value={a.id}>{a.name} — {a.outlet}</option>
                 ))}
               </select>
             )}
             {selectedAsset && (
-              <p className="text-[11px] text-muted-foreground mt-1 font-mono">{selectedAsset.number} · {selectedAsset.category}</p>
+              <p className="text-xs text-muted-foreground mt-1 font-mono">{selectedAsset.number} · {selectedAsset.category}</p>
             )}
           </div>
 
@@ -159,7 +159,7 @@ export function CreateWorkOrderDialog({
                 <label
                   key={type}
                   className={cn(
-                    'flex flex-col gap-0.5 p-3 rounded-md border cursor-pointer transition-colors',
+                    'flex flex-col gap-0.5 p-3 rounded-lg border cursor-pointer transition-colors',
                     form.type === type
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:bg-muted/30'
@@ -172,7 +172,7 @@ export function CreateWorkOrderDialog({
                     className="sr-only"
                   />
                   <span className="text-sm font-semibold">{label('woType', type)}</span>
-                  <span className="text-[11px] text-muted-foreground">{t(type === 'corrective' ? 'createWo.correctiveHint' : 'createWo.preventiveHint')}</span>
+                  <span className="text-xs text-muted-foreground">{t(type === 'corrective' ? 'createWo.correctiveHint' : 'createWo.preventiveHint')}</span>
                 </label>
               ))}
             </div>
@@ -185,7 +185,7 @@ export function CreateWorkOrderDialog({
               id={`${id}-title`} type="text" name="title"
               placeholder={form.type === 'preventive' ? t('createWo.titlePreventive') : t('createWo.titleCorrective')}
               value={form.title} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
 
@@ -196,7 +196,7 @@ export function CreateWorkOrderDialog({
               id={`${id}-description`} name="description"
               placeholder={t('createWo.descriptionPlaceholder')}
               value={form.description} onChange={handleChange} rows={3}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 resize-none"
             />
           </div>
 
@@ -205,7 +205,7 @@ export function CreateWorkOrderDialog({
             <div>
               <label htmlFor={`${id}-priority`} className="block text-sm font-semibold mb-1.5">{t('common.priority')}</label>
               <select id={`${id}-priority`} name="priority" value={form.priority} onChange={handleChange}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
                 {PRIORITIES.map((p) => (
                   <option key={p} value={p}>{label('priority', p)}</option>
                 ))}
@@ -221,7 +221,7 @@ export function CreateWorkOrderDialog({
                   onChange={(userId, name) => setForm((prev) => ({ ...prev, assigneeUserId: userId, assignee: name }))}
                 />
               ) : (
-                <select id={`${id}-assignee`} disabled className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm">
+                <select id={`${id}-assignee`} disabled className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
                   <option>{t('createWo.pickAssetFirst')}</option>
                 </select>
               )}
@@ -232,21 +232,21 @@ export function CreateWorkOrderDialog({
           <div>
             <label htmlFor={`${id}-scheduled`} className="block text-sm font-semibold mb-1.5">{t('createWo.scheduledDate')}</label>
             <input id={`${id}-scheduled`} type="date" name="scheduledDate" value={form.scheduledDate} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40" />
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t border-border">
+          <div className="sticky bottom-0 bg-background flex gap-3 py-4 border-t border-border">
             <button
               type="button" onClick={() => !isSubmitting && onOpenChange(false)} disabled={isSubmitting}
-              className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
+              className="flex-1 h-10 px-4 rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit" disabled={!isComplete || assets.length === 0 || isSubmitting}
               className={cn(
-                'flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors',
+                'flex-1 h-10 px-4 rounded-lg font-semibold text-sm transition-colors',
                 isComplete && assets.length > 0 && !isSubmitting
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-muted text-muted-foreground cursor-not-allowed'

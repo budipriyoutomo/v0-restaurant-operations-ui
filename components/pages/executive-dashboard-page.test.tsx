@@ -67,4 +67,16 @@ describe('ExecutiveDashboardPage', () => {
     useIssueStore.getState().bumpLists()
     await vi.waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
   })
+
+  it('follows the top bar outlet filter', async () => {
+    useIssueStore.setState({
+      currentUser: { id: 'u1', all_outlets: true, effective_outlet_ids: [], permissions: { dashboard: 'view' } } as unknown as User,
+      outlets: [{ id: 'o1', name: 'Jakarta' }, { id: 'o2', name: 'Bandung' }] as never,
+      outletFilter: 'Bandung',
+    })
+    render(<ExecutiveDashboardPage />)
+    await screen.findByText('Gas bocor')
+    expect(api.get).toHaveBeenLastCalledWith('Bandung')
+    useIssueStore.setState({ outletFilter: null })
+  })
 })

@@ -15,6 +15,9 @@ import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
 import { UnlinkedAssigneeNote } from '@/components/shared/unlinked-assignee-note'
 import { approvalThresholdsByOutlet } from '@/lib/outlet-threshold'
 import { statusLabel, translate, useT, type Locale } from '@/lib/i18n'
+import { SideDrawer } from '@/components/shared/side-drawer'
+import { EmptyState } from '@/components/shared/empty-state'
+import { FilterChip, PageHeader } from '@/components/shared/page-header'
 
 // Theme-aware status presentation — matches the Task Center kanban.
 const STATUS_META: Record<IssueStatus, { dot: string; accent: string; ring: string }> = {
@@ -95,73 +98,59 @@ export function MaintenanceModulePage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('maintenance.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('maintenance.subtitle')}
-          </p>
-        </div>
-        <button
+    <div className="space-y-5 p-4 sm:p-6">
+      <PageHeader
+        title={t('maintenance.title')}
+        description={t('maintenance.subtitle')}
+        actions={<button
           onClick={() => setShowReport(true)}
           // Phones: floating, thumb-sized and always on screen (Todo-Pilot §15)
-          className="flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors fixed bottom-20 right-4 z-30 h-14 px-5 rounded-full shadow-lg text-sm sm:static sm:h-9 sm:px-4 sm:rounded-md sm:shadow-none sm:text-xs"
+          className="flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors fixed bottom-20 right-4 z-30 h-14 px-5 rounded-full shadow-lg text-sm sm:static sm:h-10 sm:px-4 sm:rounded-lg sm:shadow-sm"
         >
           <Plus className="size-4" /> {t('maintenance.report')}
-        </button>
-      </div>
+        </button>}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-lg border border-border bg-muted/20">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('maintenance.totalIssues')}</p>
+        <div className="p-4 rounded-2xl border border-border bg-card">
+          <p className="text-xs font-medium text-muted-foreground mb-1">{t('maintenance.totalIssues')}</p>
           <p className="text-2xl font-bold">{stats.total}</p>
         </div>
-        <div className="p-4 rounded-lg border border-border bg-muted/20">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('maintenance.critical')}</p>
+        <div className="p-4 rounded-2xl border border-border bg-card">
+          <p className="text-xs font-medium text-muted-foreground mb-1">{t('maintenance.critical')}</p>
           <p className="text-2xl font-bold text-red-600">{stats.critical}</p>
         </div>
-        <div className="p-4 rounded-lg border border-border bg-muted/20">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('maintenance.slaBreached')}</p>
-          <p className="text-2xl font-bold text-amber-700">{stats.overdue}</p>
+        <div className="p-4 rounded-2xl border border-border bg-card">
+          <p className="text-xs font-medium text-muted-foreground mb-1">{t('maintenance.slaBreached')}</p>
+          <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{stats.overdue}</p>
         </div>
       </div>
 
       {/* Search + Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+      <div className="flex flex-col lg:flex-row gap-3 lg:items-center rounded-2xl border border-border bg-card p-3 sm:p-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <input
             type="text"
             placeholder={t('maintenance.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full h-11 pl-10 pr-4 rounded-xl border border-transparent bg-muted/60 text-sm placeholder:text-muted-foreground focus:outline-none focus:bg-background focus:border-primary/40 focus:ring-4 focus:ring-primary/10 transition-colors"
           />
         </div>
 
-        <div className="flex gap-1.5 items-center flex-wrap">
+        <div className="flex gap-2 items-center flex-wrap">
           <span className="text-xs font-medium text-muted-foreground mr-1">{t('issues.priorityFilter')}</span>
           {PRIORITIES.map((p) => (
-            <button
-              key={p}
-              onClick={() => setFilterPriority(filterPriority === p ? null : p)}
-              className={cn(
-                'px-2.5 py-1 rounded-full text-xs font-semibold transition-colors capitalize',
-                filterPriority === p
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-              )}
-            >
-              {p}
-            </button>
+            <FilterChip key={p} active={filterPriority === p} onClick={() => setFilterPriority(filterPriority === p ? null : p)}>
+              {label('priority', p)}
+            </FilterChip>
           ))}
           {hasFilters && (
             <button
               onClick={() => { setSearchQuery(''); setFilterPriority(null) }}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="flex items-center gap-1 h-10 sm:h-8 px-3 rounded-full text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <X className="size-3" /> {t('tasks.clear')}
             </button>
@@ -171,13 +160,7 @@ export function MaintenanceModulePage() {
 
       {/* Empty state */}
       {maintenanceIssues.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Wrench className="size-10 text-muted-foreground mb-4" />
-          <p className="text-sm font-medium">{t('maintenance.empty')}</p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-            {t('maintenance.emptyHint')}
-          </p>
-        </div>
+        <EmptyState icon={Wrench} title={t('maintenance.empty')} description={t('maintenance.emptyHint')} />
       )}
 
       {/* Kanban */}
@@ -243,23 +226,13 @@ export function MaintenanceModulePage() {
 
       {/* Detail Panel */}
       {selectedIssue && (
-        <div className="fixed right-0 top-0 h-screen w-full sm:w-[420px] bg-background border-l border-border shadow-lg overflow-y-auto z-40 flex flex-col">
-          {/* Header */}
-          <div className="sticky top-0 bg-background border-b border-border px-6 py-4 flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="font-mono text-xs text-primary font-bold">{selectedIssue.number}</p>
-              <h2 className="font-bold text-base leading-snug mt-0.5 line-clamp-2">{selectedIssue.title}</h2>
-            </div>
-            <button
-              onClick={() => setSelectedIssue(null)}
-              aria-label={t('common.close')}
-              className="text-muted-foreground hover:text-foreground text-lg leading-none flex-shrink-0 mt-0.5"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="flex-1 px-6 py-4 space-y-5">
+        <SideDrawer
+          label={`${t('term.issue')} ${selectedIssue.number}`}
+          number={selectedIssue.number}
+          title={selectedIssue.title}
+          closeLabel={t('common.close')}
+          onClose={() => setSelectedIssue(null)}
+        >
             {/* Status + Priority */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
@@ -268,7 +241,7 @@ export function MaintenanceModulePage() {
                   <select
                     value={selectedIssue.status}
                     onChange={(e) => updateIssueStatus(selectedIssue.id, e.target.value as IssueStatus)}
-                    className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="h-9 text-sm border border-border rounded-lg px-2.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
                     {COLUMN_ORDER.map((id) => (
                       <option key={id} value={id} disabled={id !== selectedIssue.status && !!moveBlockedReason(selectedIssue, id)}>
@@ -330,7 +303,7 @@ export function MaintenanceModulePage() {
                 {can.manageCMMS && (
                   <button
                     onClick={() => setShowCreateWO(true)}
-                    className="flex items-center gap-1 px-2.5 h-7 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 transition-colors"
+                    className="flex items-center gap-1 px-2.5 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
                   >
                     <Plus className="size-3" /> {t('maintenance.createWo')}
                   </button>
@@ -341,7 +314,7 @@ export function MaintenanceModulePage() {
                 <div className="text-center py-6 rounded-md border border-dashed border-border">
                   <Wrench className="size-6 text-muted-foreground mx-auto mb-2" />
                   <p className="text-xs text-muted-foreground">{t('maintenance.noWos')}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {can.manageCMMS ? t('maintenance.noWosManager') : t('maintenance.noWosStaff')}
                   </p>
                 </div>
@@ -350,13 +323,13 @@ export function MaintenanceModulePage() {
                   {linkedWOs.map((wo) => (
                     <div
                       key={wo.id}
-                      className="p-3 rounded-md border border-border bg-muted/20 text-xs space-y-1.5"
+                      className="p-3 rounded-2xl border border-border bg-card text-xs space-y-1.5"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-mono text-muted-foreground">{wo.number}</span>
                         <div className="flex items-center gap-1.5">
                           <span className={cn(
-                            'px-1.5 py-0.5 rounded text-[10px] font-semibold',
+                            'px-2 py-0.5 rounded-md text-xs font-semibold',
                             wo.type === 'preventive' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
                           )}>
                             {label('woType', wo.type)}
@@ -377,8 +350,7 @@ export function MaintenanceModulePage() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+        </SideDrawer>
       )}
 
       {/* Create Work Order dialog — pre-linked to selected issue */}
@@ -462,7 +434,7 @@ function IssueCard({
       </div>
       <div className="space-y-1.5 text-xs">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-mono text-[10px] text-primary font-semibold">{issue.number}</span>
+          <span className="font-mono text-xs text-primary font-semibold">{issue.number}</span>
           <PriorityBadge priority={issue.priority} />
         </div>
         <div className="flex items-center gap-2 text-muted-foreground">

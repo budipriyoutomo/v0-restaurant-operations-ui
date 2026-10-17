@@ -9,6 +9,7 @@ import { ApprovalType, ApproverRole, CreateApprovalPolicyInput, PolicyStep } fro
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 
 const APPROVAL_TYPES: ApprovalType[] = ['maintenance', 'procurement', 'marketing', 'training', 'asset-purchase']
 const ROLES: ApproverRole[] = ['staff', 'manager', 'admin']
@@ -43,9 +44,7 @@ export function ApprovalPolicyPanel() {
 
   if (!can.manageMasterData) {
     return (
-      <div className="rounded-xl border border-dashed border-border flex items-center justify-center py-16 text-xs text-muted-foreground">
-        {t('policy.adminOnly')}
-      </div>
+      <SharedEmptyState title={t('policy.adminOnly')} className="py-16 text-sm" />
     )
   }
 
@@ -120,7 +119,7 @@ export function ApprovalPolicyPanel() {
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-1.5 px-3 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           {showForm ? <X className="size-4" /> : <Plus className="size-4" />}
           {showForm ? t('common.close') : t('policy.new')}
@@ -136,7 +135,7 @@ export function ApprovalPolicyPanel() {
               <select
                 value={form.approvalType}
                 onChange={(e) => setForm({ ...form, approvalType: e.target.value as ApprovalType })}
-                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
               >
                 {APPROVAL_TYPES.map((at) => <option key={at} value={at}>{label('approvalType', at)}</option>)}
               </select>
@@ -149,7 +148,7 @@ export function ApprovalPolicyPanel() {
                 value={form.minAmount ?? ''}
                 onChange={(e) => setForm({ ...form, minAmount: e.target.value === '' ? null : Number(e.target.value) })}
                 placeholder={t('policy.emptyInfinite')}
-                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
               />
             </label>
             <label className="flex flex-col gap-1 text-xs">
@@ -160,7 +159,7 @@ export function ApprovalPolicyPanel() {
                 value={form.maxAmount ?? ''}
                 onChange={(e) => setForm({ ...form, maxAmount: e.target.value === '' ? null : Number(e.target.value) })}
                 placeholder={t('policy.emptyInfinite')}
-                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
               />
             </label>
             <label className="flex flex-col gap-1 text-xs">
@@ -168,7 +167,7 @@ export function ApprovalPolicyPanel() {
               <select
                 value={form.outlet ?? ''}
                 onChange={(e) => setForm({ ...form, outlet: e.target.value || null })}
-                className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
               >
                 <option value="">{t('common.allOutlets')}</option>
                 {outlets.map((o) => <option key={o.id} value={o.name}>{o.name}</option>)}
@@ -182,12 +181,12 @@ export function ApprovalPolicyPanel() {
             <div className="flex flex-wrap items-center gap-2">
               {form.steps.map((s, idx) => (
                 <div key={idx} className="flex items-center gap-1">
-                  <span className="text-[11px] text-muted-foreground">{idx + 1}.</span>
+                  <span className="text-xs text-muted-foreground">{idx + 1}.</span>
                   <select
                     value={s.role}
                     onChange={(e) => setStepRole(idx, e.target.value as ApproverRole)}
                     aria-label={`${t('policy.chain')} ${idx + 1}`}
-                    className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                    className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
                   >
                     {ROLES.map((r) => <option key={r} value={r}>{label('tier', r)}</option>)}
                   </select>
@@ -199,20 +198,20 @@ export function ApprovalPolicyPanel() {
                   {idx < form.steps.length - 1 && <ArrowRight className="size-3 text-muted-foreground" />}
                 </div>
               ))}
-              <button onClick={addStep} className="flex items-center gap-1 px-2 h-8 rounded-md border border-dashed border-border text-xs text-muted-foreground hover:bg-accent">
+              <button onClick={addStep} className="flex items-center gap-1 px-2 h-9 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:bg-accent">
                 <Plus className="size-3" /> {t('policy.addStep')}
               </button>
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-1">
-            <button onClick={resetForm} className="px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent transition-colors">
+            <button onClick={resetForm} className="px-3 h-9 rounded-lg border border-border text-sm font-medium hover:bg-accent transition-colors">
               {t('common.cancel')}
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               {saving && <Loader2 className="size-3.5 animate-spin" />}
               {t('policy.save')}
@@ -225,36 +224,34 @@ export function ApprovalPolicyPanel() {
       {policiesLoading ? (
         <p className="text-xs text-muted-foreground text-center py-6">{t('policy.loading')}</p>
       ) : approvalPolicies.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-10 text-xs text-muted-foreground">
-          {t('policy.empty')}
-        </div>
+        <SharedEmptyState title={t('policy.empty')} className="py-10 text-sm" />
       ) : (
         <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-muted-foreground">
-                <th className="text-left px-4 py-2.5 font-semibold">{t('policy.colType')}</th>
-                <th className="text-left px-4 py-2.5 font-semibold">{t('policy.range')}</th>
-                <th className="text-left px-4 py-2.5 font-semibold">{t('common.outlet')}</th>
-                <th className="text-left px-4 py-2.5 font-semibold">{t('policy.chain')}</th>
-                <th className="text-left px-4 py-2.5 font-semibold">{t('common.status')}</th>
-                <th className="px-4 py-2.5" />
+                <th className="text-left px-4 py-3.5 font-semibold">{t('policy.colType')}</th>
+                <th className="text-left px-4 py-3.5 font-semibold">{t('policy.range')}</th>
+                <th className="text-left px-4 py-3.5 font-semibold">{t('common.outlet')}</th>
+                <th className="text-left px-4 py-3.5 font-semibold">{t('policy.chain')}</th>
+                <th className="text-left px-4 py-3.5 font-semibold">{t('common.status')}</th>
+                <th className="px-4 py-3.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {approvalPolicies.map((p) => (
                 <tr key={p.id} className="hover:bg-accent/40 transition-colors">
-                  <td className="px-4 py-2.5 font-semibold">{label('approvalType', p.approvalType)}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{fmtAmount(p.minAmount)} – {fmtAmount(p.maxAmount)}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">{p.outlet ?? t('policy.all')}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">
+                  <td className="px-4 py-3.5 font-semibold">{label('approvalType', p.approvalType)}</td>
+                  <td className="px-4 py-3.5 text-muted-foreground">{fmtAmount(p.minAmount)} – {fmtAmount(p.maxAmount)}</td>
+                  <td className="px-4 py-3.5 text-muted-foreground">{p.outlet ?? t('policy.all')}</td>
+                  <td className="px-4 py-3.5 text-muted-foreground">
                     {p.steps.map((s) => label('tier', s.role)).join(' → ')}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-3.5">
                     <button
                       onClick={() => toggleActive(p.id, p.isActive)}
                       className={cn(
-                        'rounded px-1.5 py-0.5 text-[11px] font-semibold border cursor-pointer hover:opacity-80',
+                        'rounded px-1.5 py-0.5 text-xs font-semibold border cursor-pointer hover:opacity-80',
                         p.isActive
                           ? 'bg-success/15 text-success border-success/30'
                           : 'bg-muted text-muted-foreground border-border',
@@ -263,7 +260,7 @@ export function ApprovalPolicyPanel() {
                       {p.isActive ? t('pm.active') : t('pm.inactive')}
                     </button>
                   </td>
-                  <td className="px-4 py-2.5 text-right">
+                  <td className="px-4 py-3.5 text-right">
                     <button
                       onClick={() => handleDelete(p.id, p.approvalType)}
                       className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"

@@ -73,19 +73,19 @@ function MonitoringSettings({ asset }: { asset: Asset }) {
       </label>
       {on && (
         <div className="flex items-end gap-2 flex-wrap">
-          <label className="text-[11px] text-muted-foreground">{t('temp.min')}
+          <label className="text-xs text-muted-foreground">{t('temp.min')}
             <input inputMode="decimal" value={min} onChange={(e) => setMin(e.target.value)} className={cn(field, 'block w-24 mt-0.5')} />
           </label>
-          <label className="text-[11px] text-muted-foreground">{t('temp.max')}
+          <label className="text-xs text-muted-foreground">{t('temp.max')}
             <input inputMode="decimal" value={max} onChange={(e) => setMax(e.target.value)} className={cn(field, 'block w-24 mt-0.5')} />
           </label>
           <span className="text-xs text-muted-foreground pb-2">°C</span>
         </div>
       )}
-      {!valid && <p className="text-[11px] text-destructive">{t('temp.minBelowMax')}</p>}
+      {!valid && <p className="text-xs text-destructive">{t('temp.minBelowMax')}</p>}
       {changed && (
         <button type="button" onClick={save} disabled={!valid || saving}
-          className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
+          className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
           {saving ? t('common.saving') : t('common.save')}
         </button>
       )}
@@ -164,7 +164,7 @@ function TemperatureHistory({ asset }: { asset: Asset }) {
         <details className="text-xs">
           <summary className="cursor-pointer text-muted-foreground">{t('temp.showTable')}</summary>
           <table className="w-full mt-2">
-            <thead className="text-muted-foreground"><tr>
+            <thead className="text-muted-foreground text-xs"><tr>
               <th className="text-left font-semibold py-1">{t('temp.time')}</th>
               <th className="text-right font-semibold py-1">°C</th>
               <th className="text-left font-semibold py-1 pl-3">{t('temp.status')}</th>
@@ -221,9 +221,9 @@ function ManualReading({ asset, onSaved }: { asset: Asset; onSaved: () => void }
           aria-label={t('ops.toggleSign')} className="size-10 rounded-md border border-border text-lg font-bold">±</button>
         <input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value.replace(/[^\d.,-]/g, ''))}
           aria-label={t('temp.reading')} placeholder="°C"
-          className={cn(field, 'w-24 h-10 text-base font-semibold tabular-nums', needsAction && 'border-red-400 text-red-700')} />
+          className={cn(field, 'w-24 h-10 text-base font-semibold tabular-nums', needsAction && 'border-red-400 text-red-700 dark:text-red-400')} />
         <button type="button" onClick={save} disabled={!ready || saving}
-          className="h-10 px-3 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
+          className="h-10 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
           {saving ? t('common.saving') : t('temp.record')}
         </button>
       </div>

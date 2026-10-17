@@ -78,7 +78,7 @@ export function IssueComments({ issueId, load, add }: {
               <li key={c.id} className={cn('rounded-md border px-3 py-2 text-sm',
                 system ? 'border-dashed border-border bg-muted/40' : 'border-border bg-background',
                 c.pending && 'opacity-70')}>
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-0.5">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-0.5">
                   {system && <Bot className="size-3" aria-hidden />}
                   <span className="font-semibold text-foreground/80">
                     {system ? t('issueComments.system') : c.authorName}

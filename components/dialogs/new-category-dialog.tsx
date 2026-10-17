@@ -36,7 +36,7 @@ const defaultForm: CategoryFormData = {
   defaultGenerateTask: true, defaultGenerateApproval: false, approvalType: null, isActive: true,
 }
 
-const fieldClass = 'w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50'
+const fieldClass = 'w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40'
 
 export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }: NewCategoryDialogProps) {
   const { t, label } = useT()
@@ -88,15 +88,15 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="category-dialog-title"
-        className="bg-background rounded-lg border border-border shadow-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        className="bg-background rounded-2xl border border-border shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
           <h2 id="category-dialog-title" className="text-lg font-bold">{isEdit ? t('categoryDialog.edit') : t('categoryDialog.create')}</h2>
           <button
             onClick={() => onOpenChange(false)}
             aria-label={t('common.close')}
-            className="p-1 hover:bg-muted rounded-md transition-colors"
+            className="p-1 hover:bg-muted rounded-lg transition-colors"
           >
             <X className="size-5 text-muted-foreground" />
           </button>
@@ -104,10 +104,10 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
+            <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
           )}
           {isSystem && (
-            <p className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 px-3 py-2 rounded-md">
+            <p className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 px-3 py-2 rounded-lg">
               <Lock className="size-3.5 mt-0.5 shrink-0" aria-hidden /> {t('categoryDialog.systemLocked')}
             </p>
           )}
@@ -142,7 +142,7 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
                 const on = formData.icon === name
                 return (
                   <label key={name} title={name} className={cn(
-                    'flex items-center justify-center size-9 rounded-md border cursor-pointer transition-colors',
+                    'flex items-center justify-center size-9 rounded-lg border cursor-pointer transition-colors',
                     'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/50',
                     on ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted/40')}>
                     <input type="radio" name="icon" value={name} checked={on} onChange={() => set('icon', name)}
@@ -188,12 +188,12 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
             </label>
           )}
 
-          <div className="flex gap-3 pt-4 border-t border-border">
+          <div className="sticky bottom-0 bg-background flex gap-3 py-4 border-t border-border">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
+              className="flex-1 h-10 px-4 rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
               {t('common.cancel')}
             </button>
@@ -201,7 +201,7 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
               type="submit"
               disabled={!isComplete || isSubmitting}
               className={cn(
-                'flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors',
+                'flex-1 h-10 px-4 rounded-lg font-semibold text-sm transition-colors',
                 isComplete && !isSubmitting
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-muted text-muted-foreground cursor-not-allowed'

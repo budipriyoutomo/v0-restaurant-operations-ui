@@ -14,7 +14,7 @@ import type { AssignableUser } from '@/lib/types'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
-const fieldClass = 'w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50'
+const fieldClass = 'w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40'
 
 export function AssignmentRulesPanel() {
   const { t, label } = useT()
@@ -101,7 +101,7 @@ export function AssignmentRulesPanel() {
             </select>
           </div>
           <button type="button" onClick={add} disabled={!categoryId || !assigneeUserId || saving}
-            className={cn('flex items-center justify-center gap-1.5 h-9 px-4 rounded-md text-xs font-semibold transition-colors',
+            className={cn('flex items-center justify-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium transition-colors',
               categoryId && assigneeUserId && !saving
                 ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                 : 'bg-muted text-muted-foreground cursor-not-allowed')}>
@@ -120,28 +120,28 @@ export function AssignmentRulesPanel() {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs text-muted-foreground">
               <tr>
-                <th className="text-left font-semibold px-4 py-2">{t('assignmentRules.category')}</th>
-                <th className="text-left font-semibold px-4 py-2">{t('assignmentRules.outlet')}</th>
-                <th className="text-left font-semibold px-4 py-2">{t('assignmentRules.assignTo')}</th>
-                {can.manageMasterData && <th className="px-4 py-2" />}
+                <th className="text-left font-semibold px-4 py-3">{t('assignmentRules.category')}</th>
+                <th className="text-left font-semibold px-4 py-3">{t('assignmentRules.outlet')}</th>
+                <th className="text-left font-semibold px-4 py-3">{t('assignmentRules.assignTo')}</th>
+                {can.manageMasterData && <th className="px-4 py-3" />}
               </tr>
             </thead>
             <tbody>
               {assignmentRules.map((r) => (
                 <tr key={r.id} aria-label={`${label('category', r.categoryName)} · ${r.outlet ?? t('assignmentRules.allOutlets')}`}
                   className="border-t border-border">
-                  <td className="px-4 py-2 font-medium">{label('category', r.categoryName)}</td>
-                  <td className="px-4 py-2">{r.outlet ?? <span className="text-muted-foreground">{t('assignmentRules.allOutlets')}</span>}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-3 font-medium">{label('category', r.categoryName)}</td>
+                  <td className="px-4 py-3">{r.outlet ?? <span className="text-muted-foreground">{t('assignmentRules.allOutlets')}</span>}</td>
+                  <td className="px-4 py-3">
                     <span>{r.assigneeName}</span>
                     {!r.assigneeActive && (
-                      <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-warning">
+                      <span className="ml-2 inline-flex items-center gap-1 text-xs text-warning">
                         <AlertTriangle className="size-3" aria-hidden /> {t('assignmentRules.inactive')}
                       </span>
                     )}
                   </td>
                   {can.manageMasterData && (
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-4 py-3 text-right">
                       <button type="button" onClick={() => remove(r.id)} aria-label={t('common.delete')} title={t('common.delete')}
                         className="p-1.5 hover:bg-destructive/20 rounded-md transition-colors">
                         <Trash2 className="size-4 text-muted-foreground hover:text-destructive" aria-hidden />

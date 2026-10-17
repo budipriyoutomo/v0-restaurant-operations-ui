@@ -44,26 +44,26 @@ export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-xs text-muted-foreground">
-              <th className="text-left px-3 py-2 font-semibold">{t('common.outlet')}</th>
-              <th className="text-right px-3 py-2 font-semibold">{t('qaScores.latest')}</th>
-              <th className="text-right px-3 py-2 font-semibold hidden sm:table-cell">{t('qaScores.audits')}</th>
-              <th className="text-right px-3 py-2 font-semibold">{t('qaScores.repeats')}</th>
+              <th className="text-left px-4 py-3 font-semibold">{t('common.outlet')}</th>
+              <th className="text-right px-4 py-3 font-semibold">{t('qaScores.latest')}</th>
+              <th className="text-right px-4 py-3 font-semibold hidden sm:table-cell">{t('qaScores.audits')}</th>
+              <th className="text-right px-4 py-3 font-semibold">{t('qaScores.repeats')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {data.outlets.map((o) => (
               <tr key={o.outlet}>
-                <td className="px-3 py-2">
+                <td className="px-4 py-3">
                   <p className="font-medium">{o.outlet}</p>
-                  <p className="text-[11px] text-muted-foreground">{date(o.latestDate)}</p>
+                  <p className="text-xs text-muted-foreground">{date(o.latestDate)}</p>
                 </td>
                 <td className={cn('px-3 py-2 text-right font-bold', TONE_CLASS[scoreTone(o.latestScore)])}>
                   {o.latestScore ?? '—'}
                 </td>
-                <td className="px-3 py-2 text-right text-muted-foreground hidden sm:table-cell">{o.audits}</td>
-                <td className="px-3 py-2 text-right">
+                <td className="px-4 py-3 text-right text-muted-foreground hidden sm:table-cell">{o.audits}</td>
+                <td className="px-4 py-3 text-right">
                   {o.repeatFindings > 0
-                    ? <span className="inline-flex items-center gap-1 text-orange-700 font-semibold"><Repeat className="size-3" />{o.repeatFindings}</span>
+                    ? <span className="inline-flex items-center gap-1 text-orange-700 dark:text-orange-400 font-semibold"><Repeat className="size-3" />{o.repeatFindings}</span>
                     : <span className="text-muted-foreground">0</span>}
                 </td>
               </tr>

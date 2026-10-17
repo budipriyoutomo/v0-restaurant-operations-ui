@@ -15,7 +15,8 @@ export const qaApi = {
   updateTemplate: (id: string, body: Partial<{ name: string; description: string; isActive: boolean; items: QAAuditTemplateItemInput[] }>) =>
     api.patch<QAAuditTemplate>(`/api/qa-audit-templates/${id}`, body),
 
-  list: () => api.get<QAAuditSummary[]>('/api/qa-audits'),
+  list: (outlet: string | null = null) =>
+    api.get<QAAuditSummary[]>(outlet ? `/api/qa-audits?outlet=${encodeURIComponent(outlet)}` : '/api/qa-audits'),
   get: (id: string) => api.get<QAAuditDetail>(`/api/qa-audits/${id}`),
   start: (body: { templateId: string; outlet: string; auditDate?: string }, idempotencyKey: string) =>
     api.post<QAAuditDetail>('/api/qa-audits', body, { 'Idempotency-Key': idempotencyKey }),

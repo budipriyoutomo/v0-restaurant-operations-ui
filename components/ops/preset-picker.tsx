@@ -55,7 +55,7 @@ export function PresetPicker({ onApplied }: { onApplied: () => void }) {
       <div role="radiogroup" aria-label={t('opsPreset.outletType')} className="flex flex-wrap gap-1.5">
         {presets.map((p) => (
           <button key={p.key} type="button" role="radio" aria-checked={choice === p.key} onClick={() => setChoice(p.key)}
-            className={cn('px-3 h-9 rounded-md border text-xs font-semibold',
+            className={cn('px-3 h-9 rounded-lg border text-sm font-medium',
               choice === p.key ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background hover:bg-muted/50')}>
             {p.label}
           </button>
@@ -74,17 +74,17 @@ export function PresetPicker({ onApplied }: { onApplied: () => void }) {
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-xs">{t('opsPreset.scheduleAt')}
           <select value={outlet} onChange={(e) => setOutlet(e.target.value)}
-            className="block mt-1 h-9 px-2.5 rounded-md border border-border bg-background text-sm">
+            className="block mt-1 h-9 px-2.5 rounded-lg border border-border bg-background text-sm">
             <option value="">{t('opsPreset.noSchedule')}</option>
             {outlets.map((o) => <option key={o.id} value={o.name}>{o.name}</option>)}
           </select>
         </label>
         <button type="button" onClick={apply} disabled={!choice || busy}
-          className="flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
+          className="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
           {busy && <Loader2 className="size-4 animate-spin" aria-hidden />} {t('opsPreset.apply')}
         </button>
       </div>
-      <p className="text-[11px] text-muted-foreground">{t('opsPreset.tempNote')}</p>
+      <p className="text-xs text-muted-foreground">{t('opsPreset.tempNote')}</p>
     </div>
   )
 }

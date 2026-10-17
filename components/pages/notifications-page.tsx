@@ -41,7 +41,7 @@ function NotifCard({ n, onRead }: { n: AppNotification; onRead: (id: string) => 
           <p className={cn('text-sm font-semibold leading-snug', isUnread ? 'text-foreground' : 'text-muted-foreground')}>
             {n.title}
           </p>
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0">{relative(n.created_at)}</span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">{relative(n.created_at)}</span>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{n.message}</p>
       </div>
@@ -93,7 +93,7 @@ export function NotificationsPage() {
         {unreadCount > 0 && (
           <button
             onClick={markAllNotificationsRead}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
+            className="flex items-center gap-1.5 px-3 h-9 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
           >
             <CheckCheck className="size-3.5" /> {t('notifications.markAllRead')}
           </button>

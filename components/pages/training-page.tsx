@@ -5,7 +5,7 @@ import { BookOpen, Plus, Clock, CheckCircle2, XCircle, Users, Loader2, Pencil, T
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
-import { useMyOutlets, usePermissions } from '@/lib/permissions'
+import { useMyOutlets, useOutletFilter, usePermissions } from '@/lib/permissions'
 import { TrainingProgram, TrainingProgramStatus, CreateTrainingProgramInput } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
@@ -17,12 +17,16 @@ import { recordPath } from '@/lib/routes'
 import { placesLeft } from '@/lib/training'
 import { formatMoney } from '@/lib/money'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { SegmentedTabs } from '@/components/shared/segmented-tabs'
+import { PageHeader } from '@/components/shared/page-header'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { byOutlet } from '@/lib/outlet-filter'
 
 type Tab = 'sessions' | 'approvals' | 'programs' | 'attendance'
 
 const STATUS_COLORS: Record<TrainingProgramStatus, string> = {
-  scheduled:  'bg-blue-100 text-blue-700',
-  ongoing:    'bg-amber-100 text-amber-800',
+  scheduled:  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  ongoing:    'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
   completed:  'bg-success/15 text-success',
   cancelled:  'bg-muted text-muted-foreground',
 }
@@ -31,10 +35,15 @@ export function TrainingPage() {
   useEnsureLoaded('core', 'training', 'users')
   const { t, date } = useT()
   const {
-    issues, approvals, outlets, pics, createIssue,
-    trainingPrograms, trainingLoading, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram,
+    issues: allIssues, approvals: allApprovals, outlets, pics, createIssue,
+    trainingPrograms: allPrograms, trainingLoading, createTrainingProgram, updateTrainingProgram, deleteTrainingProgram,
     loadTrainingPrograms,
   } = useIssueStore()
+  // Top bar outlet filter; company-wide programmes (no outlet) always show.
+  const { outlet } = useOutletFilter()
+  const issues = byOutlet(allIssues, outlet)
+  const approvals = byOutlet(allApprovals, outlet)
+  const trainingPrograms = byOutlet(allPrograms, outlet, { includeShared: true })
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
   const { can } = usePermissions()
@@ -58,17 +67,16 @@ export function TrainingPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('training.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('training.subtitle')}</p>
-        </div>
-        {tab === 'programs' ? (
+    <div className="p-4 sm:p-6 space-y-5 max-w-5xl">
+      <PageHeader
+        title={t('training.title')}
+        description={t('training.subtitle')}
+        actions={<>
+          {tab === 'programs' ? (
           can.manageTraining && (
             <button
               onClick={() => { setEditingProgram(null); setShowProgramForm(true) }}
-              className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
             >
               <Plus className="size-4" /> {t('training.newProgram')}
             </button>
@@ -76,39 +84,27 @@ export function TrainingPage() {
         ) : (
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus className="size-4" /> {t('training.newRequest')}
           </button>
         )}
-      </div>
+      </>}
+      />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard label={t('training.totalSessions')} value={stats.total}    color="text-foreground" />
-        <StatCard label={t('assetsPage.pending')} value={stats.pending}  color="text-amber-700"  />
+        <StatCard label={t('assetsPage.pending')} value={stats.pending}  color="text-amber-700 dark:text-amber-400"  />
         <StatCard label={t('training.upcoming')} value={stats.upcoming} color="text-blue-600"   />
         <StatCard label={t('training.programs')} value={stats.programs} color="text-primary"    />
       </div>
 
-      <div className="flex gap-1 border-b border-border">
-        {([
-          { id: 'sessions',   label: t('training.tab.sessions', { count: sessions.length }) },
-          { id: 'approvals',  label: t('training.tab.approvals', { count: approvalsT.length }) },
-          { id: 'programs',   label: t('training.tab.programs', { count: trainingPrograms.length }) },
-          { id: 'attendance', label: t('training.tab.attendance') },
-        ] as const).map(td => (
-          <button
-            key={td.id}
-            onClick={() => setTab(td.id)}
-            className={cn(
-              'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
-              tab === td.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {td.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs label={t('nav.training')} value={tab} onChange={setTab} tabs={[
+        { id: 'sessions',   label: t('training.tab.sessions', { count: sessions.length }) },
+        { id: 'approvals',  label: t('training.tab.approvals', { count: approvalsT.length }) },
+        { id: 'programs',   label: t('training.tab.programs', { count: trainingPrograms.length }) },
+        { id: 'attendance', label: t('training.tab.attendance') },
+      ] as const} />
 
       {tab === 'sessions' && (
         sessions.length === 0 ? (
@@ -119,12 +115,12 @@ export function TrainingPage() {
               <button type="button" key={s.id} onClick={() => navigate(recordPath('issues', s.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-mono text-muted-foreground">{s.number}</span>
+                    <span className="text-xs font-mono text-muted-foreground">{s.number}</span>
                     <PriorityBadge priority={s.priority} />
                   </div>
                   <p className="text-sm font-semibold">{s.title}</p>
                   {s.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{s.description}</p>}
-                  <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><Users className="size-3" />{s.outlet}</span>
                     <span>·</span><span>{s.assignee || t('common.unassigned')}</span>
                     {s.dueDate && <><span>·</span><span>{t('training.scheduled', { date: date(s.dueDate) })}</span></>}
@@ -145,15 +141,15 @@ export function TrainingPage() {
             {approvalsT.map(a => (
               <button type="button" key={a.id} onClick={() => navigate(recordPath('approvals', a.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div className="flex-1 min-w-0">
-                  <span className="text-[11px] font-mono text-muted-foreground">{a.number}</span>
+                  <span className="text-xs font-mono text-muted-foreground">{a.number}</span>
                   <p className="text-sm font-semibold mt-0.5">{a.title}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                     <span>{a.outlet}</span><span>·</span><span>{t('assetsPage.by', { name: a.requester })}</span>
                     {a.amount != null && <><span>·</span><span className="font-semibold text-foreground">{formatMoney(a.amount, a.currency)}</span></>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700" />}
+                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700 dark:text-amber-400" />}
                   {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
                   {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
                   <StatusBadge status={a.status} />
@@ -245,7 +241,7 @@ function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusC
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-snug">{p.title}</p>
-              <span className={cn('inline-block text-[10px] px-1.5 py-0.5 rounded font-semibold mt-1', STATUS_COLORS[p.status as TrainingProgramStatus])}>
+              <span className={cn('inline-block text-xs px-2 py-0.5 rounded-md font-semibold mt-1', STATUS_COLORS[p.status as TrainingProgramStatus])}>
                 {label('trainingStatus', p.status)}
               </span>
             </div>
@@ -269,7 +265,7 @@ function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusC
             <span className="flex items-center gap-1.5 font-medium"><Users className="size-3.5" /> {t('training.participants')}</span>
             <span className="text-muted-foreground">
               {p.enrolled_count}{p.max_participants ? ` / ${p.max_participants}` : ''}
-              {placesLeft(p.max_participants, p.enrolled_count) === 0 && <span className="ml-1 text-amber-700 font-semibold">{t('training.full')}</span>}
+              {placesLeft(p.max_participants, p.enrolled_count) === 0 && <span className="ml-1 text-amber-700 dark:text-amber-400 font-semibold">{t('training.full')}</span>}
               {p.attended_count > 0 && <span className="ml-1">· {p.attended_count} attended</span>}
             </span>
           </button>
@@ -354,8 +350,8 @@ function ProgramFormModal({ program, outlets, onClose, onSubmit }: {
   useModalKeyboard(panelRef, onClose)
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-lg bg-background rounded-2xl border border-border shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+      <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-lg bg-background rounded-2xl border border-border shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold">{program ? t('training.editProgram') : t('training.newProgramTitle')}</h2>
           <button onClick={onClose} aria-label={t('common.close')} className="size-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent"><X className="size-4" /></button>
@@ -375,7 +371,7 @@ function ProgramFormModal({ program, outlets, onClose, onSubmit }: {
                 placeholder={placeholder}
                 value={form[key as keyof typeof form]}
                 onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
               />
             </div>
           ))}
@@ -385,7 +381,7 @@ function ProgramFormModal({ program, outlets, onClose, onSubmit }: {
               id="program-role"
               value={form.target_role}
               onChange={e => setForm(f => ({ ...f, target_role: e.target.value }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             >
               <option value="staff">{label('tier', 'staff')}</option>
               <option value="manager">{label('tier', 'manager')}</option>
@@ -399,7 +395,7 @@ function ProgramFormModal({ program, outlets, onClose, onSubmit }: {
               id="program-outlet"
               value={form.outlet}
               onChange={e => setForm(f => ({ ...f, outlet: e.target.value }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             >
               <option value="">{t('cmms.allOutlets')}</option>
               {outlets.map(o => <option key={o} value={o}>{o}</option>)}
@@ -410,14 +406,14 @@ function ProgramFormModal({ program, outlets, onClose, onSubmit }: {
               <label htmlFor="program-date" className="block text-xs font-semibold mb-1">{t('training.scheduledDate')}</label>
               <input id="program-date" type="date" value={form.scheduled_date}
                 onChange={e => setForm(f => ({ ...f, scheduled_date: e.target.value }))}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
               />
             </div>
             <div>
               <label htmlFor="program-duration" className="block text-xs font-semibold mb-1">{t('training.duration')}</label>
               <input id="program-duration" type="number" min="0.5" step="0.5" placeholder="2" value={form.duration_hours}
                 onChange={e => setForm(f => ({ ...f, duration_hours: e.target.value }))}
-                className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
               />
             </div>
           </div>
@@ -425,7 +421,7 @@ function ProgramFormModal({ program, outlets, onClose, onSubmit }: {
             <label htmlFor="program-max" className="block text-xs font-semibold mb-1">{t('training.maxParticipants')}</label>
             <input id="program-max" type="number" min="1" placeholder="20" value={form.max_participants}
               onChange={e => setForm(f => ({ ...f, max_participants: e.target.value }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
           <div className="flex gap-2 pt-2">
@@ -447,19 +443,15 @@ function ProgramFormModal({ program, outlets, onClose, onSubmit }: {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="p-4 rounded-lg border border-border bg-muted/20">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
+    <div className="p-4 rounded-2xl border border-border bg-card">
+      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
       <p className={cn('text-2xl font-bold', color)}>{value}</p>
     </div>
   )
 }
 
-function EmptyState({ icon, label, hint }: { icon: React.ReactNode; label: string; hint: string }) {
+function EmptyState({ icon, label, hint }: { icon: React.ReactElement; label: string; hint: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-xl">
-      {icon}
-      <p className="text-sm font-medium mt-3">{label}</p>
-      <p className="text-xs text-muted-foreground mt-1">{hint}</p>
-    </div>
+    <SharedEmptyState icon={icon} title={label} description={hint} />
   )
 }

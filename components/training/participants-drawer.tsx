@@ -2,7 +2,7 @@
 
 // Participants of one training program: enroll (bulk, capacity-checked),
 // mark attended / no-show, score (Todo-Pilot §9).
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Check, Loader2, Minus, UserPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -11,7 +11,7 @@ import { useIssueStore } from '@/lib/store'
 import { attendanceBlocker, enrollCandidates, placesLeft } from '@/lib/training'
 import { useT } from '@/lib/i18n'
 import type { EnrollmentStatus, TrainingEnrollment, TrainingProgram } from '@/lib/types'
-import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { SideDrawer } from '@/components/shared/side-drawer'
 
 const base = (id: string) => `/api/training-programs/${id}/enrollments`
 
@@ -74,29 +74,21 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
     }
   }
 
-  // Escape, focus trap, focus back to the opener (Todo-Pilot §26)
-  const panelRef = useRef<HTMLDivElement>(null)
-  useModalKeyboard(panelRef, onClose)
-
   return (
-    <>
-      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      <div ref={panelRef} role="dialog" aria-modal="true" className="fixed inset-y-0 right-0 w-full sm:max-w-lg bg-background border-l border-border shadow-lg z-50 overflow-y-auto">
-        <div className="sticky top-0 bg-background border-b border-border px-5 py-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="font-bold leading-snug">{program.title}</h2>
-            <p className="text-xs text-muted-foreground">
-              {program.scheduled_date ? date(program.scheduled_date) : t('participants.noDate')} · {program.outlet ?? t('participants.allOutlets')} · {t('participants.enrolledCount', { count: rows?.length ?? '…', max: program.max_participants ? ` / ${program.max_participants}` : '' })}
-              {left !== null && t('participants.placesLeft', { count: left })}
-            </p>
-          </div>
-          <button onClick={onClose} aria-label={t('common.close')} className="p-1 text-muted-foreground hover:text-foreground"><X className="size-5" /></button>
-        </div>
-
-        <div className="p-5 space-y-4">
+    <SideDrawer
+      label={`${t('term.participants')}: ${program.title}`}
+      title={program.title}
+      subtitle={<>
+        {program.scheduled_date ? date(program.scheduled_date) : t('participants.noDate')} · {program.outlet ?? t('participants.allOutlets')} · {t('participants.enrolledCount', { count: rows?.length ?? '…', max: program.max_participants ? ` / ${program.max_participants}` : '' })}
+        {left !== null && t('participants.placesLeft', { count: left })}
+      </>}
+      closeLabel={t('common.close')}
+      onClose={onClose}
+      className="sm:w-[520px]"
+    >
           {canManage && !picking && program.status !== 'cancelled' && program.status !== 'completed' && (
             <button onClick={() => setPicking(true)} disabled={left === 0}
-              className="flex items-center gap-1.5 px-3 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
               <UserPlus className="size-4" /> {left === 0 ? t('participants.full') : t('participants.enroll')}
             </button>
           )}
@@ -118,7 +110,7 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
                       <input type="checkbox" checked={selected.includes(u.id)}
                         onChange={(e) => setSelected((s) => e.target.checked ? [...s, u.id] : s.filter((x) => x !== u.id))} />
                       <span className="flex-1">{u.name}</span>
-                      <span className="text-[11px] text-muted-foreground">{u.role_name}</span>
+                      <span className="text-xs text-muted-foreground">{u.role_name}</span>
                     </label>
                   ))}
                 </div>
@@ -127,9 +119,9 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
                 <p className="text-xs text-destructive">{t('participants.tooMany', { left, selected: selected.length })}</p>
               )}
               <div className="flex justify-end gap-2">
-                <button onClick={() => { setPicking(false); setSelected([]) }} className="px-3 h-8 rounded-md border border-border text-xs">{t('common.cancel')}</button>
+                <button onClick={() => { setPicking(false); setSelected([]) }} className="px-3 h-9 rounded-lg border border-border text-xs">{t('common.cancel')}</button>
                 <button onClick={enroll} disabled={busy || selected.length === 0 || (left !== null && selected.length > left)}
-                  className="px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
+                  className="px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
                   {busy ? t('participants.enrolling') : t('participants.enrollN', { count: selected.length || '' })}
                 </button>
               </div>
@@ -149,10 +141,10 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="text-sm font-medium">{r.user_name}</p>
-                        <p className="text-[11px] text-muted-foreground">{r.role_name} · {r.outlet}</p>
+                        <p className="text-xs text-muted-foreground">{r.role_name} · {r.outlet}</p>
                       </div>
                       {canManage && r.status === 'registered' && (
-                        <button onClick={() => remove(r)} className="text-[11px] text-muted-foreground hover:text-destructive">{t('participants.remove')}</button>
+                        <button onClick={() => remove(r)} className="text-xs text-muted-foreground hover:text-destructive">{t('participants.remove')}</button>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -175,15 +167,13 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
                             const v = e.target.value === '' ? null : Math.max(0, Math.min(100, Math.round(Number(e.target.value))))
                             if (v !== r.score) patch(r, { score: v })
                           }}
-                          className="w-20 h-9 px-2 rounded-md border border-border bg-background text-sm" />
+                          className="w-20 h-9 px-2 rounded-lg border border-border bg-background text-sm" />
                       )}
                     </div>
                   </div>
                 ))}
               </div>
             )}
-        </div>
-      </div>
-    </>
+    </SideDrawer>
   )
 }

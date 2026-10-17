@@ -4,7 +4,7 @@
 // waiting for *me*, computed by the server (GET /api/my-work), each row one tap
 // from its record. Sections the role cannot open come back null and are hidden.
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ClipboardCheck, ClipboardList, ListChecks, MessageSquareWarning, RefreshCw, Wrench } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronRight, ClipboardCheck, ClipboardList, ListChecks, MessageSquareWarning, RefreshCw, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { apiErrorMessage } from '@/lib/api-client'
 import { myWorkApi, type MyWork, type Section } from '@/lib/my-work-api'
@@ -14,6 +14,9 @@ import { useT } from '@/lib/i18n'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { OnboardingChecklist } from '@/components/shared/onboarding-checklist'
 import { formatMoney } from '@/lib/money'
+import { PageHeader } from '@/components/shared/page-header'
+import { EmptyState } from '@/components/shared/empty-state'
+import { useOutletFilter } from '@/lib/permissions'
 
 type Row = { key: string; to: string; number: string; title: string; meta: string; badge?: React.ReactNode }
 
@@ -22,10 +25,11 @@ export function MyWorkPage() {
   const [work, setWork] = useState<MyWork | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const { outlet } = useOutletFilter()            // top bar outlet filter
   const load = useCallback(() => {
     setError(null)
-    myWorkApi.get().then(setWork).catch((e) => setError(apiErrorMessage(e, t('myWork.loadFailed'))))
-  }, [t])
+    myWorkApi.get(20, outlet).then(setWork).catch((e) => setError(apiErrorMessage(e, t('myWork.loadFailed'))))
+  }, [t, outlet])
 
   useEffect(() => { load() }, [load])
 
@@ -41,7 +45,7 @@ export function MyWorkPage() {
           key: c.id, to: recordPath('ops', c.id), number: c.number, title: c.templateName,
           meta: [c.outlet, c.dueAt ? t('myWork.checklistDue', { time: relative(c.dueAt) }) : '',
             t('myWork.checklistProgress', { answered: c.answered, total: c.itemCount })].filter(Boolean).join(' · '),
-          badge: late ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/20 text-warning font-semibold">{t('myWork.checklistLate')}</span> : undefined,
+          badge: late ? <span className="text-xs px-2 py-0.5 rounded-md bg-warning/15 text-amber-700 dark:text-warning font-semibold">{t('myWork.checklistLate')}</span> : undefined,
         }
       }),
     },
@@ -51,7 +55,7 @@ export function MyWorkPage() {
         key: a.id, to: recordPath('approvals', a.id), number: a.number, title: a.title,
         meta: [a.outlet, rupiah(a.amount), t('myWork.step', { step: a.stepOrder, total: a.stepCount }),
           a.waitingSince ? t('myWork.waitingSince', { time: relative(a.waitingSince) }) : ''].filter(Boolean).join(' · '),
-        badge: a.escalated ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/15 text-destructive font-semibold">{t('myWork.escalated')}</span> : undefined,
+        badge: a.escalated ? <span className="text-xs px-2 py-0.5 rounded-md bg-destructive/10 text-destructive font-semibold">{t('myWork.escalated')}</span> : undefined,
       })),
     },
     {
@@ -89,17 +93,17 @@ export function MyWorkPage() {
   const nothing = work !== null && visible.every((s) => (s.section?.count ?? 0) === 0)
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 max-w-3xl">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">{t('myWork.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('myWork.subtitle')}</p>
-        </div>
-        <button onClick={load} aria-label={t('myWork.refresh')} title={t('myWork.refresh')}
-          className="size-11 flex items-center justify-center rounded-md border border-border hover:bg-accent">
-          <RefreshCw className="size-4" />
-        </button>
-      </div>
+    <div className="p-4 sm:p-6 space-y-4 max-w-3xl">
+      <PageHeader
+        title={t('myWork.title')}
+        description={t('myWork.subtitle')}
+        actions={
+          <button onClick={load} aria-label={t('myWork.refresh')} title={t('myWork.refresh')}
+            className="size-11 flex items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+            <RefreshCw className="size-4" />
+          </button>
+        }
+      />
 
       <OnboardingChecklist />
 
@@ -108,42 +112,46 @@ export function MyWorkPage() {
       )}
       {work === null && !error && (
         <div className="space-y-3" aria-busy="true">
-          {[1, 2, 3].map((i) => <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />)}
+          {[1, 2, 3].map((i) => <div key={i} className="h-28 rounded-2xl bg-muted animate-pulse" />)}
         </div>
       )}
       {nothing && (
-        <p className="py-14 text-center text-sm text-muted-foreground border border-dashed border-border rounded-xl">{t('myWork.empty')}</p>
+        <EmptyState icon={CheckCircle2} title={t('myWork.empty')} />
       )}
 
       {!nothing && visible.map(({ id, title, icon: Icon, section, rows }) => (
-        <section key={id} aria-label={title} className="rounded-xl border border-border bg-card overflow-hidden">
-          <h2 className="flex items-center gap-2 px-4 py-3 border-b border-border text-sm font-semibold">
-            <Icon className="size-4 text-primary" /> {title}
-            <span className={cn('ml-auto text-xs px-2 py-0.5 rounded-full font-bold',
+        <section key={id} aria-label={title} className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+          <h2 className="flex items-center gap-3 px-4 py-3 border-b border-border text-[15px] font-semibold">
+            <span className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+              <Icon className="size-4" />
+            </span>
+            {title}
+            <span className={cn('ml-auto text-xs min-w-7 h-6 px-2 rounded-full font-bold flex items-center justify-center tabular-nums',
               (section?.count ?? 0) > 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
               {section?.count ?? 0}
             </span>
           </h2>
           {rows.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-muted-foreground">{t('myWork.sectionEmpty')}</p>
+            <p className="px-4 py-4 text-sm text-muted-foreground">{t('myWork.sectionEmpty')}</p>
           ) : (
             <ul className="divide-y divide-border">
               {rows.map((r) => (
                 <li key={r.key}>
                   <button type="button" onClick={() => navigate(r.to)}
-                    className="w-full min-h-14 text-left px-4 py-2.5 hover:bg-muted/40 transition-colors flex items-center gap-3">
+                    className="group w-full min-h-16 text-left px-4 py-3 hover:bg-muted/40 transition-colors flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{r.title}</p>
-                      <p className="text-[11px] text-muted-foreground truncate"><span className="font-mono">{r.number}</span>{r.meta && ` · ${r.meta}`}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5"><span className="font-mono">{r.number}</span>{r.meta && ` · ${r.meta}`}</p>
                     </div>
                     {r.badge && <div className="flex items-center gap-1 flex-shrink-0">{r.badge}</div>}
+                    <ChevronRight className="size-4 text-muted-foreground/50 group-hover:text-foreground flex-shrink-0" aria-hidden="true" />
                   </button>
                 </li>
               ))}
             </ul>
           )}
           {(section?.count ?? 0) > rows.length && (
-            <p className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border">{t('myWork.more', { count: (section?.count ?? 0) - rows.length })}</p>
+            <p className="px-4 py-2.5 text-xs text-muted-foreground border-t border-border bg-muted/20">{t('myWork.more', { count: (section?.count ?? 0) - rows.length })}</p>
           )}
         </section>
       ))}

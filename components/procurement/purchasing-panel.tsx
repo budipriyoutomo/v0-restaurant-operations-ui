@@ -11,6 +11,7 @@ import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 
 const rp = (n: number) => formatMoney(n ?? 0)
 
@@ -81,7 +82,7 @@ export function PurchasingPanel() {
           </div>
           {can.runSystemJobs && (
             <button onClick={handleScan} disabled={busy === 'scan'}
-              className="flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent disabled:opacity-50">
+              className="flex items-center gap-1.5 px-2.5 h-9 rounded-lg border border-border text-sm font-medium hover:bg-accent disabled:opacity-50">
               {busy === 'scan' ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
               {t('purchasing.scan')}
             </button>
@@ -91,43 +92,43 @@ export function PurchasingPanel() {
         {procurementLoading && purchaseRequests.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-6">{t('purchasing.loading')}</p>
         ) : purchaseRequests.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-8 text-xs text-muted-foreground">{t('purchasing.noPr')}</div>
+          <SharedEmptyState title={t('purchasing.noPr')} className="py-8 text-sm" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left py-2 font-semibold">{t('purchasing.number')}</th>
-                  <th className="text-left py-2 font-semibold">{t('purchasing.item')}</th>
-                  <th className="text-left py-2 font-semibold">{t('purchasing.source')}</th>
-                  <th className="text-right py-2 font-semibold">{t('purchasing.estimate')}</th>
-                  <th className="text-left py-2 font-semibold">{t('common.status')}</th>
-                  <th className="py-2" />
+                  <th className="text-left py-2.5 font-semibold">{t('purchasing.number')}</th>
+                  <th className="text-left py-2.5 font-semibold">{t('purchasing.item')}</th>
+                  <th className="text-left py-2.5 font-semibold">{t('purchasing.source')}</th>
+                  <th className="text-right py-2.5 font-semibold">{t('purchasing.estimate')}</th>
+                  <th className="text-left py-2.5 font-semibold">{t('common.status')}</th>
+                  <th className="py-2.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {purchaseRequests.map((pr) => (
                   <tr key={pr.id} className="hover:bg-accent/40">
-                    <td className="py-2 font-mono">{pr.number}</td>
-                    <td className="py-2 text-muted-foreground">
+                    <td className="py-2.5 font-mono">{pr.number}</td>
+                    <td className="py-2.5 text-muted-foreground">
                       {pr.items.map((i) => `${i.partName} ×${i.quantity}`).join(', ')}
                     </td>
-                    <td className="py-2 text-muted-foreground">{pr.source === 'auto_reorder' ? t('purchasing.auto') : t('purchasing.manual')}</td>
-                    <td className="py-2 text-right">{rp(pr.totalEst)}</td>
-                    <td className="py-2">
-                      <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-semibold border', PR_BADGE[pr.status])}>
+                    <td className="py-2.5 text-muted-foreground">{pr.source === 'auto_reorder' ? t('purchasing.auto') : t('purchasing.manual')}</td>
+                    <td className="py-2.5 text-right">{rp(pr.totalEst)}</td>
+                    <td className="py-2.5">
+                      <span className={cn('rounded px-1.5 py-0.5 text-xs font-semibold border', PR_BADGE[pr.status])}>
                         {label('prStatus', pr.status)}
                       </span>
                     </td>
-                    <td className="py-2 text-right">
+                    <td className="py-2.5 text-right">
                       {pr.status === 'approved' && can.manageProcurement && (
                         <button onClick={() => setChoosingFor(pr)}
-                          className="px-2 h-7 rounded border border-border text-[11px] font-semibold hover:bg-accent">
+                          className="px-2 h-9 rounded-lg border border-border text-sm font-medium hover:bg-accent">
                           {t('purchasing.createPo')}
                         </button>
                       )}
                       {pr.status === 'pending_approval' && (
-                        <span className="text-[10px] text-muted-foreground">{t('purchasing.awaitingApproval')}</span>
+                        <span className="text-xs text-muted-foreground">{t('purchasing.awaitingApproval')}</span>
                       )}
                     </td>
                   </tr>
@@ -145,18 +146,18 @@ export function PurchasingPanel() {
           <h3 className="text-sm font-semibold">{t('purchasing.poTitle')}</h3>
         </div>
         {purchaseOrders.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-8 text-xs text-muted-foreground">{t('purchasing.noPo')}</div>
+          <SharedEmptyState title={t('purchasing.noPo')} className="py-8 text-sm" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left py-2 font-semibold">{t('purchasing.number')}</th>
-                  <th className="text-left py-2 font-semibold">{t('purchasing.vendor')}</th>
-                  <th className="text-left py-2 font-semibold">{t('purchasing.progress')}</th>
-                  <th className="text-right py-2 font-semibold">{t('common.total')}</th>
-                  <th className="text-left py-2 font-semibold">{t('common.status')}</th>
-                  <th className="py-2" />
+                  <th className="text-left py-2.5 font-semibold">{t('purchasing.number')}</th>
+                  <th className="text-left py-2.5 font-semibold">{t('purchasing.vendor')}</th>
+                  <th className="text-left py-2.5 font-semibold">{t('purchasing.progress')}</th>
+                  <th className="text-right py-2.5 font-semibold">{t('common.total')}</th>
+                  <th className="text-left py-2.5 font-semibold">{t('common.status')}</th>
+                  <th className="py-2.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -165,19 +166,19 @@ export function PurchasingPanel() {
                   const ord = po.items.reduce((s, i) => s + i.quantityOrdered, 0)
                   return (
                     <tr key={po.id} className="hover:bg-accent/40">
-                      <td className="py-2 font-mono">{po.number}</td>
-                      <td className="py-2 text-muted-foreground">{po.vendorName ?? '—'}</td>
-                      <td className="py-2 text-muted-foreground">{t('purchasing.received', { recv, ord })}</td>
-                      <td className="py-2 text-right">{rp(po.total)}</td>
-                      <td className="py-2">
-                        <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-semibold border', PO_BADGE[po.status])}>
+                      <td className="py-2.5 font-mono">{po.number}</td>
+                      <td className="py-2.5 text-muted-foreground">{po.vendorName ?? '—'}</td>
+                      <td className="py-2.5 text-muted-foreground">{t('purchasing.received', { recv, ord })}</td>
+                      <td className="py-2.5 text-right">{rp(po.total)}</td>
+                      <td className="py-2.5">
+                        <span className={cn('rounded px-1.5 py-0.5 text-xs font-semibold border', PO_BADGE[po.status])}>
                           {label('poStatus', po.status)}
                         </span>
                       </td>
-                      <td className="py-2 text-right">
+                      <td className="py-2.5 text-right">
                         {(po.status === 'sent' || po.status === 'partially_received') && can.manageProcurement && (
                           <button onClick={() => setReceivingPo(po)}
-                            className="flex items-center gap-1 px-2 h-7 rounded border border-border text-[11px] font-semibold hover:bg-accent ml-auto">
+                            className="flex items-center gap-1 px-2 h-9 rounded-lg border border-border text-sm font-medium hover:bg-accent ml-auto">
                             <PackageCheck className="size-3.5" /> {t('purchasing.receive')}
                           </button>
                         )}
@@ -240,13 +241,13 @@ function ChooseVendorDialog({ pr, busy, onClose, onPick }: {
   useModalKeyboard(panelRef, onClose)
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-lg border border-border shadow-lg max-w-xl w-full p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4" onClick={onClose}>
+      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-2xl border border-border shadow-2xl max-w-xl w-full p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2">
           <BadgeCheck className="size-4 text-primary" />
           <h3 className="text-sm font-bold">{t('purchasing.pickVendor', { number: pr.number })}</h3>
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {t('purchasing.sortedBy')} {firstPartId ? t('purchasing.priceHint') : ''}
         </p>
 
@@ -266,15 +267,15 @@ function ChooseVendorDialog({ pr, busy, onClose, onPick }: {
               const price = priceByVendor.get(v.id)
               return (
                 <tr key={v.id} className="hover:bg-accent/40">
-                  <td className="py-2 font-semibold">{v.name}</td>
-                  <td className="py-2 text-right">{p && p.completed > 0 ? `${p.onTimePct}%` : '—'}</td>
-                  <td className="py-2 text-right text-muted-foreground">{p && p.completed > 0 ? t('purchasing.days', { n: p.avgResolutionDays }) : '—'}</td>
-                  <td className="py-2 text-right text-muted-foreground">
+                  <td className="py-2.5 font-semibold">{v.name}</td>
+                  <td className="py-2.5 text-right">{p && p.completed > 0 ? `${p.onTimePct}%` : '—'}</td>
+                  <td className="py-2.5 text-right text-muted-foreground">{p && p.completed > 0 ? t('purchasing.days', { n: p.avgResolutionDays }) : '—'}</td>
+                  <td className="py-2.5 text-right text-muted-foreground">
                     {price ? formatMoney(price.lastUnitCost) : '—'}
                   </td>
-                  <td className="py-2 text-right">
+                  <td className="py-2.5 text-right">
                     <button onClick={() => onPick(v.id)} disabled={busy}
-                      className="px-2 h-7 rounded bg-primary text-primary-foreground text-[11px] font-semibold disabled:opacity-50">
+                      className="px-2 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
                       {busy ? <Loader2 className="size-3 animate-spin" /> : t('purchasing.pick')}
                     </button>
                   </td>
@@ -283,7 +284,7 @@ function ChooseVendorDialog({ pr, busy, onClose, onPick }: {
             })}
           </tbody>
         </table>
-        {ranked.length === 0 && <p className="text-[11px] text-muted-foreground text-center py-4">{t('purchasing.noActiveVendors')}</p>}
+        {ranked.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">{t('purchasing.noActiveVendors')}</p>}
       </div>
     </div>
   )
@@ -315,8 +316,8 @@ function ReceiveDialog({ po, onClose, onReceive }: {
   useModalKeyboard(panelRef, onClose)
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4" onClick={onClose}>
+      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-2xl border border-border shadow-2xl max-w-md w-full p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-sm font-bold">{t('purchasing.receiveTitle', { number: po.number })}</h3>
         <div className="space-y-2">
           {po.items.map((i) => {
@@ -327,15 +328,15 @@ function ReceiveDialog({ po, onClose, onReceive }: {
                 <input type="number" min={0} max={outstanding} value={qty[i.id]}
                   onChange={(e) => setQty((q) => ({ ...q, [i.id]: e.target.value }))}
                   disabled={outstanding === 0}
-                  className="w-20 h-8 rounded border border-border bg-muted/20 px-2 text-xs" />
+                  className="w-20 h-9 rounded-lg border border-border bg-muted/20 px-2 text-xs" />
               </div>
             )
           })}
         </div>
         <div className="flex justify-end gap-2 pt-1">
-          <button onClick={onClose} className="px-3 h-8 rounded-md border border-border text-xs font-semibold hover:bg-accent">{t('common.cancel')}</button>
+          <button onClick={onClose} className="px-3 h-9 rounded-lg border border-border text-sm font-medium hover:bg-accent">{t('common.cancel')}</button>
           <button onClick={submit} disabled={saving}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50">
+            className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
             {saving && <Loader2 className="size-3.5 animate-spin" />} {t('purchasing.receive')}
           </button>
         </div>

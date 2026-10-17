@@ -1,21 +1,29 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Bell, Search, ChevronDown, Settings, LogOut, User, Sun, Moon, Menu } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import { Bell, ChevronRight, Search, Settings, LogOut, Sun, Moon, Monitor, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
-import { useMyOutlets } from '@/lib/permissions'
 import { openNotification } from '@/lib/notifications'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { navigate } from '@/lib/use-route'
-
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup,
+  DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { CommandMenu } from './command-menu'
+import { navItems } from './nav-items'
+import { OutletSwitcher } from './outlet-switcher'
 
 interface TopNavProps {
   currentPage: string
-  sidebarCollapsed: boolean
   onNavigate: (page: string) => void
   onOpenMenu?: () => void   // phones: opens the off-canvas sidebar
 }
+
+const iconButton = 'relative size-10 rounded-full flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors'
 
 export function TopNav({ currentPage, onNavigate, onOpenMenu }: TopNavProps) {
   const {
@@ -24,15 +32,10 @@ export function TopNav({ currentPage, onNavigate, onOpenMenu }: TopNavProps) {
   } = useIssueStore()
 
   const { t, relative } = useT()
-  // Only the outlets this user is scoped to (admins get all) — Tier 4.
-  const outlets = useMyOutlets()
-
-  const [outletOpen, setOutletOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
   const [notifOpen, setNotifOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
-  // null = "all outlets I can see" rather than a single branch.
-  const [selectedOutlet, setSelectedOutlet] = useState<typeof outlets[number] | null>(null)
-  const [darkMode, setDarkMode] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const navGroup = currentPage === 'notifications' ? 'system' : navItems.find((i) => i.id === currentPage)?.group
 
   // Keep the bell's badge fresh without a page reload.
   useEffect(() => {
@@ -44,221 +47,137 @@ export function TopNav({ currentPage, onNavigate, onOpenMenu }: TopNavProps) {
     ? currentUser.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
     : '?'
 
-  const toggleDark = () => {
-    setDarkMode(!darkMode)
-    document.documentElement.classList.toggle('dark')
-  }
-
   return (
-    <header className="h-12 flex items-center gap-3 px-4 border-b border-border bg-background flex-shrink-0 relative z-20">
+    <header className="h-14 flex items-center gap-2 px-3 sm:px-6 border-b border-border bg-background/80 backdrop-blur flex-shrink-0 relative z-20">
       {onOpenMenu && (
-        <button
-          onClick={onOpenMenu}
-          aria-label={t('shell.openMenu')}
-          className="md:hidden -ml-2 size-11 flex items-center justify-center rounded-md text-foreground hover:bg-accent"
-        >
+        <button onClick={onOpenMenu} aria-label={t('shell.openMenu')} className={cn(iconButton, 'md:hidden -ml-1 text-foreground')}>
           <Menu className="size-5" />
         </button>
       )}
 
-      {/* Page title */}
-      <div className="flex-1 min-w-0">
-        <h1 className="text-sm font-semibold text-foreground truncate">
+      {/* Where am I: group › page. The page itself carries the big title. */}
+      <div className="flex-1 min-w-0 flex items-center gap-1.5 text-sm">
+        {navGroup && (
+          <>
+            <span className="hidden md:inline text-muted-foreground whitespace-nowrap">{t(`navGroup.${navGroup}` as MessageKey)}</span>
+            <ChevronRight className="hidden md:block size-3.5 text-muted-foreground/60 flex-shrink-0" aria-hidden="true" />
+          </>
+        )}
+        <span className="font-medium text-foreground truncate">
           {currentPage === 'notifications' ? t('topnav.pageTitle.notifications') : t(`nav.${currentPage}` as MessageKey)}
-        </h1>
-      </div>
-
-      {/* Global search */}
-      <button className="hidden sm:flex items-center gap-2 px-3 h-7 rounded-md border border-border bg-muted text-muted-foreground text-xs hover:bg-accent transition-colors w-48">
-        <Search className="size-3 flex-shrink-0" />
-        <span className="flex-1 text-left">{t('topnav.search')}</span>
-        <kbd className="text-[10px] bg-background border border-border rounded px-1">⌘K</kbd>
-      </button>
-
-      {/* Outlet switcher (Tier 4) — lists only the outlets this user is assigned to */}
-      {outlets.length > 0 && (
-        <div className="relative">
-          <button
-            onClick={() => { setOutletOpen(!outletOpen); setNotifOpen(false); setProfileOpen(false) }}
-            className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-border bg-muted text-xs font-medium hover:bg-accent transition-colors"
-          >
-            {selectedOutlet && (
-              <span className={cn(
-                'size-1.5 rounded-full flex-shrink-0',
-                selectedOutlet.status === 'operational' ? 'bg-success' :
-                selectedOutlet.status === 'warning' ? 'bg-warning' : 'bg-destructive'
-              )} />
-            )}
-            <span className="max-w-28 truncate">{selectedOutlet?.name ?? t('topnav.allMyOutlets')}</span>
-            <ChevronDown className="size-3 text-muted-foreground" />
-          </button>
-          {outletOpen && (
-            <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border border-border bg-popover shadow-lg py-1 z-50">
-              <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{t('topnav.selectOutlet')}</p>
-              <button
-                onClick={() => { setSelectedOutlet(null); setOutletOpen(false) }}
-                className={cn(
-                  'w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors',
-                  selectedOutlet === null && 'bg-accent',
-                )}
-              >
-                <span className="size-1.5 rounded-full flex-shrink-0 bg-muted-foreground" />
-                <span>{t('topnav.allMyOutlets')}</span>
-                <span className="ml-auto text-muted-foreground font-mono">{outlets.length}</span>
-              </button>
-              {outlets.map((outlet) => (
-                <button
-                  key={outlet.id}
-                  onClick={() => { setSelectedOutlet(outlet); setOutletOpen(false) }}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent transition-colors',
-                    selectedOutlet?.id === outlet.id && 'bg-accent'
-                  )}
-                >
-                  <span className={cn(
-                    'size-1.5 rounded-full flex-shrink-0',
-                    outlet.status === 'operational' ? 'bg-success' :
-                    outlet.status === 'warning' ? 'bg-warning' : 'bg-destructive'
-                  )} />
-                  <span>{outlet.name}</span>
-                  <span className="ml-auto text-muted-foreground font-mono">{outlet.code}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Realtime indicator */}
-      <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-success font-medium">
-        <span className="relative flex size-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-60" />
-          <span className="relative inline-flex rounded-full size-2 bg-success" />
         </span>
-        {t('topnav.live')}
       </div>
 
-      {/* Dark mode */}
+      {/* Global search (⌘K) */}
       <button
-        onClick={toggleDark}
-        className="size-7 rounded-md border border-border flex items-center justify-center hover:bg-accent transition-colors"
-        aria-label={t('topnav.toggleDark')}
+        onClick={() => setSearchOpen(true)}
+        className="hidden sm:flex items-center gap-2 px-3.5 h-10 rounded-full bg-muted text-muted-foreground text-sm hover:bg-accent transition-colors w-64 lg:w-80"
       >
-        {darkMode ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+        <Search className="size-4 flex-shrink-0" />
+        <span className="flex-1 text-left">{t('topnav.search')}</span>
+        <kbd className="text-xs font-medium bg-background border border-border rounded-md px-1.5 py-0.5">⌘K</kbd>
       </button>
+      <button onClick={() => setSearchOpen(true)} aria-label={t('topnav.search')} className={cn(iconButton, 'sm:hidden')}>
+        <Search className="size-5" />
+      </button>
+      <CommandMenu open={searchOpen} onOpenChange={setSearchOpen} />
+
+      <OutletSwitcher />
 
       {/* Notifications */}
-      <div className="relative">
-        <button
-          onClick={() => {
-            if (!notifOpen) loadNotifications()
-            setNotifOpen(!notifOpen); setOutletOpen(false); setProfileOpen(false)
-          }}
-          className="relative size-7 rounded-md border border-border flex items-center justify-center hover:bg-accent transition-colors"
-          aria-label={t('topnav.notifications')}
-        >
-          <Bell className="size-3.5" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 size-3.5 rounded-full bg-destructive text-[9px] text-white font-bold flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </button>
-        {notifOpen && (
-          <div className="absolute right-0 top-full mt-1 w-80 rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
-              <span className="text-sm font-semibold">{t('topnav.notifications')}</span>
-              {unreadCount > 0 ? (
-                <button
-                  onClick={() => markAllNotificationsRead().catch(() => {})}
-                  className="text-xs text-primary hover:underline"
-                >
-                  {t('topnav.markAllRead', { count: unreadCount })}
-                </button>
-              ) : (
-                <span className="text-xs text-muted-foreground">{t('topnav.allCaughtUp')}</span>
-              )}
-            </div>
-            <div className="max-h-72 overflow-y-auto divide-y divide-border">
-              {notifications.length === 0 && (
-                <p className="px-3 py-6 text-center text-xs text-muted-foreground">{t('topnav.noNotifications')}</p>
-              )}
-              {notifications.slice(0, 10).map((n) => (
-                <div
-                  key={n.id}
-                  onClick={() => {
-                    const markRead = (id: string) => markNotificationRead(id).catch(() => {})
-                    if (openNotification(n, { markRead, go: navigate })) setNotifOpen(false)
-                  }}
-                  className={cn('px-3 py-2.5 hover:bg-accent transition-colors cursor-pointer', !n.read_at && 'bg-primary/5')}
-                >
-                  <div className="flex items-start gap-2">
-                    <span className={cn(
-                      'mt-0.5 size-1.5 rounded-full flex-shrink-0',
-                      n.type === 'critical' ? 'bg-destructive' :
-                      n.type === 'warning' ? 'bg-warning' :
-                      n.type === 'success' ? 'bg-success' : 'bg-primary'
-                    )} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground truncate">{n.title}</p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">{n.message}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">{relative(n.created_at)}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => { setNotifOpen(false); onNavigate('notifications') }}
-              className="w-full px-3 py-2 border-t border-border text-xs text-primary hover:bg-accent transition-colors"
-            >
-              {t('topnav.viewAll')}
-            </button>
+      <Popover open={notifOpen} onOpenChange={(o) => { if (o) loadNotifications(); setNotifOpen(o) }}>
+        <PopoverTrigger asChild>
+          <button className={iconButton} aria-label={t('topnav.notifications')}>
+            <Bell className="size-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 min-w-5 h-5 px-1 rounded-full bg-destructive text-xs text-white font-bold flex items-center justify-center ring-2 ring-background">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" sideOffset={8} className="w-[calc(100vw-1.5rem)] sm:w-96 p-0 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <span className="text-sm font-semibold">{t('topnav.notifications')}</span>
+            {unreadCount > 0 ? (
+              <button onClick={() => markAllNotificationsRead().catch(() => {})} className="text-xs font-medium text-primary hover:underline">
+                {t('topnav.markAllRead', { count: unreadCount })}
+              </button>
+            ) : (
+              <span className="text-xs text-muted-foreground">{t('topnav.allCaughtUp')}</span>
+            )}
           </div>
-        )}
-      </div>
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.length === 0 && (
+              <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t('topnav.noNotifications')}</p>
+            )}
+            {notifications.slice(0, 10).map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => {
+                  const markRead = (id: string) => markNotificationRead(id).catch(() => {})
+                  if (openNotification(n, { markRead, go: navigate })) setNotifOpen(false)
+                }}
+                className={cn('w-full text-left px-4 py-3 hover:bg-accent transition-colors flex items-start gap-3', !n.read_at && 'bg-primary/5')}
+              >
+                <span className={cn(
+                  'mt-1.5 size-2 rounded-full flex-shrink-0',
+                  n.type === 'critical' ? 'bg-destructive' :
+                  n.type === 'warning' ? 'bg-warning' :
+                  n.type === 'success' ? 'bg-success' : 'bg-primary'
+                )} />
+                <span className="flex-1 min-w-0">
+                  <span className={cn('block text-sm text-foreground truncate', !n.read_at && 'font-semibold')}>{n.title}</span>
+                  <span className="block text-xs text-muted-foreground leading-relaxed mt-0.5 line-clamp-2">{n.message}</span>
+                  <span className="block text-xs text-muted-foreground/80 mt-1">{relative(n.created_at)}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => { setNotifOpen(false); onNavigate('notifications') }}
+            className="w-full px-4 py-3 border-t border-border text-sm font-medium text-primary hover:bg-accent transition-colors"
+          >
+            {t('topnav.viewAll')}
+          </button>
+        </PopoverContent>
+      </Popover>
 
-      {/* User profile */}
-      <div className="relative">
-        <button
-          onClick={() => { setProfileOpen(!profileOpen); setOutletOpen(false); setNotifOpen(false) }}
-          className="flex items-center gap-1.5 hover:bg-accent rounded-md px-1.5 py-1 transition-colors"
-        >
-          <div className="size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
-            {userInitials}
-          </div>
-          <ChevronDown className="size-3 text-muted-foreground hidden sm:block" />
-        </button>
-        {profileOpen && (
-          <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-border bg-popover shadow-lg py-1 z-50">
-            <div className="px-3 py-2 border-b border-border">
-              <p className="text-xs font-semibold truncate">{currentUser?.name ?? '—'}</p>
-              <p className="text-[11px] text-muted-foreground capitalize">{currentUser?.role_name ?? ''}</p>
-              {currentUser?.company_name && (
-                <p className="text-[11px] text-muted-foreground truncate">{currentUser.company_name}</p>
-              )}
-            </div>
-            <button
-              onClick={() => { setProfileOpen(false); onNavigate('settings') }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <User className="size-3.5" /> {t('topnav.profile')}
-            </button>
-            <button
-              onClick={() => { setProfileOpen(false); onNavigate('settings') }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Settings className="size-3.5" /> {t('topnav.settings')}
-            </button>
-            <button
-              onClick={() => { setProfileOpen(false); logout() }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent text-destructive transition-colors"
-            >
-              <LogOut className="size-3.5" /> {t('topnav.signOut')}
-            </button>
-          </div>
-        )}
-      </div>
+      {/* User menu: profile, theme, sign out */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="ml-1 rounded-full focus-visible:ring-2 focus-visible:ring-ring outline-none" aria-label={t('topnav.profile')}>
+            <span className="size-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+              {userInitials}
+            </span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" sideOffset={8} className="w-60 rounded-xl">
+          <DropdownMenuLabel className="font-normal">
+            <p className="text-sm font-semibold truncate">{currentUser?.name ?? '—'}</p>
+            <p className="text-xs text-muted-foreground capitalize">{currentUser?.role_name ?? ''}</p>
+            {currentUser?.company_name && (
+              <p className="text-xs text-muted-foreground truncate">{currentUser.company_name}</p>
+            )}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => onNavigate('settings')}>
+            <Settings /> {t('topnav.settings')}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">{t('topnav.theme')}</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={theme ?? 'system'} onValueChange={setTheme}>
+            <DropdownMenuRadioItem value="light"><Sun /> {t('topnav.themeLight')}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="dark"><Moon /> {t('topnav.themeDark')}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="system"><Monitor /> {t('topnav.themeSystem')}</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => logout()}>
+            <LogOut /> {t('topnav.signOut')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
   )
 }

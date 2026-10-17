@@ -20,5 +20,6 @@ export interface MyWork {
 }
 
 export const myWorkApi = {
-  get: (limit = 20) => api.get<MyWork>(`/api/my-work?limit=${limit}`),
+  get: (limit = 20, outlet: string | null = null) =>
+    api.get<MyWork>(`/api/my-work?limit=${limit}${outlet ? `&outlet=${encodeURIComponent(outlet)}` : ''}`),
 }

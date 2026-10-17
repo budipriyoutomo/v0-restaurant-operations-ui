@@ -1,5 +1,6 @@
 import { useIssueStore } from './store'
 import { canViewPage as canViewPageFor, hasPermission } from './access'
+import { effectiveOutlet } from './outlet-filter'
 
 /**
  * Outlets the current user may act on.
@@ -20,6 +21,18 @@ export function useMyOutlets() {
 
   const mine = new Set(currentUser.effective_outlet_ids ?? [])
   return outlets.filter((o) => mine.has(o.id))
+}
+
+/**
+ * The top bar's outlet filter, for lists to pass as `outlet`: the chosen outlet
+ * when this user may see it, else null (= all my outlets).
+ */
+export function useOutletFilter() {
+  const currentUser = useIssueStore((s) => s.currentUser)
+  const outlets = useIssueStore((s) => s.outlets)
+  const stored = useIssueStore((s) => s.outletFilter)
+  const setOutlet = useIssueStore((s) => s.setOutletFilter)
+  return { outlet: effectiveOutlet(stored, currentUser, outlets), setOutlet }
 }
 
 /**

@@ -38,6 +38,7 @@ const walk = (dir: string) => {
   }
 }
 walk(path.join(root, 'components'))
+sources.push(readFileSync(path.join(root, 'lib/tone.ts'), 'utf8'))    // shared badge colours (Todo-UI 0.3)
 const all = sources.join('\n')
 const HUES = 'red|orange|amber|yellow|green|emerald|cyan|blue|purple|rose|violet|gray|slate'
 
@@ -45,6 +46,15 @@ describe('contrast (WCAG AA 4.5:1)', () => {
   it('badges: coloured text on its pale background', () => {
     const pairs = new Set([...all.matchAll(new RegExp(`(?<![:\\w-])bg-((?:${HUES})-(?:50|100))\\s+text-((?:${HUES})-\\d{3})`, 'g'))].map((m) => `${m[1]} ${m[2]}`))
     const low = [...pairs].map((p) => p.split(' ')).filter(([bg, fg]) => ratio(bg, fg) < 4.6).map(([bg, fg]) => `${bg}/${fg} ${ratio(bg, fg).toFixed(2)}`)
+    expect(pairs.size).toBeGreaterThan(5)
+    expect(low).toEqual([])
+  })
+
+  it('badges in dark mode: light text on the deep background', () => {
+    // `dark:bg-red-950/60` sits on the near-black page, so the real background is
+    // darker than red-950: measuring against red-950 itself is the strict case.
+    const pairs = new Set([...all.matchAll(new RegExp(`dark:bg-((?:${HUES})-(?:800|900|950))(?:/\\d+)?\\s+dark:text-((?:${HUES})-\\d{3})`, 'g'))].map((m) => `${m[1]} ${m[2]}`))
+    const low = [...pairs].map((p) => p.split(' ')).filter(([bg, fg]) => ratio(bg, fg) < 4.5).map(([bg, fg]) => `${bg}/${fg} ${ratio(bg, fg).toFixed(2)}`)
     expect(pairs.size).toBeGreaterThan(5)
     expect(low).toEqual([])
   })

@@ -46,7 +46,8 @@ test('staff report a problem with a photo in a few taps', async ({ page, request
   await expect(dialog.getByText('KL Central', { exact: true })).toBeVisible()   // only outlet → preselected
 
   await dialog.getByLabel(/^Judul/).fill(title)
-  await dialog.getByRole('radio', { name: 'Lainnya' }).check({ force: true })
+  await dialog.getByRole('radiogroup').getByText('Lainnya', { exact: true }).click()
+  await expect(dialog.getByRole('radio', { name: 'Lainnya' })).toBeChecked()
   await dialog.getByLabel('Foto', { exact: true }).setInputFiles({ name: 'masalah.png', mimeType: 'image/png', buffer: PNG })
 
   const [created] = await Promise.all([

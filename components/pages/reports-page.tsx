@@ -6,6 +6,7 @@ import { useIssueStore } from '@/lib/store'
 import { useT } from '@/lib/i18n'
 import { ApprovalRequest, Issue, Task } from '@/lib/types'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
+import { PageHeader } from '@/components/shared/page-header'
 
 // ── CSV helpers ──────────────────────────────────────────────────────────────
 
@@ -137,15 +138,15 @@ export function ReportsPage() {
   const { t } = useT()
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-4 sm:p-6 space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">{t('reports.title')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('reports.subtitle')}</p>
-      </div>
+      <PageHeader
+        title={t('reports.title')}
+        description={t('reports.subtitle')}
+      />
 
       {/* Info banner */}
-      <div className="flex items-start gap-3 p-4 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
+      <div className="flex items-start gap-3 p-4 rounded-2xl border border-border bg-card text-sm text-muted-foreground">
         <FileText className="size-4 mt-0.5 flex-shrink-0 text-primary" />
         <p>{t('reports.bomNote')}</p>
       </div>

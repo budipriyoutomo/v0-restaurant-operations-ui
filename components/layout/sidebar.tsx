@@ -1,84 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { usePermissions } from '@/lib/permissions'
 import { useT, type MessageKey } from '@/lib/i18n'
-import {
-  LayoutDashboard,
-  AlertCircle,
-  CheckSquare,
-  CheckCircle2,
-  Wrench,
-  Shield,
-  ShoppingCart,
-  BookOpen,
-  Megaphone,
-  MessageSquareWarning,
-  Monitor,
-  Package,
-  Gauge,
-  BarChart3,
-  FileText,
-  Database,
-  Users,
-  Bell,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Utensils,
-  ListChecks,
-  ClipboardList,
-} from 'lucide-react'
-
-interface NavItem {
-  id: string               // page id; label = t('nav.<id>')
-  icon: React.ElementType
-  group: string
-  badgeKey?: 'issues' | 'tasks' | 'approvals' | 'notifications'
-}
-
-const navItems: NavItem[] = [
-  // OPERATIONS - Core workflow
-  { id: 'my-work',     icon: ListChecks,      group: 'operations' },   // Todo-Pilot §19
-  { id: 'dashboard',   icon: LayoutDashboard, group: 'operations' },
-  { id: 'issues',      icon: AlertCircle,     group: 'operations', badgeKey: 'issues' },
-  { id: 'tasks',       icon: CheckSquare,     group: 'operations', badgeKey: 'tasks' },
-  { id: 'approvals',   icon: CheckCircle2,    group: 'operations', badgeKey: 'approvals' },
-  { id: 'ops',         icon: ClipboardList,   group: 'operations' },   // Daily ops checklists
-
-  // OPERATIONS MODULES - Execution domains (Todo-Pilot §6)
-  //   Maintenance = outlet queue of maintenance issues · CMMS = equipment, WOs, PM, parts
-  //   Asset Purchase = requests to buy/replace assets
-  { id: 'maintenance',  icon: Wrench,               group: 'modules' },
-  { id: 'cmms',         icon: Gauge,                group: 'modules' },
-  { id: 'assets',       icon: Package,              group: 'modules' },
-  { id: 'procurement',  icon: ShoppingCart,         group: 'modules' },
-  { id: 'training',     icon: BookOpen,             group: 'modules' },
-  { id: 'marketing',    icon: Megaphone,            group: 'modules' },
-  { id: 'qa',           icon: Shield,               group: 'modules' },
-  { id: 'guest-service',icon: MessageSquareWarning, group: 'modules' },
-
-  // ISSUE VIEWS - the Issues list pinned to one category
-  { id: 'it-support',   icon: Monitor,              group: 'views' },
-
-  // INSIGHTS - Analytics & reporting
-  { id: 'analytics', icon: BarChart3, group: 'insights' },
-  { id: 'reports',   icon: FileText,  group: 'insights' },
-
-  // SYSTEM - Configuration & admin
-  { id: 'master-data',   icon: Database, group: 'system' },
-  { id: 'users',         icon: Users,    group: 'system' },
-  { id: 'notifications', icon: Bell,     group: 'system', badgeKey: 'notifications' },
-  { id: 'settings',      icon: Settings, group: 'system' },
-]
-
-const groups: { id: string }[] = [   // label = t('navGroup.<id>')
-  { id: 'operations' },
-  { id: 'modules' },
-  { id: 'views' },
-  { id: 'insights' },
-  { id: 'system' },
-]
+import { ChevronDown, PanelLeftClose, PanelLeftOpen, Utensils } from 'lucide-react'
+import { collapsibleGroups, navGroups, navItems, type NavGroup } from './nav-items'
 
 export interface SidebarBadges {
   issues: number
@@ -99,105 +26,153 @@ interface SidebarProps {
   onMobileClose?: () => void
 }
 
+// Which foldable groups the user opened, remembered per browser.
+const OPEN_GROUPS_KEY = 'ro.sidebar.openGroups'
+
+function readOpenGroups(): NavGroup[] {
+  try { return JSON.parse(window.localStorage.getItem(OPEN_GROUPS_KEY) ?? '[]') } catch { return [] }
+}
+
 export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges, mobileOpen = false, onMobileClose }: SidebarProps) {
   const { canViewPage } = usePermissions()
   const { t } = useT()
+  const [openGroups, setOpenGroups] = useState<NavGroup[]>([])
+
+  useEffect(() => { setOpenGroups(readOpenGroups()) }, [])
+
+  const toggleGroup = (group: NavGroup) => {
+    const next = openGroups.includes(group) ? openGroups.filter((g) => g !== group) : [...openGroups, group]
+    setOpenGroups(next)
+    try { window.localStorage.setItem(OPEN_GROUPS_KEY, JSON.stringify(next)) } catch { /* private mode */ }
+  }
+
+  const countOf = (badgeKey?: keyof SidebarBadges) => (badgeKey ? (badges?.[badgeKey] ?? 0) : 0)
+  // Collapsed rail or phone drawer closed: everything is an icon, no folding.
+  const iconsOnly = collapsed && !mobileOpen
 
   return (
     <>
-    {mobileOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={onMobileClose} aria-hidden="true" />}
+    {mobileOpen && <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40 md:hidden" onClick={onMobileClose} aria-hidden="true" />}
     <aside
       className={cn(
-        'flex flex-col border-r border-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out flex-shrink-0',
+        'flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width,transform] duration-300 ease-in-out flex-shrink-0',
         // phone: fixed drawer, hidden until opened
-        'fixed inset-y-0 left-0 z-50 w-64 shadow-lg',
+        'fixed inset-y-0 left-0 z-50 w-72 shadow-xl',
         mobileOpen ? 'translate-x-0' : '-translate-x-full invisible',
         // md+: the usual column
         'md:visible md:relative md:inset-auto md:z-auto md:translate-x-0 md:shadow-none',
-        collapsed ? 'md:w-14' : 'md:w-56'
+        collapsed ? 'md:w-[68px]' : 'md:w-64'
       )}
     >
       {/* Brand */}
-      <div className={cn('flex items-center gap-2.5 px-3 py-4 border-b border-border', collapsed && 'justify-center px-0')}>
-        <div className="flex-shrink-0 size-7 rounded-lg bg-primary flex items-center justify-center">
-          <Utensils className="size-3.5 text-primary-foreground" />
+      <div className={cn('h-14 flex items-center gap-3 px-4 flex-shrink-0', iconsOnly && 'md:justify-center md:px-0')}>
+        <div className="flex-shrink-0 size-8 rounded-xl bg-primary flex items-center justify-center shadow-sm">
+          <Utensils className="size-4 text-primary-foreground" />
         </div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground leading-none truncate">RestaurantOps</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">{t('shell.platform')}</p>
-          </div>
-        )}
+        <div className={cn('min-w-0', iconsOnly && 'md:hidden')}>
+          <p className="text-[15px] font-semibold text-foreground leading-tight truncate">RestaurantOps</p>
+          <p className="text-xs text-muted-foreground leading-tight">{t('shell.platform')}</p>
+        </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
-        {groups.map((group) => {
-          const groupItems = navItems.filter((item) => item.group === group.id)
+      <nav aria-label={t('shell.sidebarLabel')} className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-4">
+        {navGroups.map((group) => {
+          const items = navItems.filter((item) => item.group === group && canViewPage(item.id))
+          if (items.length === 0) return null
+
+          const foldable = !iconsOnly && collapsibleGroups.has(group)
+          const holdsCurrent = items.some((item) => item.id === currentPage)
+          const open = !foldable || holdsCurrent || openGroups.includes(group)
+          const groupLabel = t(`navGroup.${group}` as MessageKey)
+          const hiddenCount = open ? 0 : items.reduce((sum, item) => sum + countOf(item.badgeKey), 0)
+
           return (
-            <div key={group.id} className="mb-1">
-              {!collapsed && (
-                <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  {t(`navGroup.${group.id}` as MessageKey)}
-                </p>
+            <div key={group}>
+              {iconsOnly ? (
+                group !== navGroups[0] && <div className="mx-2 mb-2 border-t border-sidebar-border" />
+              ) : foldable ? (
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group)}
+                  aria-expanded={open}
+                  disabled={holdsCurrent}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground disabled:hover:text-muted-foreground transition-colors"
+                >
+                  <span className="flex-1 text-left">{groupLabel}</span>
+                  {hiddenCount > 0 && <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />}
+                  {!holdsCurrent && <ChevronDown className={cn('size-3.5 transition-transform', !open && '-rotate-90')} />}
+                </button>
+              ) : (
+                <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground">{groupLabel}</p>
               )}
-              {groupItems.filter((item) => canViewPage(item.id)).map((item) => {
-                const Icon = item.icon
-                const active = currentPage === item.id
-                const count = item.badgeKey ? (badges?.[item.badgeKey] ?? 0) : 0
-                const showBadge = count > 0
 
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => onNavigate(item.id)}
-                    title={collapsed ? t(`nav.${item.id}` as MessageKey) : undefined}
-                    className={cn(
-                      'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors relative group',
-                      collapsed && 'justify-center px-0',
-                      active
-                        ? 'bg-accent text-foreground font-medium'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                    )}
-                  >
-                    {active && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-r-full" />
-                    )}
+              {open && (
+                <div className="mt-0.5 space-y-0.5">
+                  {items.map((item) => {
+                    const Icon = item.icon
+                    const active = currentPage === item.id
+                    const count = countOf(item.badgeKey)
+                    const label = t(`nav.${item.id}` as MessageKey)
 
-                    {/* Icon — with dot indicator when collapsed */}
-                    <span className="relative flex-shrink-0">
-                      <Icon className={cn(collapsed ? 'size-4.5' : 'size-4')} />
-                      {collapsed && showBadge && (
-                        <span className="absolute -top-1 -right-1 size-2 rounded-full bg-primary border border-sidebar" />
-                      )}
-                    </span>
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => onNavigate(item.id)}
+                        aria-current={active ? 'page' : undefined}
+                        aria-label={iconsOnly ? label : undefined}
+                        title={iconsOnly ? label : undefined}
+                        className={cn(
+                          'w-full h-10 flex items-center gap-3 px-3 rounded-lg text-sm transition-colors',
+                          iconsOnly && 'md:justify-center md:px-0',
+                          active
+                            ? 'bg-primary/10 text-primary font-semibold'
+                            : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground'
+                        )}
+                      >
+                        <span className="relative flex-shrink-0">
+                          <Icon className="size-[18px]" />
+                          {iconsOnly && count > 0 && (
+                            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-primary ring-2 ring-sidebar" />
+                          )}
+                        </span>
 
-                    {!collapsed && (
-                      <>
-                        <span className="flex-1 text-left truncate">{t(`nav.${item.id}` as MessageKey)}</span>
-                        {showBadge && (
-                          <span className="text-[10px] font-semibold bg-primary text-primary-foreground rounded-full min-w-[18px] px-1.5 py-0.5 leading-none text-center">
+                        <span className={cn('flex-1 text-left truncate', iconsOnly && 'md:hidden')}>{label}</span>
+                        {count > 0 && (
+                          <span className={cn(
+                            'text-xs font-semibold rounded-full min-w-6 h-5 px-1.5 flex items-center justify-center tabular-nums',
+                            active ? 'bg-primary text-primary-foreground' : 'bg-sidebar-accent text-foreground',
+                            iconsOnly && 'md:hidden',
+                          )}>
                             {count > 99 ? '99+' : count}
                           </span>
                         )}
-                      </>
-                    )}
-                  </button>
-                )
-              })}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )
         })}
       </nav>
 
-      {/* Collapse toggle */}
-      <button
-        onClick={onToggle}
-        className="hidden md:flex absolute -right-3 top-16 z-10 size-6 rounded-full border border-border bg-background flex items-center justify-center shadow-sm hover:bg-accent transition-colors"
-        aria-label={collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')}
-      >
-        {collapsed ? <ChevronRight className="size-3" /> : <ChevronLeft className="size-3" />}
-      </button>
+      {/* Collapse toggle (desktop) */}
+      <div className="hidden md:block p-3 border-t border-sidebar-border">
+        <button
+          type="button"
+          onClick={onToggle}
+          className={cn(
+            'w-full h-9 flex items-center gap-3 px-3 rounded-lg text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors',
+            collapsed && 'justify-center px-0',
+          )}
+          aria-label={collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')}
+        >
+          {collapsed ? <PanelLeftOpen className="size-[18px]" /> : <PanelLeftClose className="size-[18px]" />}
+          {!collapsed && <span>{t('shell.collapseSidebar')}</span>}
+        </button>
+      </div>
     </aside>
     </>
   )

@@ -96,15 +96,15 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="pic-dialog-title"
-        className="bg-background rounded-lg border border-border shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        className="bg-background rounded-2xl border border-border shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-background">
           <h2 id="pic-dialog-title" className="text-lg font-bold">{isEdit ? t('picDialog.edit') : t('picDialog.create')}</h2>
           <button
             onClick={() => onOpenChange(false)}
             aria-label={t('common.close')}
-            className="p-1 hover:bg-muted rounded-md transition-colors"
+            className="p-1 hover:bg-muted rounded-lg transition-colors"
           >
             <X className="size-5 text-muted-foreground" />
           </button>
@@ -112,7 +112,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
+            <p className="text-xs text-destructive bg-destructive/10 px-3 py-2 rounded-lg">{error}</p>
           )}
 
           <div>
@@ -123,7 +123,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
               placeholder={t('picDialog.namePlaceholder')}
               value={formData.name}
               onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
 
@@ -135,7 +135,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
               placeholder={t('picDialog.emailPlaceholder')}
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
 
@@ -147,7 +147,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
               placeholder={t('picDialog.phonePlaceholder')}
               value={formData.phone}
               onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
 
@@ -157,7 +157,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
               name="department"
               value={formData.department}
               onChange={handleChange}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             >
               {departments.map((dept) => (
                 <option key={dept} value={dept}>
@@ -172,7 +172,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
             <select id="pic-user"
               value={formData.userId ?? ''}
               onChange={(e) => setFormData((prev) => ({ ...prev, userId: e.target.value || null }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             >
               <option value="">{t('picDialog.noUser')}</option>
               {/* Keep the current link visible even if the user list has not loaded / excludes them. */}
@@ -211,12 +211,12 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
             )}
           </div>
 
-          <div className="flex gap-3 pt-4 border-t border-border">
+          <div className="sticky bottom-0 bg-background flex gap-3 py-4 border-t border-border">
             <button
               type="button"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
+              className="flex-1 h-10 px-4 rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors font-medium text-sm"
             >
               {t('common.cancel')}
             </button>
@@ -224,7 +224,7 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
               type="submit"
               disabled={!isComplete || isSubmitting}
               className={cn(
-                'flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors',
+                'flex-1 h-10 px-4 rounded-lg font-semibold text-sm transition-colors',
                 isComplete && !isSubmitting
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-muted text-muted-foreground cursor-not-allowed'

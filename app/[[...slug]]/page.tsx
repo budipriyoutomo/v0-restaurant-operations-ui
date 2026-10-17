@@ -7,13 +7,14 @@ import { useIssueStore } from '@/lib/store'
 import { api, authToken } from '@/lib/api-client'
 import { User } from '@/lib/types'
 import { usePermissions } from '@/lib/permissions'
-import { pagePath } from '@/lib/routes'
+import { pagePath, PUBLIC_RESET_PAGE } from '@/lib/routes'
 import { homePage } from '@/lib/home'
 import { normalizeLocale, useT } from '@/lib/i18n'
 import { navigate, useRoute } from '@/lib/use-route'
 import { NotFoundView } from '@/components/shared/not-found-view'
 
 import { LoginPage }               from '@/components/pages/login-page'
+import { ResetPasswordPage }       from '@/components/pages/reset-password-page'
 import { PlatformPage }            from '@/components/pages/platform-page'
 
 // ── Operations ────────────────────────────────────────────────────────────────
@@ -96,6 +97,9 @@ function App() {
         .catch(() => {})
     }
   }, [currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Public: the link from the "forgot password" email, signed in or not.
+  if (routePage === PUBLIC_RESET_PAGE) return <ResetPasswordPage />
 
   // Waiting for session restore check on first load
   if (!sessionChecked || authLoading) {

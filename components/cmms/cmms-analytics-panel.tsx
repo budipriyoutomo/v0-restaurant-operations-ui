@@ -8,6 +8,7 @@ import { usePermissions } from '@/lib/permissions'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 
 function fmtHours(h: number, t: (k: 'cmmsAnalytics.days' | 'cmmsAnalytics.hours', v: { n: string }) => string): string {
   if (h <= 0) return '—'
@@ -60,50 +61,48 @@ export function CMMSAnalyticsPanel() {
 
           {/* Per-asset table */}
           {rows.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border flex items-center justify-center py-10 text-xs text-muted-foreground">
-              {t('cmmsAnalytics.empty')}
-            </div>
+            <SharedEmptyState title={t('cmmsAnalytics.empty')} className="py-10 text-sm" />
           ) : (
             <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-border bg-muted/50 text-muted-foreground">
-                    <th className="text-left px-4 py-2.5 font-semibold">{t('wo.asset')}</th>
-                    <th className="text-left px-4 py-2.5 font-semibold">{t('common.outlet')}</th>
-                    <th className="text-right px-4 py-2.5 font-semibold">{t('cmms.wos')}</th>
-                    <th className="text-right px-4 py-2.5 font-semibold">{t('cmmsAnalytics.failures')}</th>
-                    <th className="text-right px-4 py-2.5 font-semibold">MTTR</th>
-                    <th className="text-right px-4 py-2.5 font-semibold">MTBF</th>
-                    <th className="text-right px-4 py-2.5 font-semibold">Uptime</th>
-                    <th className="text-right px-4 py-2.5 font-semibold">{t('cmmsAnalytics.cost')}</th>
-                    <th className="text-left px-4 py-2.5 font-semibold">{t('cmmsAnalytics.repairVsReplace')}</th>
+                    <th className="text-left px-4 py-3.5 font-semibold">{t('wo.asset')}</th>
+                    <th className="text-left px-4 py-3.5 font-semibold">{t('common.outlet')}</th>
+                    <th className="text-right px-4 py-3.5 font-semibold">{t('cmms.wos')}</th>
+                    <th className="text-right px-4 py-3.5 font-semibold">{t('cmmsAnalytics.failures')}</th>
+                    <th className="text-right px-4 py-3.5 font-semibold">MTTR</th>
+                    <th className="text-right px-4 py-3.5 font-semibold">MTBF</th>
+                    <th className="text-right px-4 py-3.5 font-semibold">Uptime</th>
+                    <th className="text-right px-4 py-3.5 font-semibold">{t('cmmsAnalytics.cost')}</th>
+                    <th className="text-left px-4 py-3.5 font-semibold">{t('cmmsAnalytics.repairVsReplace')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {rows.map((a) => (
                     <tr key={a.assetId} className="hover:bg-accent/40 transition-colors">
-                      <td className="px-4 py-2.5 font-semibold">{a.assetName}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{a.outlet}</td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground">{a.workOrders}</td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground">{a.failures}</td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground">{fmtHours(a.mttrHours, t)}</td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground">{fmtHours(a.mtbfHours, t)}</td>
+                      <td className="px-4 py-3.5 font-semibold">{a.assetName}</td>
+                      <td className="px-4 py-3.5 text-muted-foreground">{a.outlet}</td>
+                      <td className="px-4 py-3.5 text-right text-muted-foreground">{a.workOrders}</td>
+                      <td className="px-4 py-3.5 text-right text-muted-foreground">{a.failures}</td>
+                      <td className="px-4 py-3.5 text-right text-muted-foreground">{fmtHours(a.mttrHours, t)}</td>
+                      <td className="px-4 py-3.5 text-right text-muted-foreground">{fmtHours(a.mtbfHours, t)}</td>
                       <td className={cn(
                         'px-4 py-2.5 text-right font-medium',
                         a.uptimePct >= 99 ? 'text-success' : a.uptimePct >= 90 ? 'text-warning' : 'text-destructive',
                       )}>
                         {a.uptimePct.toFixed(1)}%
                       </td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground">{fmtRp(a.totalCost)}</td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-4 py-3.5 text-right text-muted-foreground">{fmtRp(a.totalCost)}</td>
+                      <td className="px-4 py-3.5">
                         {a.repairVsReplace === null ? (
-                          <span className="text-[11px] text-muted-foreground">{t('cmmsAnalytics.noValue')}</span>
+                          <span className="text-xs text-muted-foreground">{t('cmmsAnalytics.noValue')}</span>
                         ) : a.repairVsReplace ? (
-                          <span className="rounded px-1.5 py-0.5 text-[11px] font-semibold border bg-destructive/15 text-destructive border-destructive/30">
+                          <span className="rounded px-1.5 py-0.5 text-xs font-semibold border bg-destructive/15 text-destructive border-destructive/30">
                             {t('cmmsAnalytics.considerReplace')}
                           </span>
                         ) : (
-                          <span className="rounded px-1.5 py-0.5 text-[11px] font-semibold border bg-success/15 text-success border-success/30">
+                          <span className="rounded px-1.5 py-0.5 text-xs font-semibold border bg-success/15 text-success border-success/30">
                             {t('cmmsAnalytics.worthRepair')}
                           </span>
                         )}

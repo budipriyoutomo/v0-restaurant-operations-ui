@@ -40,7 +40,7 @@ export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
         onMobileClose={() => setMobileNavOpen(false)}
       />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <TopNav currentPage={currentPage} sidebarCollapsed={sidebarCollapsed} onNavigate={onNavigate} onOpenMenu={() => setMobileNavOpen(true)} />
+        <TopNav currentPage={currentPage} onNavigate={onNavigate} onOpenMenu={() => setMobileNavOpen(true)} />
         <OfflineStatusBar />
         {/* pb-16: room for the phone's bottom navigation (Todo-Pilot §19) */}
         <main className="flex-1 overflow-y-auto bg-background pb-16 md:pb-0">

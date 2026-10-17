@@ -11,7 +11,7 @@ import { apiErrorMessage } from '@/lib/api-client'
 import { newKey } from '@/lib/offline-queue'
 import { scoreTone } from '@/lib/qa-audit'
 import { qaApi } from '@/lib/qa-audit-api'
-import { useMyOutlets, usePermissions } from '@/lib/permissions'
+import { useMyOutlets, useOutletFilter, usePermissions } from '@/lib/permissions'
 import type { QAAuditSummary, QAAuditTemplate } from '@/lib/types'
 import { AuditRunner } from '@/components/qa/audit-runner'
 import { TemplateEditor } from '@/components/qa/template-editor'
@@ -20,6 +20,10 @@ import { TONE_CLASS } from '@/components/qa/tone'
 import { useT } from '@/lib/i18n'
 import { IssuesListPage } from '@/components/pages/issues-list-page'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { SegmentedTabs } from '@/components/shared/segmented-tabs'
+import { ListSkeleton } from '@/components/shared/skeleton'
+import { PageHeader } from '@/components/shared/page-header'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 
 type Tab = 'audits' | 'scores' | 'templates' | 'issues'
 
@@ -36,11 +40,12 @@ export function QAPage() {
   const [refreshKey, setRefreshKey] = useState(0)
 
   const reload = () => setRefreshKey((k) => k + 1)
+  const { outlet } = useOutletFilter()            // top bar outlet filter
 
   useEffect(() => {
-    qaApi.list().then(setAudits).catch((e) => { toast.error(apiErrorMessage(e)); setAudits([]) })
+    qaApi.list(outlet).then(setAudits).catch((e) => { toast.error(apiErrorMessage(e)); setAudits([]) })
     qaApi.templates(can.manageQA).then(setTemplates).catch(() => setTemplates([]))
-  }, [refreshKey, can.manageQA])
+  }, [refreshKey, can.manageQA, outlet])
 
   const inProgress = (audits ?? []).filter((a) => a.status === 'in_progress')
   const submitted = (audits ?? []).filter((a) => a.status === 'submitted')
@@ -54,39 +59,29 @@ export function QAPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-5">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold">{t('qa.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t('qa.subtitle')}
-          </p>
-        </div>
-        {can.manageQA && tab === 'audits' && (
+      <PageHeader
+        title={t('qa.title')}
+        description={t('qa.subtitle')}
+        actions={<>
+          {can.manageQA && tab === 'audits' && (
           <button onClick={() => setShowStart(true)}
-            className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90">
+            className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
             <Plus className="size-4" /> {t('qa.startAudit')}
           </button>
         )}
         {can.manageQA && tab === 'templates' && (
           <button onClick={() => setEditing('new')}
-            className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90">
+            className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
             <Plus className="size-4" /> {t('qa.newTemplate')}
           </button>
         )}
-      </div>
+      </>}
+      />
 
-      <div className="flex gap-1 border-b border-border overflow-x-auto">
-        {tabs.map((td) => (
-          <button key={td.id} onClick={() => setTab(td.id)}
-            className={cn('px-4 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap',
-              tab === td.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
-            {td.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs label={t('nav.qa')} value={tab} onChange={setTab} tabs={tabs} />
 
       {tab === 'audits' && (
-        audits === null ? <p className="text-sm text-muted-foreground">{t('common.loading')}</p> : (
+        audits === null ? <ListSkeleton rows={3} className="p-0 sm:p-0" /> : (
           <div className="space-y-6">
             {inProgress.length > 0 && (
               <section className="space-y-2">
@@ -119,7 +114,7 @@ export function QAPage() {
                     {tpl.description && <p className="text-xs text-muted-foreground">{tpl.description}</p>}
                   </div>
                   {can.manageQA && (
-                    <button onClick={() => setEditing(tpl)} className="p-1 text-muted-foreground hover:text-foreground" title={t('common.edit')} aria-label={t('common.edit')}>
+                    <button onClick={() => setEditing(tpl)} className="size-9 rounded-full flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground" title={t('common.edit')} aria-label={t('common.edit')}>
                       <Pencil className="size-4" />
                     </button>
                   )}
@@ -164,7 +159,7 @@ function AuditRow({ audit: a, onOpen }: { audit: QAAuditSummary; onOpen: () => v
       <ClipboardCheck className="size-5 text-muted-foreground flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-[11px] text-muted-foreground">{a.number}</span>
+          <span className="font-mono text-xs text-muted-foreground">{a.number}</span>
           <span className="text-sm font-semibold truncate">{a.templateName}</span>
         </div>
         <p className="text-xs text-muted-foreground">{a.outlet} · {date(a.auditDate)} · {a.auditor}</p>
@@ -173,9 +168,9 @@ function AuditRow({ audit: a, onOpen }: { audit: QAAuditSummary; onOpen: () => v
         {a.status === 'submitted' ? (
           <>
             <p className={cn('text-lg font-bold leading-none', TONE_CLASS[scoreTone(a.score)])}>{a.score ?? '—'}</p>
-            <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1 justify-end">
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 justify-end">
               {t('qa.failed', { count: a.failedCount })}
-              {a.repeatCount > 0 && <span className="text-orange-700 inline-flex items-center gap-0.5"><Repeat className="size-3" />{a.repeatCount}</span>}
+              {a.repeatCount > 0 && <span className="text-orange-700 dark:text-orange-400 inline-flex items-center gap-0.5"><Repeat className="size-3" />{a.repeatCount}</span>}
             </p>
           </>
         ) : (
@@ -216,32 +211,32 @@ function StartAuditDialog({ templates, outlets, onClose, onStarted }: {
   useModalKeyboard(panelRef, onClose)
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-lg border border-border shadow-lg w-full max-w-sm p-5 space-y-4">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
+      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-2xl border border-border shadow-2xl w-full max-w-sm p-5 space-y-4">
         <h2 className="font-semibold">{t('qa.startAudit')}</h2>
         {templates.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('qa.needTemplate')}</p>
         ) : (
           <div className="space-y-3">
             <Field label={t('qa.checklist')}>
-              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full h-9 px-2 rounded-md border border-border bg-background text-sm">
+              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-border bg-background text-sm">
                 {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.items.length} items)</option>)}
               </select>
             </Field>
             <Field label={t('common.outlet')}>
-              <select value={outlet} onChange={(e) => setOutlet(e.target.value)} className="w-full h-9 px-2 rounded-md border border-border bg-background text-sm">
+              <select value={outlet} onChange={(e) => setOutlet(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-border bg-background text-sm">
                 {outlets.map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             </Field>
             <Field label={t('qa.auditDate')}>
-              <input type="date" value={auditDate} onChange={(e) => setAuditDate(e.target.value)} className="w-full h-9 px-2 rounded-md border border-border bg-background text-sm" />
+              <input type="date" value={auditDate} onChange={(e) => setAuditDate(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-border bg-background text-sm" />
             </Field>
           </div>
         )}
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 h-9 rounded-md border border-border text-sm">{t('common.cancel')}</button>
+          <button onClick={onClose} className="px-4 h-9 rounded-lg border border-border text-sm">{t('common.cancel')}</button>
           <button onClick={start} disabled={!templateId || !outlet || busy}
-            className="px-4 h-9 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50">
+            className="px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50">
             {busy ? t('qa.starting') : t('qa.start')}
           </button>
         </div>
@@ -255,5 +250,5 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="py-14 text-center text-sm text-muted-foreground border border-dashed border-border rounded-xl">{text}</div>
+  return <SharedEmptyState title={text} />
 }

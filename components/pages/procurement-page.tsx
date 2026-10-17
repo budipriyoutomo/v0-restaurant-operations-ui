@@ -7,7 +7,7 @@ import { useIssueStore } from '@/lib/store'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 import { PurchasingPanel } from '@/components/procurement/purchasing-panel'
 import { BudgetPanel } from '@/components/procurement/budget-panel'
-import { useMyOutlets, usePermissions } from '@/lib/permissions'
+import { useMyOutlets, useOutletFilter, usePermissions } from '@/lib/permissions'
 import { ApprovalRequest, Issue, Vendor, CreateVendorInput } from '@/lib/types'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { useT } from '@/lib/i18n'
@@ -16,12 +16,21 @@ import { recordPath } from '@/lib/routes'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
 import { formatMoney } from '@/lib/money'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { SegmentedTabs } from '@/components/shared/segmented-tabs'
+import { PageHeader } from '@/components/shared/page-header'
+import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { byOutlet } from '@/lib/outlet-filter'
 
 type Tab = 'requests' | 'purchasing' | 'budget' | 'approvals' | 'vendors'
 
 export function ProcurementPage() {
   useEnsureLoaded('core', 'vendors')
-  const { issues, approvals, outlets, pics, createIssue, vendors, vendorsLoading, createVendor, updateVendor, deleteVendor } = useIssueStore()
+  const { issues: allIssues, approvals: allApprovals, outlets, pics, createIssue, vendors: allVendors, vendorsLoading, createVendor, updateVendor, deleteVendor } = useIssueStore()
+  // Top bar outlet filter; vendors serving every outlet (no outlet) always show.
+  const { outlet } = useOutletFilter()
+  const issues = byOutlet(allIssues, outlet)
+  const approvals = byOutlet(allApprovals, outlet)
+  const vendors = byOutlet(allVendors, outlet, { includeShared: true })
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
   const { can, canViewPage } = usePermissions()
@@ -43,18 +52,17 @@ export function ProcurementPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('procurement.title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('procurement.subtitle')}</p>
-        </div>
-        <div className="flex gap-2">
+    <div className="p-4 sm:p-6 space-y-5 max-w-5xl">
+      <PageHeader
+        title={t('procurement.title')}
+        description={t('procurement.subtitle')}
+        actions={<>
+          <div className="flex gap-2">
           {tab === 'vendors' ? (
             can.manageVendors && (
               <button
                 onClick={() => { setEditingVendor(null); setShowVendorForm(true) }}
-                className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
               >
                 <Plus className="size-4" /> {t('procurement.addVendor')}
               </button>
@@ -62,46 +70,34 @@ export function ProcurementPage() {
           ) : (
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-4 h-9 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+              className="flex items-center gap-1.5 px-4 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
             >
               <Plus className="size-4" /> {t('procurement.newRequest')}
             </button>
           )}
         </div>
-      </div>
+      </>}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard label={t('assetsPage.total')} value={stats.total}           color="text-foreground"  />
-        <StatCard label={t('assetsPage.pending')} value={stats.pending}         color="text-amber-700"   />
+        <StatCard label={t('assetsPage.pending')} value={stats.pending}         color="text-amber-700 dark:text-amber-400"   />
         <StatCard label={label('approvalStatus', 'approved')} value={stats.approved}        color="text-success"      />
         <StatCard label={t('procurement.activeVendors')} value={activeVendors.length}  color="text-primary"      />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
-        {([
-          { id: 'requests',   label: t('procurement.tab.requests', { count: requests.length }) },
-          { id: 'purchasing', label: t('procurement.tab.purchasing') },
-          { id: 'budget',     label: t('procurement.tab.budget') },
-          { id: 'approvals',  label: t('procurement.tab.approvals', { count: approvalsP.length }) },
-          { id: 'vendors',    label: t('procurement.tab.vendors', { count: activeVendors.length }) },
-        ] as const).filter(td =>
-          // Budgets and vendors are separate modules a role may not hold.
-          (td.id !== 'budget' || canViewPage('budgets')) && (td.id !== 'vendors' || canViewPage('vendors'))
-        ).map(td => (
-          <button
-            key={td.id}
-            onClick={() => setTab(td.id)}
-            className={cn(
-              'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
-              tab === td.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {td.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs label={t('nav.procurement')} value={tab} onChange={setTab} tabs={([
+        { id: 'requests',   label: t('procurement.tab.requests', { count: requests.length }) },
+        { id: 'purchasing', label: t('procurement.tab.purchasing') },
+        { id: 'budget',     label: t('procurement.tab.budget') },
+        { id: 'approvals',  label: t('procurement.tab.approvals', { count: approvalsP.length }) },
+        { id: 'vendors',    label: t('procurement.tab.vendors', { count: activeVendors.length }) },
+      ] as const).filter(td =>
+        // Budgets and vendors are separate modules a role may not hold.
+        (td.id !== 'budget' || canViewPage('budgets')) && (td.id !== 'vendors' || canViewPage('vendors'))
+      )} />
 
       {tab === 'requests' && (
         <IssueList issues={requests} emptyLabel={t('procurement.noRequests')} emptyHint={t('procurement.noRequestsHint')} />
@@ -159,8 +155,8 @@ export function ProcurementPage() {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="p-4 rounded-lg border border-border bg-muted/20">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
+    <div className="p-4 rounded-2xl border border-border bg-card">
+      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
       <p className={cn('text-2xl font-bold', color)}>{value}</p>
     </div>
   )
@@ -170,11 +166,7 @@ function IssueList({ issues, emptyLabel, emptyHint }: { issues: Issue[]; emptyLa
   const { t, date } = useT()
   if (issues.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-xl">
-        <ShoppingCart className="size-8 text-muted-foreground mb-3" />
-        <p className="text-sm font-medium">{emptyLabel}</p>
-        <p className="text-xs text-muted-foreground mt-1">{emptyHint}</p>
-      </div>
+      <SharedEmptyState icon={ShoppingCart} title={emptyLabel} description={emptyHint} />
     )
   }
   return (
@@ -183,12 +175,12 @@ function IssueList({ issues, emptyLabel, emptyHint }: { issues: Issue[]; emptyLa
         <button type="button" key={issue.id} onClick={() => navigate(recordPath('issues', issue.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] font-mono text-muted-foreground">{issue.number}</span>
+              <span className="text-xs font-mono text-muted-foreground">{issue.number}</span>
               <PriorityBadge priority={issue.priority} />
             </div>
             <p className="text-sm font-semibold">{issue.title}</p>
             {issue.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{issue.description}</p>}
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
               <span>{issue.outlet}</span><span>·</span><span>{issue.assignee || t('common.unassigned')}</span>
               {issue.dueDate && <><span>·</span><span>{t('procurement.due', { date: date(issue.dueDate) })}</span></>}
             </div>
@@ -204,11 +196,7 @@ function ApprovalList({ approvals }: { approvals: ApprovalRequest[] }) {
   const { t, label } = useT()
   if (approvals.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-xl">
-        <CheckCircle2 className="size-8 text-muted-foreground mb-3" />
-        <p className="text-sm font-medium">{t('procurement.noApprovals')}</p>
-        <p className="text-xs text-muted-foreground mt-1">{t('procurement.noApprovalsHint')}</p>
-      </div>
+      <SharedEmptyState icon={CheckCircle2} title={t('procurement.noApprovals')} description={t('procurement.noApprovalsHint')} />
     )
   }
   return (
@@ -217,17 +205,17 @@ function ApprovalList({ approvals }: { approvals: ApprovalRequest[] }) {
         <button type="button" key={a.id} onClick={() => navigate(recordPath('approvals', a.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] font-mono text-muted-foreground">{a.number}</span>
-              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-semibold text-muted-foreground">{label('approvalType', a.type)}</span>
+              <span className="text-xs font-mono text-muted-foreground">{a.number}</span>
+              <span className="text-xs bg-muted px-2 py-0.5 rounded-md font-semibold text-muted-foreground">{label('approvalType', a.type)}</span>
             </div>
             <p className="text-sm font-semibold">{a.title}</p>
-            <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
               <span>{a.outlet}</span><span>·</span><span>{t('assetsPage.by', { name: a.requester })}</span>
               {a.amount != null && <><span>·</span><span className="font-semibold text-foreground">{formatMoney(a.amount, a.currency)}</span></>}
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            {a.status === 'pending'  && <Clock className="size-4 text-amber-700" />}
+            {a.status === 'pending'  && <Clock className="size-4 text-amber-700 dark:text-amber-400" />}
             {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
             {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
             <StatusBadge status={a.status} />
@@ -255,11 +243,7 @@ function VendorList({ vendors, loading, canManage, onEdit, onDelete, onToggleAct
   }
   if (vendors.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-border rounded-xl">
-        <Building2 className="size-8 text-muted-foreground mb-3" />
-        <p className="text-sm font-medium">{t('procurement.noVendors')}</p>
-        <p className="text-xs text-muted-foreground mt-1">{t('procurement.noVendorsHint')}</p>
-      </div>
+      <SharedEmptyState icon={Building2} title={t('procurement.noVendors')} description={t('procurement.noVendorsHint')} />
     )
   }
 
@@ -275,7 +259,7 @@ function VendorList({ vendors, loading, canManage, onEdit, onDelete, onToggleAct
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate">{v.name}</p>
-              <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">{v.category}</span>
+              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md font-semibold">{v.category}</span>
             </div>
             {canManage && (
               <div className="flex gap-1 flex-shrink-0">
@@ -293,11 +277,11 @@ function VendorList({ vendors, loading, canManage, onEdit, onDelete, onToggleAct
           {v.contact_email && <p className="text-xs text-muted-foreground truncate">{v.contact_email}</p>}
           {v.outlet        && <p className="text-xs text-muted-foreground">{t('procurement.outlet', { name: v.outlet })}</p>}
           <div className="flex items-center justify-between pt-1 border-t border-border">
-            <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded', v.is_active ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>
+            <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-md', v.is_active ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>
               {v.is_active ? t('procurement.active') : t('procurement.inactive')}
             </span>
             {canManage && (
-              <button onClick={() => onToggleActive(v)} className="text-[10px] text-muted-foreground hover:text-foreground underline">
+              <button onClick={() => onToggleActive(v)} className="text-xs text-muted-foreground hover:text-foreground underline">
                 {v.is_active ? t('procurement.deactivate') : t('procurement.activate')}
               </button>
             )}
@@ -374,7 +358,7 @@ function VendorFormModal({ vendor, outlets, onClose, onSubmit }: {
         placeholder={placeholder}
         value={form[key]}
         onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-        className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+        className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
       />
     </div>
   )
@@ -384,8 +368,8 @@ function VendorFormModal({ vendor, outlets, onClose, onSubmit }: {
   useModalKeyboard(panelRef, onClose)
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-lg bg-background rounded-2xl border border-border shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+      <div ref={panelRef} role="dialog" aria-modal="true" className="w-full max-w-lg bg-background rounded-2xl border border-border shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold">{vendor ? t('procurement.editVendor') : t('procurement.addVendor')}</h2>
           <button onClick={onClose} aria-label={t('common.close')} className="size-7 rounded flex items-center justify-center text-muted-foreground hover:bg-accent">
@@ -403,7 +387,7 @@ function VendorFormModal({ vendor, outlets, onClose, onSubmit }: {
               placeholder={t('procurement.vendorCategoryPlaceholder')}
               value={form.category}
               onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             />
           </div>
           {field(t('procurement.contactPerson'), 'contact_name', 'text', 'Ahmad Razif')}
@@ -416,7 +400,7 @@ function VendorFormModal({ vendor, outlets, onClose, onSubmit }: {
               id="vendor-outlet"
               value={form.outlet}
               onChange={e => setForm(f => ({ ...f, outlet: e.target.value }))}
-              className="w-full px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
             >
               <option value="">{t('cmms.allOutlets')}</option>
               {outlets.map(o => <option key={o} value={o}>{o}</option>)}
