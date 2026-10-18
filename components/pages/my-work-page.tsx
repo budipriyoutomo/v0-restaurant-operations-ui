@@ -13,6 +13,7 @@ import { navigate } from '@/lib/use-route'
 import { useT } from '@/lib/i18n'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { OnboardingChecklist } from '@/components/shared/onboarding-checklist'
+import { InstallNudge } from '@/components/shared/install-app'
 import { formatMoney } from '@/lib/money'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -104,6 +105,8 @@ export function MyWorkPage() {
           </button>
         }
       />
+
+      <InstallNudge />
 
       <OnboardingChecklist />
 

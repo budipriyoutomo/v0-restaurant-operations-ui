@@ -9,7 +9,9 @@
 
 import { create } from 'zustand'
 import { toast } from 'sonner'
-import { api, apiErrorMessage, authToken } from './api-client'
+import { api, apiErrorMessage, apiStatus, authToken, cachedMasterData } from './api-client'
+import { PARENT_ID } from './offline-queue'
+import { clearPageCache } from './sw-client'
 import { canListUsers, canRead, hasPermission } from './access'
 import { rememberLocale, storedLocale, type Locale } from './i18n/locale'
 import { translate } from './i18n/translate'
@@ -180,7 +182,8 @@ interface IssueCoreState {
   loadIssueChildren: (issue: Pick<Issue, 'id'>) => Promise<void>
   loadAuditLogs: () => Promise<void>
   createIssue: (input: CreateIssueInput) => Promise<Issue>
-  uploadIssuePhoto: (issueId: string, file: File, caption?: string) => Promise<IssuePhoto>
+  /** To an issue, or `{ afterKey }`: to a report still in the offline queue. */
+  uploadIssuePhoto: (issue: string | { afterKey: string }, file: File, caption?: string) => Promise<IssuePhoto>
   loadIssuePhotos: (issueId: string) => Promise<IssuePhoto[]>
   loadIssueComments: (issueId: string) => Promise<IssueComment[]>
   addIssueComment: (issueId: string, body: string) => Promise<IssueComment>
@@ -459,6 +462,7 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
 
   logout: () => {
     authToken.clear()
+    clearPageCache().catch(() => {})     // shared outlet phones (Todo-PWA P1)
     set({ currentUser: null, ...EMPTY_DATA })
   },
 
@@ -798,25 +802,33 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
   },
 
   // -------------------------------------------------------------------------
-  // createIssue — POST /api/issues, then refresh tasks + approvals
+  // createIssue — POST /api/issues, then refresh tasks + approvals. Through
+  // the offline queue (Todo-PWA): no signal → QueuedError, sent later under the
+  // dialog's idempotency key, so a request that did arrive is never doubled.
   // -------------------------------------------------------------------------
   createIssue: async (input) => {
-    const issue = await api.post<Issue>('/api/issues', {
-      title:            input.title,
-      description:      input.description,
-      outlet:           input.outlet,
-      category:         input.category,
-      priority:         input.priority,
-      assignee:         input.assignee,
-      assigneeUserId:   input.assigneeUserId ?? null,
-      dueDate:          input.dueDate,
-      generateTask:     input.generateTask,
-      generateApproval: input.generateApproval,
-      approvalAmount:   input.approvalAmount ?? null,
-      generateWorkOrder: input.generateWorkOrder,
-      assetId:          input.assetId ?? null,
-      estimatedCost:    input.estimatedCost ?? null,
-    }, input.idempotencyKey ? { 'Idempotency-Key': input.idempotencyKey } : undefined)
+    const issue = await api.mutateOrQueue<Issue>({
+      method: 'POST',
+      path: '/api/issues',
+      key: input.idempotencyKey,
+      label: `Laporan: ${input.title}`,
+      body: {
+        title:            input.title,
+        description:      input.description,
+        outlet:           input.outlet,
+        category:         input.category,
+        priority:         input.priority,
+        assignee:         input.assignee,
+        assigneeUserId:   input.assigneeUserId ?? null,
+        dueDate:          input.dueDate,
+        generateTask:     input.generateTask,
+        generateApproval: input.generateApproval,
+        approvalAmount:   input.approvalAmount ?? null,
+        generateWorkOrder: input.generateWorkOrder,
+        assetId:          input.assetId ?? null,
+        estimatedCost:    input.estimatedCost ?? null,
+      },
+    })
 
     set((state) => ({ issues: [issue, ...state.issues.filter((i) => i.id !== issue.id)] }))
     // Only this issue's generated task / approval / work order (Todo-Pilot §22).
@@ -827,14 +839,19 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
 
   // Photo taken when reporting (Todo-Pilot §20). Through the offline queue like
   // WO photos: throws QueuedError when stored for later upload.
-  uploadIssuePhoto: async (issueId, file, caption) => {
+  // A report made offline has no id yet: its photo waits in the queue and is
+  // sent to the issue the report creates.
+  uploadIssuePhoto: async (issue, file, caption) => {
+    const after = typeof issue === 'string' ? undefined : issue.afterKey
+    const issueId = typeof issue === 'string' ? issue : PARENT_ID
     return api.mutateOrQueue<IssuePhoto>({
       method: 'POST',
       path: `/api/issues/${issueId}/photos`,
       file,
       fileName: file.name,
       formParts: caption ? [{ field: 'caption', value: caption }] : [],
-      label: `Foto laporan ${issueId.slice(0, 8)}`,
+      label: after ? 'Foto laporan' : `Foto laporan ${issueId.slice(0, 8)}`,
+      after,
     })
   },
 
@@ -1426,10 +1443,15 @@ export const useIssueStore = create<IssueCoreState>((set, get) => ({
         api.get<PIC[]>('/api/pics'),
       ])
       set({ outlets, categories, pics, masterDataLoading: false })
+      const me = get().currentUser
+      if (me) cachedMasterData.set(me.id, { outlets, categories })   // for an offline start
       // Badges load before the outlets do: recount once the outlet filter can apply.
       if (get().outletFilter) get().loadCounts()
     } catch (e) {
-      set({ masterDataLoading: false, masterDataError: String(e) })
+      // No signal: the outlets and categories last seen on this device, so
+      // "Lapor" still works (Todo-PWA, verifikasi akhir).
+      const kept = apiStatus(e) === null ? cachedMasterData.get(get().currentUser?.id) : null
+      set({ masterDataLoading: false, masterDataError: String(e), ...(kept ?? {}) })
     }
   },
 

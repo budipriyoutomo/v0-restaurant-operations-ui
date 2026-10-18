@@ -4,7 +4,8 @@ import { Suspense, useEffect, useState } from 'react'
 import { AppShell } from '@/components/layout/app-shell'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { useIssueStore } from '@/lib/store'
-import { api, authToken } from '@/lib/api-client'
+import { api, cachedUser } from '@/lib/api-client'
+import { restoreSession } from '@/lib/session'
 import { User } from '@/lib/types'
 import { usePermissions } from '@/lib/permissions'
 import { pagePath, PUBLIC_RESET_PAGE } from '@/lib/routes'
@@ -12,6 +13,7 @@ import { homePage } from '@/lib/home'
 import { normalizeLocale, useT } from '@/lib/i18n'
 import { navigate, useRoute } from '@/lib/use-route'
 import { NotFoundView } from '@/components/shared/not-found-view'
+import { OfflineHome } from '@/components/shared/offline-home'
 
 import { LoginPage }               from '@/components/pages/login-page'
 import { ResetPasswordPage }       from '@/components/pages/reset-password-page'
@@ -65,30 +67,19 @@ function App() {
   const { canViewPage } = usePermissions()
   const { t } = useT()
 
-  // On first mount: try to restore a previous session from localStorage token.
-  // If the token is valid, /api/auth/me succeeds and currentUser is populated.
-  // If it fails or no token exists, currentUser stays null → LoginPage is shown.
+  // On first mount: restore the session from the localStorage token. Offline,
+  // the last known profile keeps the user signed in (Todo-PWA P1); only a
+  // token the server refuses shows the login page.
   useEffect(() => {
-    const token = authToken.get()
-    if (!token) {
-      setSessionChecked(true)
-      return
-    }
-    api.get<User>('/api/auth/me')
-      .then((user) => {
-        useIssueStore.setState({ currentUser: user })
-      })
-      .catch(() => {
-        authToken.clear()
-      })
-      .finally(() => {
-        setSessionChecked(true)
-      })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    restoreSession()
+      .then((user) => { if (user) useIssueStore.setState({ currentUser: user }) })
+      .finally(() => setSessionChecked(true))
+  }, [])
 
   // Load all data once the user is authenticated.
   useEffect(() => {
     // Platform admins have no company: every company endpoint would refuse them.
+    if (currentUser) cachedUser.set(currentUser)            // after login too, for the next offline start
     if (currentUser && !currentUser.is_platform_admin) loadAll()
     // The account's language wins over this device's last choice (Todo-Pilot §16).
     if (currentUser) {
@@ -174,6 +165,16 @@ function App() {
     return (
       <AppShell currentPage={currentPage} onNavigate={onNavigate}>
         <ListSkeleton rows={5} />
+      </AppShell>
+    )
+  }
+
+  // Offline before anything was loaded on this device: the frame, the offline
+  // bar and a plain explanation — the bar reloads once the signal is back.
+  if (error && !navigator.onLine) {
+    return (
+      <AppShell currentPage={currentPage} onNavigate={onNavigate}>
+        <OfflineHome />
       </AppShell>
     )
   }

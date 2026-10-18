@@ -33,7 +33,14 @@ export interface QueuedMutation {
   // Set when the server rejected the replay (Todo-Pilot §27): kept for the
   // user to retry or discard, never replayed on its own.
   conflict?: { status: number; detail: string; at: number }
+  // Waits for the queued item with this id (a photo for a report made
+  // offline): replayed once that one is sent, with the record it created
+  // filling PARENT_ID in `path`.
+  after?: string
 }
+
+/** Placeholder in a waiting item's path for its parent's created record id. */
+export const PARENT_ID = '{parent}'
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -120,8 +127,10 @@ async function remove(id: string) {
   await notify()
 }
 
-/** The user gives up a rejected change (the server's version stands). */
+/** The user gives up a rejected change (the server's version stands) — and
+ *  whatever waits for it (a photo of a report the server refused). */
 export async function discardConflict(id: string): Promise<void> {
+  for (const m of dependentsOf(await listPending(), id)) await remove(m.id)
   await remove(id)
 }
 
@@ -221,6 +230,20 @@ export function serverDetail(body: string): string {
   return body.slice(0, 300)
 }
 
+/** Still waiting for its parent to be sent. */
+export function isWaiting(m: Pick<QueuedMutation, 'after'>): boolean {
+  return m.after !== undefined
+}
+
+export function dependentsOf<T extends Pick<QueuedMutation, 'after'>>(items: T[], parentId: string): T[] {
+  return items.filter((m) => m.after === parentId)
+}
+
+/** The items waiting for `parentId`, ready to send now that it created `createdId`. */
+export function resolveDependents(items: QueuedMutation[], parentId: string, createdId: string): QueuedMutation[] {
+  return dependentsOf(items, parentId).map(({ after: _after, ...m }) => ({ ...m, path: m.path.split(PARENT_ID).join(createdId) }))
+}
+
 export function replayOutcome(status: number): 'sent' | 'drop' | 'stop' {
   if (status >= 200 && status < 300) return 'sent'
   if (status === 401 || status === 408 || status === 429) return 'stop'
@@ -244,7 +267,9 @@ export async function flush(baseUrl: string, token: string | null): Promise<{ se
   try {
     const owner = tokenOwner(token)
     const items = pendingFor(await listPending(), owner)
-    for (const m of items) {
+    for (let i = 0; i < items.length; i++) {
+      const m = items[i]
+      if (isWaiting(m)) continue          // its parent is not sent yet (or was refused)
       const [url, init] = buildRequest(m, baseUrl, token)
       let res: Response
       try {
@@ -256,6 +281,19 @@ export async function flush(baseUrl: string, token: string | null): Promise<{ se
       }
       const outcome = replayOutcome(res.status)
       if (outcome === 'sent') {
+        const waiting = dependentsOf(items, m.id)
+        if (waiting.length > 0) {
+          // Hand the created record's id to what waits for it, in this same pass.
+          const createdId = await res.clone().json().then((b) => b?.id, () => undefined)
+          if (typeof createdId === 'string') {
+            for (const ready of resolveDependents(items, m.id, createdId)) {
+              await tx('readwrite', (s) => s.put(ready))
+              items[items.findIndex((x) => x.id === ready.id)] = ready
+            }
+          } else {
+            for (const w of waiting) await markConflict(w, res.status, 'parent created no id')
+          }
+        }
         await remove(m.id)
         sent += 1
       } else if (outcome === 'drop') {

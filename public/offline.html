@@ -1,0 +1,45 @@
+<!doctype html>
+<!-- Served by public/sw.js when offline and no app shell is cached yet (Todo-PWA P1). -->
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f9fafb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#020405" media="(prefers-color-scheme: dark)">
+  <title>RestaurantOps — Offline</title>
+  <style>
+    :root { --bg: #f9fafb; --fg: #0b1220; --muted: #5b6573; --primary: #0070c4; color-scheme: light dark; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #020405; --fg: #eceef1; --muted: #8a929c; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 24px 16px; background: var(--bg); color: var(--fg);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center; }
+    main { max-width: 340px; }
+    img { width: 64px; height: 64px; border-radius: 16px; }
+    h1 { font-size: 18px; margin: 16px 0 4px; }
+    p { margin: 0 0 20px; color: var(--muted); }
+    button { font: inherit; font-weight: 600; color: #fff; background: var(--primary); border: 0;
+      border-radius: 10px; padding: 10px 20px; min-height: 44px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/icon-192.png" alt="">
+    <h1 data-i18n="title">Anda sedang offline</h1>
+    <p data-i18n="body">Halaman ini belum tersimpan di perangkat. Sambungkan ke internet lalu coba lagi.</p>
+    <button type="button" data-i18n="retry" onclick="location.reload()">Coba lagi</button>
+  </main>
+  <script>
+    (function () {
+      var en = { title: "You're offline", body: "This page isn't saved on this device yet. Connect to the internet and try again.", retry: 'Try again' }
+      var locale
+      try { locale = localStorage.getItem('ro.locale') } catch (e) {}
+      if (locale === 'en' || (!locale && /^en/i.test(navigator.language))) {
+        document.documentElement.lang = 'en'
+        document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = en[el.getAttribute('data-i18n')] })
+      }
+      window.addEventListener('online', function () { location.reload() })
+    })()
+  </script>
+</body>
+</html>

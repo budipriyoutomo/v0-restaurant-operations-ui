@@ -14,6 +14,7 @@ import type { User } from '@/lib/types'
 import { PageHeader } from '@/components/shared/page-header'
 import { useTheme } from 'next-themes'
 import { ListSkeleton } from '@/components/shared/skeleton'
+import { InstallAppGroup } from '@/components/shared/install-app'
 
 interface AppPreferences {
   darkMode: boolean
@@ -151,6 +152,8 @@ export function SettingsPage() {
       />
 
       <ProfileCard />
+
+      <InstallAppGroup />
 
       <SettingGroup label={t('settings.language')}>
         {/* Phones: the picker goes under its label, full width */}

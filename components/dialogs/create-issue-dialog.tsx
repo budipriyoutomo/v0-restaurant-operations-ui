@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import {
-  X, CheckSquare, CheckCircle2, Sparkles, Wrench, Camera, QrCode, MessageCircle,
+  X, CheckSquare, CheckCircle2, CloudUpload, Sparkles, Wrench, Camera, QrCode, MessageCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -40,8 +40,9 @@ interface CreateIssueDialogProps {
   quick?: boolean
   /** The reporter gets WhatsApp updates (has a number on file). */
   whatsappOptIn?: boolean
-  /** Upload the chosen photo to the created issue (offline queue — may throw QueuedError). */
-  onUploadPhoto?: (issueId: string, file: File) => Promise<unknown>
+  /** Upload the chosen photo to the created issue, or — `{ afterKey }` — queue it
+   *  behind a report saved offline (offline queue — may throw QueuedError). */
+  onUploadPhoto?: (issue: string | { afterKey: string }, file: File) => Promise<unknown>
   /** Enables "Scan asset QR". */
   resolveQr?: (token: string) => Promise<QRResolveResult>
 }
@@ -96,7 +97,8 @@ export function CreateIssueDialog({
   const [scanOpen, setScanOpen] = useState(false)
   const [scannedAsset, setScannedAsset] = useState<string | null>(null)
   // Quick report ends on a confirmation (Todo-Pilot §20).
-  const [sent, setSent] = useState<{ number: string; outlet: string; photo: 'queued' | 'failed' | null } | null>(null)
+  // `queued`: no signal — the report waits on the device (Todo-PWA).
+  const [sent, setSent] = useState<{ number: string; outlet: string; photo: 'queued' | 'failed' | null; queued?: boolean } | null>(null)
 
   const selectedCategory = categoryOptions.find((c) => c.id === form.category)
   const isMaintenance = allowsWorkOrder(selectedCategory?.module)
@@ -201,9 +203,10 @@ export function CreateIssueDialog({
     submittingRef.current = true
     setIsSubmitting(true)
     setSubmitError(null)
+    let created: { id: string; number: string } | void
     try {
       const withWo = !quick && isMaintenance && generateWorkOrder
-      const created = await onSubmit({
+      created = await onSubmit({
         title: form.title,
         description: form.description,
         outlet: form.outlet,
@@ -222,7 +225,22 @@ export function CreateIssueDialog({
         estimatedCost: withWo && form.estimatedCost ? Math.round(Number(form.estimatedCost)) : undefined,
         idempotencyKey,
       })
-
+    } catch (err) {
+      if (err instanceof QueuedError) {
+        // No signal: the report is saved on this device and sends itself; the
+        // photo waits for it in the same queue.
+        if (photo && onUploadPhoto) await onUploadPhoto({ afterKey: idempotencyKey }, photo).catch(() => {})
+        if (quick) setSent({ number: '', outlet: form.outlet, photo: photo ? 'queued' : null, queued: true })
+        else { toast.info(t('createIssue.queuedTitle'), { description: t('createIssue.queuedHint') }); onOpenChange(false) }
+      } else {
+        // Stay open with everything typed; a retry reuses the same idempotency key.
+        setSubmitError(apiErrorMessage(err, t('createIssue.failed')))
+      }
+      submittingRef.current = false
+      setIsSubmitting(false)
+      return
+    }
+    try {
       // The issue exists now; a photo problem must not look like a failed report.
       let photoState: 'queued' | 'failed' | null = null
       if (photo && created && onUploadPhoto) {
@@ -239,9 +257,6 @@ export function CreateIssueDialog({
         if (photoState === 'failed') toast.error(t('createIssue.photoFailed'))
         onOpenChange(false)
       }
-    } catch (err) {
-      // Stay open with everything typed; a retry reuses the same idempotency key.
-      setSubmitError(apiErrorMessage(err, t('createIssue.failed')))
     } finally {
       submittingRef.current = false
       setIsSubmitting(false)
@@ -273,10 +288,16 @@ export function CreateIssueDialog({
 
         {sent ? (
           <div className="p-6 space-y-4 text-center" role="status">
-            <CheckCircle2 className="size-12 text-emerald-700 dark:text-emerald-400 mx-auto" />
-            <p className="text-lg font-bold">{t('createIssue.sent', { number: sent.number })}</p>
-            <p className="text-sm text-muted-foreground">{t('createIssue.sentHint', { outlet: sent.outlet })}</p>
-            {whatsappOptIn && (
+            {sent.queued ? (<>
+              <CloudUpload className="size-12 text-amber-700 dark:text-amber-400 mx-auto" />
+              <p className="text-lg font-bold">{t('createIssue.queuedTitle')}</p>
+              <p className="text-sm text-muted-foreground">{t('createIssue.queuedHint')}</p>
+            </>) : (<>
+              <CheckCircle2 className="size-12 text-emerald-700 dark:text-emerald-400 mx-auto" />
+              <p className="text-lg font-bold">{t('createIssue.sent', { number: sent.number })}</p>
+              <p className="text-sm text-muted-foreground">{t('createIssue.sentHint', { outlet: sent.outlet })}</p>
+            </>)}
+            {whatsappOptIn && !sent.queued && (
               <p className="flex items-center justify-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
                 <MessageCircle className="size-4" /> {t('createIssue.whatsapp')}
               </p>
@@ -343,7 +364,8 @@ export function CreateIssueDialog({
             {quick && outletOptions.length === 0 ? (
               // The server would refuse a typed name: staff only report for their own outlets.
               <p id={`${id}-outlet`} role="alert" className="px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-sm text-amber-800 dark:text-amber-300">
-                {t('createIssue.noOutletAccess')}
+                {/* Offline on a device that never loaded the outlets: not an access problem. */}
+                {typeof navigator !== 'undefined' && !navigator.onLine ? t('createIssue.noOutletsOffline') : t('createIssue.noOutletAccess')}
               </p>
             ) : quick && outletOptions.length === 1 ? (
               // One outlet: nothing to choose (Todo-Pilot §20).

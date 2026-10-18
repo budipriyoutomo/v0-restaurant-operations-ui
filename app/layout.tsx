@@ -1,16 +1,14 @@
-import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
+import { siteMetadata, siteViewport } from '@/lib/pwa'
+import { SwRegister } from '@/components/shared/sw-register'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
-export const metadata: Metadata = {
-  title: 'RestaurantOps — Operations Management Platform',
-  description: 'Enterprise-grade restaurant chain operations management: tickets, CMMS, finance, QA, and guest service.',
-  generator: 'v0.app',
-}
+export const metadata = siteMetadata
+export const viewport = siteViewport
 
 export default function RootLayout({
   children,
@@ -23,6 +21,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
           <Toaster richColors position="top-right" />
+          <SwRegister />
         </ThemeProvider>
       </body>
     </html>

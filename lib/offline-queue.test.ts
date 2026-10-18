@@ -1,7 +1,10 @@
 // Offline queue replay rules (cross-check fixes 2026-10-03). The IndexedDB plumbing
 // is not exercised here — only the pure decisions flush() is built on.
 import { describe, expect, it } from 'vitest'
-import { belongsTo, conflictReason, conflictsFor, pendingFor, replayOutcome, serverDetail, tokenOwner } from './offline-queue'
+import {
+  belongsTo, conflictReason, conflictsFor, dependentsOf, isWaiting, PARENT_ID, pendingFor, replayOutcome,
+  resolveDependents, serverDetail, tokenOwner, type QueuedMutation,
+} from './offline-queue'
 
 /** Unsigned JWT with the given payload — enough for tokenOwner(), which never verifies. */
 function jwt(payload: object): string {
@@ -94,5 +97,37 @@ describe('conflicts', () => {
     expect(serverDetail('{"detail":[{"msg":"field required"}]}')).toBe('field required')
     expect(serverDetail('Bad gateway')).toBe('Bad gateway')
     expect(serverDetail('')).toBe('')
+  })
+})
+
+// A photo taken with an offline report waits for that report (Todo-PWA,
+// verifikasi akhir): its path names the issue only the server will create.
+describe('items waiting for a queued parent', () => {
+  const item = (over: Partial<QueuedMutation>): QueuedMutation => ({
+    id: 'x', method: 'POST', path: '/api/x', kind: 'json', label: 'x', createdAt: 0, attempts: 0, ...over,
+  })
+  const report = item({ id: 'k-report', path: '/api/issues' })
+  const photo = item({ id: 'k-photo', path: `/api/issues/${PARENT_ID}/photos`, kind: 'form', after: 'k-report' })
+  const other = item({ id: 'k-other', path: '/api/ops-checklists/r1/items/i1' })
+
+  it('waits while its parent has not been sent', () => {
+    expect(isWaiting(photo)).toBe(true)
+    expect(isWaiting(report)).toBe(false)
+  })
+
+  it('the parent\'s created id fills the path and the item is ready to send', () => {
+    const [ready] = resolveDependents([report, photo, other], 'k-report', 'iss-42')
+    expect(ready).toMatchObject({ id: 'k-photo', path: '/api/issues/iss-42/photos' })
+    expect(isWaiting(ready)).toBe(false)
+    expect('after' in ready).toBe(false)
+  })
+
+  it('only the items of that parent', () => {
+    expect(resolveDependents([report, photo, other], 'k-other', 'zzz')).toEqual([])
+    expect(dependentsOf([report, photo, other], 'k-report').map((m) => m.id)).toEqual(['k-photo'])
+  })
+
+  it('a waiting item still counts as pending for its owner', () => {
+    expect(pendingFor([report, photo], undefined as unknown as null)).toHaveLength(2)
   })
 })

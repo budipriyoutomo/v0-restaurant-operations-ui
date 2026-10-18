@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar } from './sidebar'
 import { TopNav } from './top-nav'
 import { OfflineStatusBar } from '@/components/shared/offline-status-bar'
 import { BottomNav } from './bottom-nav'
 import { useIssueStore } from '@/lib/store'
+import { syncAppBadge } from '@/lib/app-badge'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -27,6 +28,10 @@ export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
     approvals:     counts?.approvalsPending ?? 0,
     notifications: unreadCount,
   }
+
+  // Unread count on the installed app's icon (Todo-PWA P3); cleared on logout.
+  useEffect(() => { syncAppBadge(unreadCount) }, [unreadCount])
+  useEffect(() => () => syncAppBadge(0), [])
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">

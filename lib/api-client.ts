@@ -1,5 +1,6 @@
 // Thin fetch wrapper for the Issue Core REST API.
 // All methods throw on non-2xx so callers can catch errors.
+import type { MasterCategory, Outlet, User } from './types'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -9,8 +10,43 @@ export const authToken = {
     typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null,
   set: (token: string): void =>
     typeof window !== 'undefined' ? localStorage.setItem('auth_token', token) : undefined,
-  clear: (): void =>
-    typeof window !== 'undefined' ? localStorage.removeItem('auth_token') : undefined,
+  clear: (): void => {
+    if (typeof window === 'undefined') return
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem(USER_KEY)     // the profile goes with the session (logout, 401)
+    localStorage.removeItem(MASTER_KEY)
+  },
+}
+
+// Last profile from /api/auth/me, so an offline start keeps the session
+// (Todo-PWA P1). Same lifetime and storage as the token.
+const USER_KEY = 'ro.user'
+export const cachedUser = {
+  get: (): User | null => {
+    if (typeof window === 'undefined') return null
+    try { return JSON.parse(localStorage.getItem(USER_KEY) ?? 'null') } catch { return null }
+  },
+  set: (user: User): void => {
+    if (typeof window !== 'undefined') localStorage.setItem(USER_KEY, JSON.stringify(user))
+  },
+}
+
+// Outlets and categories, so "Lapor" works on an offline start (Todo-PWA,
+// verifikasi akhir). Tagged with the user; same lifetime as the token.
+const MASTER_KEY = 'ro.masterData'
+type MasterData = { outlets: Outlet[]; categories: MasterCategory[] }
+export const cachedMasterData = {
+  get: (owner: string | undefined): MasterData | null => {
+    if (typeof window === 'undefined' || !owner) return null
+    try {
+      const v = JSON.parse(localStorage.getItem(MASTER_KEY) ?? 'null')
+      return v?.owner === owner ? { outlets: v.outlets, categories: v.categories } : null
+    } catch { return null }
+  },
+  set: (owner: string, data: MasterData): void => {
+    if (typeof window === 'undefined') return
+    try { localStorage.setItem(MASTER_KEY, JSON.stringify({ owner, ...data })) } catch { /* quota: online only */ }
+  },
 }
 
 function buildHeaders(extra?: HeadersInit): HeadersInit {
@@ -84,6 +120,8 @@ interface MutateSpec {
   file?: Blob                      // photo (switches to multipart)
   fileName?: string
   formParts?: { field: string; value: string }[]
+  key?: string                     // the caller's idempotency key (one per dialog opening)
+  after?: string                   // queue key of the item this one needs first (offline-queue PARENT_ID)
 }
 
 /**
@@ -97,15 +135,17 @@ interface MutateSpec {
  * (4xx) which are NOT queued (replaying them would just fail forever).
  */
 async function mutateOrQueue<T>(spec: MutateSpec): Promise<T> {
-  const key = queue.newKey()
+  const key = spec.key ?? queue.newKey()
   const kind: 'json' | 'form' = spec.file || spec.formParts ? 'form' : 'json'
   const enqueue = () => queue.enqueue({
     id: key, method: spec.method, path: spec.path, kind,
     body: spec.body, formParts: spec.formParts, file: spec.file, fileName: spec.fileName,
     label: spec.label, owner: queue.tokenOwner(authToken.get()) ?? undefined,
+    ...(spec.after ? { after: spec.after } : {}),
   })
 
-  if (!queue.isOnline()) {
+  // Waits for a queued parent: its path is only known once that one is sent.
+  if (!queue.isOnline() || spec.after) {
     await enqueue()
     throw new QueuedError(spec.label)
   }

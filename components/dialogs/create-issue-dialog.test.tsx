@@ -226,6 +226,14 @@ describe('quick report mode (Todo-Pilot §20)', () => {
     expect(screen.getByRole('button', { name: 'Send report' })).toBeDisabled()
   })
 
+  it('offline before the outlet list ever loaded: says to connect once, not "ask your manager"', () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    quick({ outlets: [] })
+    expect(screen.getByRole('alert')).toHaveTextContent(/connect to the internet once/i)
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/ask your manager/i)
+    onLine.mockRestore()
+  })
+
   it('sends with only a title — no due date needed — and shows the issue number', async () => {
     const { user, onSubmit, onOpenChange } = quick()
     await user.type(screen.getByLabelText(/title/i), 'Wastafel bocor')
@@ -266,6 +274,35 @@ describe('quick report mode (Todo-Pilot §20)', () => {
     await user.upload(screen.getByLabelText(/photo/i), new File(['x'], 'a.jpg', { type: 'image/jpeg' }))
     await user.click(screen.getByRole('button', { name: 'Send report' }))
     expect(await screen.findByText(/photo will upload when there is signal/i)).toBeInTheDocument()
+  })
+
+  // No signal (Todo-PWA, verifikasi akhir): the report waits in the device's
+  // queue — its photo waits for it — and the reporter is told so plainly.
+  it('no signal: says the report is saved on the device and will send itself', async () => {
+    const { QueuedError } = await import('@/lib/api-client')
+    const { user, onSubmit, onUploadPhoto } = quick({ whatsappOptIn: true })
+    onSubmit.mockRejectedValueOnce(new QueuedError('Laporan: Wastafel bocor'))
+    onUploadPhoto.mockRejectedValueOnce(new QueuedError('Foto laporan'))
+    const photo = new File(['x'], 'a.jpg', { type: 'image/jpeg' })
+    await user.type(screen.getByLabelText(/title/i), 'Wastafel bocor')
+    await user.upload(screen.getByLabelText(/photo/i), photo)
+    await user.click(screen.getByRole('button', { name: 'Send report' }))
+
+    expect(await screen.findByText(/saved on this device/i)).toBeInTheDocument()
+    expect(screen.getByText(/sends itself when there is signal/i)).toBeInTheDocument()
+    expect(screen.queryByText(/failed to fetch/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/whatsapp/i)).not.toBeInTheDocument()     // nothing sent yet
+    const key = onSubmit.mock.calls[0][0].idempotencyKey
+    expect(onUploadPhoto).toHaveBeenCalledWith({ afterKey: key }, photo)
+  })
+
+  it('no signal in the full form: a notice, then it closes', async () => {
+    const { QueuedError } = await import('@/lib/api-client')
+    const { user, onSubmit, onOpenChange } = setup()
+    onSubmit.mockRejectedValueOnce(new QueuedError('Laporan'))
+    await fillRequired(user)
+    await user.click(screen.getByRole('button', { name: 'Create Issue' }))
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
   })
 
   it('"Report another" starts a fresh report', async () => {

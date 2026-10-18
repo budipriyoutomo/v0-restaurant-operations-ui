@@ -48,7 +48,7 @@ export function TopNav({ currentPage, onNavigate, onOpenMenu }: TopNavProps) {
     : '?'
 
   return (
-    <header className="h-14 flex items-center gap-2 px-3 sm:px-6 border-b border-border bg-background/80 backdrop-blur flex-shrink-0 relative z-20">
+    <header className="h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] flex items-center gap-2 px-3 sm:px-6 border-b border-border bg-background/80 backdrop-blur flex-shrink-0 relative z-20">
       {onOpenMenu && (
         <button onClick={onOpenMenu} aria-label={t('shell.openMenu')} className={cn(iconButton, 'md:hidden -ml-1 text-foreground')}>
           <Menu className="size-5" />

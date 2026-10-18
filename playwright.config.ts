@@ -10,10 +10,14 @@ import { defineConfig } from '@playwright/test'
 const API_PORT = 8001
 const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 3001)   // override when :3001 is taken
 const DB_URL = process.env.E2E_DATABASE_URL ?? 'postgresql+psycopg://postgres:@localhost:5432/restaurantops_e2e'
+// E2E_PROD=1 (`npm run e2e:pwa`): the same stack, but the frontend is a
+// production build — the service worker only registers there (Todo-PWA P1).
+const PROD = process.env.E2E_PROD === '1'
 const channel = process.env.PLAYWRIGHT_CHANNEL ?? (process.platform === 'darwin' ? 'chrome' : undefined)
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir: PROD ? './e2e/pwa' : './e2e',
+  testIgnore: PROD ? undefined : '**/pwa/**',
   timeout: 120_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
@@ -45,11 +49,13 @@ export default defineConfig({
       },
     },
     {
-      command: `npx next dev --port ${WEB_PORT}`,
+      command: PROD
+        ? `npx next build && npx next start --port ${WEB_PORT}`
+        : `npx next dev --port ${WEB_PORT}`,
       url: `http://localhost:${WEB_PORT}`,
-      timeout: 180_000,
+      timeout: PROD ? 600_000 : 180_000,
       reuseExistingServer: false,
-      env: { NEXT_PUBLIC_API_URL: `http://localhost:${API_PORT}`, NEXT_DIST_DIR: '.next-e2e' },
+      env: { NEXT_PUBLIC_API_URL: `http://localhost:${API_PORT}`, NEXT_DIST_DIR: PROD ? '.next-e2e-prod' : '.next-e2e' },
     },
   ],
 })

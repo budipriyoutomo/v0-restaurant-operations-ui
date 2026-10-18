@@ -57,7 +57,7 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges, 
       className={cn(
         'flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width,transform] duration-300 ease-in-out flex-shrink-0',
         // phone: fixed drawer, hidden until opened
-        'fixed inset-y-0 left-0 z-50 w-72 shadow-xl',
+        'fixed inset-y-0 left-0 z-50 w-72 shadow-xl pt-[env(safe-area-inset-top)] md:pt-0',
         mobileOpen ? 'translate-x-0' : '-translate-x-full invisible',
         // md+: the usual column
         'md:visible md:relative md:inset-auto md:z-auto md:translate-x-0 md:shadow-none',
