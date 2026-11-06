@@ -30,7 +30,7 @@ interface SidebarProps {
 const OPEN_GROUPS_KEY = 'ro.sidebar.openGroups'
 
 function readOpenGroups(): NavGroup[] {
-  try { return JSON.parse(window.localStorage.getItem(OPEN_GROUPS_KEY) ?? '[]') } catch { return [] }
+  try { return (JSON.parse(window.localStorage.getItem(OPEN_GROUPS_KEY) ?? '[]') as string[]).filter((g): g is NavGroup => (navGroups as string[]).includes(g)) } catch { return [] }
 }
 
 export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges, mobileOpen = false, onMobileClose }: SidebarProps) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
-import { Bell, ChevronRight, Search, Settings, LogOut, Sun, Moon, Monitor, Menu } from 'lucide-react'
+import { Bell, Search, Settings, LogOut, Sun, Moon, Monitor, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { openNotification } from '@/lib/notifications'
@@ -35,7 +35,7 @@ export function TopNav({ currentPage, onNavigate, onOpenMenu }: TopNavProps) {
   const { theme, setTheme } = useTheme()
   const [notifOpen, setNotifOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
-  const navGroup = currentPage === 'notifications' ? 'system' : navItems.find((i) => i.id === currentPage)?.group
+  const navGroup = currentPage === 'notifications' ? 'settings' : navItems.find((i) => i.id === currentPage)?.group
 
   // Keep the bell's badge fresh without a page reload.
   useEffect(() => {
@@ -55,17 +55,12 @@ export function TopNav({ currentPage, onNavigate, onOpenMenu }: TopNavProps) {
         </button>
       )}
 
-      {/* Where am I: group › page. The page itself carries the big title. */}
-      <div className="flex-1 min-w-0 flex items-center gap-1.5 text-sm">
+      {/* The page carries the one title (Todo-Modern-UI Fase 2): the bar only
+          says which group it is in, on wide screens. */}
+      <div className="flex-1 min-w-0 flex items-center text-sm">
         {navGroup && (
-          <>
-            <span className="hidden md:inline text-muted-foreground whitespace-nowrap">{t(`navGroup.${navGroup}` as MessageKey)}</span>
-            <ChevronRight className="hidden md:block size-3.5 text-muted-foreground/60 flex-shrink-0" aria-hidden="true" />
-          </>
+          <span className="hidden md:inline text-muted-foreground whitespace-nowrap">{t(`navGroup.${navGroup}` as MessageKey)}</span>
         )}
-        <span className="font-medium text-foreground truncate">
-          {currentPage === 'notifications' ? t('topnav.pageTitle.notifications') : t(`nav.${currentPage}` as MessageKey)}
-        </span>
       </div>
 
       {/* Global search (⌘K) */}

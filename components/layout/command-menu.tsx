@@ -14,7 +14,7 @@ import { useT, type MessageKey } from '@/lib/i18n'
 import { navGroups, navItems, type NavItem } from './nav-items'
 
 // Notifications left the sidebar but stay searchable.
-const searchItems: NavItem[] = [...navItems, { id: 'notifications', icon: Bell, group: 'system' }]
+const searchItems: NavItem[] = [...navItems, { id: 'notifications', icon: Bell, group: 'settings' }]
 
 interface CommandMenuProps {
   open?: boolean

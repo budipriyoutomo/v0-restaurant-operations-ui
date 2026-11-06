@@ -121,7 +121,7 @@ export function CMMSPage() {
   return (
     <div className="p-4 sm:p-6 space-y-5">
       <PageHeader
-        title="CMMS"
+        title={t('nav.cmms')}
         description={t('cmms.subtitle')}
         // Header actions — need assets:manage / cmms:manage on the backend, so
         // roles without them must not be offered a button that 403s.

@@ -1,5 +1,5 @@
 // Shared segmented tabs (Todo-UI 0.1). Written first (TDD).
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { SegmentedTabs } from './segmented-tabs'
@@ -37,5 +37,22 @@ describe('SegmentedTabs', () => {
     render(<SegmentedTabs label="Daily Ops" tabs={tabs} value="today" onChange={() => {}} />)
     expect(screen.getByRole('tab', { name: 'Today' })).toHaveAttribute('tabindex', '0')
     expect(screen.getByRole('tab', { name: 'History 3' })).toHaveAttribute('tabindex', '-1')
+  })
+
+  // Todo-Modern-UI Fase 2: a cut-off row shows that it scrolls.
+  it('fades the edge that still hides tabs, and only that edge', () => {
+    const { container } = render(<SegmentedTabs label="Daily Ops" tabs={tabs} value="today" onChange={() => {}} />)
+    const scroller = screen.getByRole('tablist').parentElement!
+    const fades = () => [...container.querySelectorAll('[data-fade]')].map((el) => el.getAttribute('data-fade'))
+    expect(fades()).toEqual([])                     // everything fits
+
+    Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 600 })
+    Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 300 })
+    fireEvent.scroll(scroller)
+    expect(fades()).toEqual(['end'])
+
+    scroller.scrollLeft = 300
+    fireEvent.scroll(scroller)
+    expect(fades()).toEqual(['start'])
   })
 })

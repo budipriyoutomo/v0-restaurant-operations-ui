@@ -30,7 +30,7 @@ describe('CommandMenu', () => {
 
   it('lists only pages the role can open', async () => {
     render(<CommandMenu open onOpenChange={() => {}} />)
-    expect(screen.getByRole('option', { name: /CMMS/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Assets & Maintenance/ })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /Users & Roles/ })).not.toBeInTheDocument()
   })
 
