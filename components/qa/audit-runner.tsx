@@ -17,9 +17,9 @@ import { TONE_CLASS } from './tone'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
 const RESULT_BUTTONS: { value: QAAuditResult; icon: React.ElementType; active: string }[] = [
-  { value: 'pass', icon: Check, active: 'bg-emerald-600 text-white border-emerald-600' },
-  { value: 'fail', icon: X,     active: 'bg-red-600 text-white border-red-600' },
-  { value: 'na',   icon: Minus, active: 'bg-slate-500 text-white border-slate-500' },
+  { value: 'pass', icon: Check, active: 'bg-success text-success-foreground border-success' },
+  { value: 'fail', icon: X,     active: 'bg-destructive text-destructive-foreground border-destructive' },
+  { value: 'na',   icon: Minus, active: 'bg-muted-foreground text-background border-muted-foreground' },
 ]
 
 interface Props {
@@ -165,7 +165,7 @@ export function AuditRunner({ auditId, canEdit, onClose, onChanged }: Props) {
       {editable && (
         <div className="sticky bottom-0 bg-background border-t border-border px-4 sm:px-6 py-3 space-y-2">
           {problems.length > 0 && (
-            <details className="text-xs text-amber-800 dark:text-amber-400">
+            <details className="text-xs text-warning">
               <summary className="cursor-pointer font-medium">{t('qaRunner.needAttention', { count: problems.length })}</summary>
               <ul className="mt-1 space-y-0.5 list-disc pl-4">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
             </details>
@@ -204,14 +204,14 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
   return (
     <div className={cn(
       'rounded-lg border p-3 space-y-2.5',
-      f.result === 'fail' ? 'border-red-300 bg-red-50/40 dark:bg-red-950/10' : 'border-border bg-card',
+      f.result === 'fail' ? 'border-destructive/40 bg-destructive-soft/40' : 'border-border bg-card',
     )}>
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-snug">{f.title}</p>
         <div className="flex items-center gap-1 flex-shrink-0">
-          {f.isCritical && <Badge className="bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300"><Star className="size-2.5" /> {t('qaRunner.critical')}</Badge>}
-          {f.requiresPhoto && <Badge className={needsPhoto ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 'bg-muted text-muted-foreground'}><Camera className="size-2.5" /> {t('qaRunner.photo')}</Badge>}
-          {f.isRepeat && <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300"><Repeat className="size-2.5" /> {t('qaRunner.repeat')}</Badge>}
+          {f.isCritical && <Badge className="bg-destructive-soft text-destructive"><Star className="size-2.5" /> {t('qaRunner.critical')}</Badge>}
+          {f.requiresPhoto && <Badge className={needsPhoto ? 'bg-warning-mark/10 text-warning' : 'bg-muted text-muted-foreground'}><Camera className="size-2.5" /> {t('qaRunner.photo')}</Badge>}
+          {f.isRepeat && <Badge className="bg-warning-mark/10 text-warning"><Repeat className="size-2.5" /> {t('qaRunner.repeat')}</Badge>}
           <span className="text-xs text-muted-foreground">×{f.weight}</span>
         </div>
       </div>
@@ -270,7 +270,7 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
           </label>
         )}
         {f.issueId && (
-          <span className="text-xs text-red-700 dark:text-red-400 flex items-center gap-1 ml-auto">
+          <span className="text-xs text-destructive flex items-center gap-1 ml-auto">
             <AlertTriangle className="size-3" /> {t('qaRunner.issueRaised')}
           </span>
         )}

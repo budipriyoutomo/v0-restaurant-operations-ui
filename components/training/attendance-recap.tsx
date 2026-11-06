@@ -64,7 +64,7 @@ function RecapTable({ title, rows }: { title: string; rows: (AttendanceBucket & 
               <td className="px-4 py-3 text-right">{x.no_show}</td>
               <td className={cn('px-3 py-2 text-right font-semibold',
                 x.attendance_rate === null ? 'text-muted-foreground'
-                  : x.attendance_rate >= 90 ? 'text-emerald-700 dark:text-emerald-400' : x.attendance_rate >= 70 ? 'text-amber-700 dark:text-amber-400' : 'text-red-600')}>
+                  : x.attendance_rate >= 90 ? 'text-success' : x.attendance_rate >= 70 ? 'text-warning' : 'text-destructive')}>
                 {rateLabel(x.attendance_rate)}
               </td>
             </tr>

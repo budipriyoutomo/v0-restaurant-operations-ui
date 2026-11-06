@@ -23,9 +23,9 @@ import { StatusLabel } from '@/components/shared/status-label'
 import { ListSkeleton } from '@/components/shared/skeleton'
 
 const RESULT_BUTTONS: { value: OpsResult; icon: React.ElementType; active: string }[] = [
-  { value: 'pass', icon: Check, active: 'bg-emerald-600 text-white border-emerald-600' },
-  { value: 'fail', icon: X,     active: 'bg-red-600 text-white border-red-600' },
-  { value: 'na',   icon: Minus, active: 'bg-slate-500 text-white border-slate-500' },
+  { value: 'pass', icon: Check, active: 'bg-success text-success-foreground border-success' },
+  { value: 'fail', icon: X,     active: 'bg-destructive text-destructive-foreground border-destructive' },
+  { value: 'na',   icon: Minus, active: 'bg-muted-foreground text-background border-muted-foreground' },
 ]
 
 
@@ -169,7 +169,7 @@ export function ChecklistRunner({ runId, onClose, onChanged }: Props) {
             {scanOpen && <div className="mt-2"><ScanTab resolveQr={resolveQr} onResolved={onScanned} /></div>}
           </div>
         )}
-        {state === 'missed' && <p className="text-sm text-red-700 dark:text-red-400">{t('ops.missedLocked')}</p>}
+        {state === 'missed' && <p className="text-sm text-destructive">{t('ops.missedLocked')}</p>}
       </div>
 
       <div className="px-4 sm:px-6 py-4 space-y-6">
@@ -193,13 +193,13 @@ export function ChecklistRunner({ runId, onClose, onChanged }: Props) {
       {editable && (
         <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border px-4 sm:px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-2">
           {fails.length > 0 && (
-            <div role="note" className="text-sm rounded-xl bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-300 px-3 py-2">
+            <div role="note" className="text-sm rounded-xl bg-destructive-soft text-destructive px-3 py-2">
               <p className="font-semibold flex items-center gap-1"><AlertTriangle className="size-3" aria-hidden /> {t('ops.willRaise', { count: fails.length })}</p>
               <ul className="list-disc pl-4">{fails.map((f) => <li key={f.id}>{f.title}{f.critical ? ` (${t('ops.critical')})` : ''}</li>)}</ul>
             </div>
           )}
           {problems.length > 0 && (
-            <details className="text-sm text-amber-800 dark:text-amber-300">
+            <details className="text-sm text-warning">
               <summary className="cursor-pointer font-medium">{t('ops.needAttention', { count: problems.length })}</summary>
               <ul className="mt-1 space-y-0.5 list-disc pl-4">
                 {problems.map((p) => <li key={`${p.title}-${p.kind}`}>{p.title}: {t(`ops.problem.${p.kind}`)}</li>)}
@@ -257,15 +257,15 @@ function ItemCard({ item: i, editable, queuedPhotos, onSave, onPhoto }: {
 
   return (
     <div id={`ops-item-${i.id}`} className={cn('rounded-2xl border p-4 space-y-3 scroll-mt-44',
-      livePreview === 'fail' ? 'border-red-300 bg-red-50/40 dark:border-red-900 dark:bg-red-950/20' : 'border-border bg-card')}>
+      livePreview === 'fail' ? 'border-destructive/40 bg-destructive-soft/40' : 'border-border bg-card')}>
       <div className="flex items-start justify-between gap-2">
         <p className="text-[15px] font-medium leading-snug">
           {i.title}
           {i.assetName && <span className="block text-xs font-normal text-muted-foreground mt-0.5">{i.assetName}</span>}
         </p>
         <div className="flex items-center gap-1 flex-shrink-0">
-          {i.isCritical && <Badge className="bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300"><Star className="size-3" /> {t('ops.critical')}</Badge>}
-          {i.requiresPhoto && <Badge className={needsPhoto ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' : 'bg-muted text-muted-foreground'}><Camera className="size-3" /> {t('ops.photo')}</Badge>}
+          {i.isCritical && <Badge className="bg-destructive-soft text-destructive"><Star className="size-3" /> {t('ops.critical')}</Badge>}
+          {i.requiresPhoto && <Badge className={needsPhoto ? 'bg-warning-mark/10 text-warning' : 'bg-muted text-muted-foreground'}><Camera className="size-3" /> {t('ops.photo')}</Badge>}
         </div>
       </div>
 
@@ -282,13 +282,13 @@ function ItemCard({ item: i, editable, queuedPhotos, onSave, onPhoto }: {
             onKeyDown={(e) => { if (e.key === 'Enter') commitValue() }}
             aria-label={`${i.title}${i.unit ? ` (${i.unit})` : ''}`}
             className={cn('h-12 w-28 px-3 rounded-xl border text-lg font-semibold tabular-nums bg-background focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 disabled:opacity-70',
-              livePreview === 'fail' ? 'border-red-400 text-red-700 dark:text-red-400' : 'border-border')}
+              livePreview === 'fail' ? 'border-destructive/40 text-destructive' : 'border-border')}
           />
           <span className="text-sm text-muted-foreground">{i.unit}</span>
           {range && <span className="text-xs text-muted-foreground ml-auto">{t('ops.range', { range })}</span>}
           <button type="button" disabled={!editable} onClick={() => onSave({ result: 'na' }, { result: 'na', value: null })}
             className={cn('h-12 px-3.5 rounded-xl border text-sm font-semibold',
-              i.result === 'na' ? 'bg-slate-500 text-white border-slate-500' : 'border-border', !editable && 'opacity-40')}>
+              i.result === 'na' ? 'bg-muted-foreground text-background border-muted-foreground' : 'border-border', !editable && 'opacity-40')}>
             {label('opsResult', 'na')}
           </button>
         </div>
@@ -311,14 +311,14 @@ function ItemCard({ item: i, editable, queuedPhotos, onSave, onPhoto }: {
 
       {needsCorrective && (
         <div>
-          <label className="block text-xs font-semibold text-red-700 dark:text-red-400 mb-1" htmlFor={`ca-${i.id}`}>
+          <label className="block text-xs font-semibold text-destructive mb-1" htmlFor={`ca-${i.id}`}>
             {t('ops.correctiveAction')} <span aria-hidden>*</span>
           </label>
           <textarea id={`ca-${i.id}`} value={corrective} disabled={!editable} rows={2}
             onChange={(e) => setCorrective(e.target.value)}
             onBlur={() => corrective !== (i.correctiveAction ?? '') && onSave({ correctiveAction: corrective }, { correctiveAction: corrective })}
             placeholder={t('ops.correctivePlaceholder')}
-            className="w-full px-3 py-2 rounded-xl border border-red-300 bg-background text-sm disabled:opacity-70" />
+            className="w-full px-3 py-2 rounded-xl border border-destructive/40 bg-background text-sm disabled:opacity-70" />
         </div>
       )}
 
@@ -347,7 +347,7 @@ function ItemCard({ item: i, editable, queuedPhotos, onSave, onPhoto }: {
           </label>
         )}
         {i.issueNumber && (
-          <span className="text-xs font-medium text-red-700 dark:text-red-400 flex items-center gap-1 ml-auto">
+          <span className="text-xs font-medium text-destructive flex items-center gap-1 ml-auto">
             <AlertTriangle className="size-3" /> {t('ops.issueRaised', { number: i.issueNumber })}
           </span>
         )}

@@ -136,9 +136,9 @@ function RunCard({ run, onOpen }: { run: OpsRun; onOpen: () => void }) {
       </div>
       {(run.failedCount > 0 || run.isLate) && (
         <p className="text-xs flex items-center gap-3 flex-wrap">
-          {run.failedCount > 0 && <span className="text-red-700 dark:text-red-400 inline-flex items-center gap-1"><AlertTriangle className="size-3" /> {t('ops.failedCount', { count: run.failedCount })}</span>}
-          {run.criticalFailed && <span className="text-red-700 dark:text-red-400 inline-flex items-center gap-1"><Star className="size-3" /> {t('ops.critical')}</span>}
-          {run.isLate && <span className="text-amber-700 dark:text-amber-400">{t('ops.lateBadge')}</span>}
+          {run.failedCount > 0 && <span className="text-destructive inline-flex items-center gap-1"><AlertTriangle className="size-3" /> {t('ops.failedCount', { count: run.failedCount })}</span>}
+          {run.criticalFailed && <span className="text-destructive inline-flex items-center gap-1"><Star className="size-3" /> {t('ops.critical')}</span>}
+          {run.isLate && <span className="text-warning">{t('ops.lateBadge')}</span>}
         </p>
       )}
     </button>
@@ -197,9 +197,9 @@ function HistoryTab({ refreshKey, onOpen, outlet, setOutlet }: {
                     <td className="px-4 py-3">{r.outlet}</td>
                     <td className="px-4 py-3">
                       <StatusLabel signal={WINDOW_SIGNAL[windowState(r)]}>{label('opsRunStatus', r.status)}</StatusLabel>
-                      {r.isLate && <span className="ml-1.5 text-xs text-amber-700 dark:text-amber-400">{t('ops.lateBadge')}</span>}
+                      {r.isLate && <span className="ml-1.5 text-xs text-warning">{t('ops.lateBadge')}</span>}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{r.score ?? '—'}{r.failedCount > 0 && <span className="ml-1 text-xs text-red-700 dark:text-red-400">({r.failedCount}✗)</span>}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{r.score ?? '—'}{r.failedCount > 0 && <span className="ml-1 text-xs text-destructive">({r.failedCount}✗)</span>}</td>
                   </tr>
                 ))}
               </tbody>

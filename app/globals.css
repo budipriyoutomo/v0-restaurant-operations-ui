@@ -30,6 +30,7 @@
   --warning: #96590A;        /* waiting — text */
   --warning-mark: #B86E00;   /* waiting — dots and bars only, never text */
   --success: #1E7A4C;        /* done — always with a text label */
+  --success-foreground: #FFFFFF;
   --chart-1: #0F5C4A;
   --chart-2: #5F5A66;
   --chart-3: #B86E00;
@@ -70,6 +71,7 @@
   --warning: #E9A94B;
   --warning-mark: #E9A94B;
   --success: #5CC495;
+  --success-foreground: #0B2B23;
   --chart-1: #4FB596;
   --chart-2: #A9A3B1;
   --chart-3: #E9A94B;
@@ -131,6 +133,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-mark: var(--warning-mark);
 }

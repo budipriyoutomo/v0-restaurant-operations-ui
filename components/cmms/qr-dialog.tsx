@@ -200,7 +200,7 @@ function PrintTab({ assets }: { assets: { id: string; name: string; number: stri
                 ? <img src={dataUrls[a.id]} alt={a.name} className="w-full max-w-[120px]" />
                 : <div className="w-[120px] h-[120px] animate-pulse bg-muted" />}
               <p className="text-xs font-mono mt-1 text-black">{a.number}</p>
-              <p className="text-xs text-neutral-600 truncate w-full">{a.name}</p>
+              <p className="text-xs text-black/70 truncate w-full">{a.name}</p>
             </div>
           ))}
         </div>

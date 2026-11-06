@@ -77,7 +77,7 @@ export function GuestPage() {
       />
 
       <SegmentedTabs<Tab> label={t('nav.guest-service')} value={tab} onChange={setTab} tabs={[
-        { id: 'complaints', label: <>{t('guest.tab.complaints')}{overdue > 0 && <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">{t('guest.overdueBadge', { count: overdue })}</span>}</> },
+        { id: 'complaints', label: <>{t('guest.tab.complaints')}{overdue > 0 && <span className="text-xs px-1.5 py-0.5 rounded-full bg-destructive-soft text-destructive">{t('guest.overdueBadge', { count: overdue })}</span>}</> },
         { id: 'kpis', label: t('guest.tab.kpis') },
         { id: 'issues', label: t('guest.tab.issues') },
       ]} />
@@ -131,9 +131,9 @@ function CaseRow({ c, now, target, onOpen }: { c: GuestCase; now: number; target
         </p>
       </div>
       <div className="text-right flex-shrink-0 text-xs">
-        {rs.state === 'responded' && <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{t('guest.respondedIn', { time: formatDuration(c.firstResponseMinutes, locale) })}</span>}
-        {rs.state === 'waiting' && <span className="text-amber-700 dark:text-amber-400 font-semibold">{t('guest.waiting', { time: formatDuration(rs.minutes, locale) })}</span>}
-        {rs.state === 'overdue' && <span className="text-red-600 font-semibold">{t('guest.overdue', { time: formatDuration(rs.minutes, locale) })}</span>}
+        {rs.state === 'responded' && <span className="text-success font-semibold">{t('guest.respondedIn', { time: formatDuration(c.firstResponseMinutes, locale) })}</span>}
+        {rs.state === 'waiting' && <span className="text-warning font-semibold">{t('guest.waiting', { time: formatDuration(rs.minutes, locale) })}</span>}
+        {rs.state === 'overdue' && <span className="text-destructive font-semibold">{t('guest.overdue', { time: formatDuration(rs.minutes, locale) })}</span>}
       </div>
     </button>
   )

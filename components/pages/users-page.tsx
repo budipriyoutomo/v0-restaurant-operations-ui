@@ -61,8 +61,8 @@ export function UsersPage() {
         {[
           { label: t('users.totalUsers'), value: stats.total,  color: 'text-foreground' },
           { label: t('users.active'),     value: stats.active, color: 'text-success' },
-          { label: t('users.admins'),     value: stats.admins, color: 'text-red-600' },
-          { label: t('users.roles'),      value: stats.roles,  color: 'text-purple-600' },
+          { label: t('users.admins'),     value: stats.admins, color: 'text-destructive' },
+          { label: t('users.roles'),      value: stats.roles,  color: 'text-foreground' },
         ].map(s => (
           <div key={s.label} className="p-4 rounded-2xl border border-border bg-card">
             <p className="text-xs font-medium text-muted-foreground mb-1">{s.label}</p>

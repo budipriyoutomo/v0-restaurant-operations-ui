@@ -66,7 +66,7 @@ export function OfflineStatusBar() {
     : null
 
   return (
-    <div className={cn('text-xs font-medium', conflicts.length ? 'bg-destructive/10 text-destructive' : online ? 'bg-warning/15 text-amber-800 dark:text-amber-300' : 'bg-muted text-muted-foreground')}>
+    <div className={cn('text-xs font-medium', conflicts.length ? 'bg-destructive/10 text-destructive' : online ? 'bg-warning-mark/10 text-warning' : 'bg-muted text-muted-foreground')}>
       <div role="status" className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-1.5">
         {online ? <CloudOff className="size-3.5" /> : <WifiOff className="size-3.5" />}
         {!online && <span>{t('offline.mode')}</span>}

@@ -25,8 +25,8 @@ import { byOutlet } from '@/lib/outlet-filter'
 type Tab = 'sessions' | 'approvals' | 'programs' | 'attendance'
 
 const STATUS_COLORS: Record<TrainingProgramStatus, string> = {
-  scheduled:  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
-  ongoing:    'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+  scheduled:  'bg-muted text-foreground',
+  ongoing:    'bg-warning-mark/10 text-warning',
   completed:  'bg-success/15 text-success',
   cancelled:  'bg-muted text-muted-foreground',
 }
@@ -94,8 +94,8 @@ export function TrainingPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard label={t('training.totalSessions')} value={stats.total}    color="text-foreground" />
-        <StatCard label={t('assetsPage.pending')} value={stats.pending}  color="text-amber-700 dark:text-amber-400"  />
-        <StatCard label={t('training.upcoming')} value={stats.upcoming} color="text-blue-600"   />
+        <StatCard label={t('assetsPage.pending')} value={stats.pending}  color="text-warning"  />
+        <StatCard label={t('training.upcoming')} value={stats.upcoming} color="text-foreground" />
         <StatCard label={t('training.programs')} value={stats.programs} color="text-primary"    />
       </div>
 
@@ -149,7 +149,7 @@ export function TrainingPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700 dark:text-amber-400" />}
+                  {a.status === 'pending'  && <Clock className="size-4 text-warning" />}
                   {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
                   {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
                   <StatusBadge status={a.status} />
@@ -265,7 +265,7 @@ function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusC
             <span className="flex items-center gap-1.5 font-medium"><Users className="size-3.5" /> {t('training.participants')}</span>
             <span className="text-muted-foreground">
               {p.enrolled_count}{p.max_participants ? ` / ${p.max_participants}` : ''}
-              {placesLeft(p.max_participants, p.enrolled_count) === 0 && <span className="ml-1 text-amber-700 dark:text-amber-400 font-semibold">{t('training.full')}</span>}
+              {placesLeft(p.max_participants, p.enrolled_count) === 0 && <span className="ml-1 text-warning font-semibold">{t('training.full')}</span>}
               {p.attended_count > 0 && <span className="ml-1">· {p.attended_count} attended</span>}
             </span>
           </button>

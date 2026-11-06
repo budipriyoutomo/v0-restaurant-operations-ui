@@ -46,7 +46,7 @@ export function MyWorkPage() {
           key: c.id, to: recordPath('ops', c.id), number: c.number, title: c.templateName,
           meta: [c.outlet, c.dueAt ? t('myWork.checklistDue', { time: relative(c.dueAt) }) : '',
             t('myWork.checklistProgress', { answered: c.answered, total: c.itemCount })].filter(Boolean).join(' · '),
-          badge: late ? <span className="text-xs px-2 py-0.5 rounded-md bg-warning/15 text-amber-700 dark:text-warning font-semibold">{t('myWork.checklistLate')}</span> : undefined,
+          badge: late ? <span className="text-xs px-2 py-0.5 rounded-md bg-warning/15 text-warning dark:text-warning font-semibold">{t('myWork.checklistLate')}</span> : undefined,
         }
       }),
     },

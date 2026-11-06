@@ -9,6 +9,7 @@ import { issueModule } from '@/lib/categories'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 import { useMyOutlets, usePermissions } from '@/lib/permissions'
 import { Issue, IssueStatus, Priority } from '@/lib/types'
+import { SIGNAL_DOT, SIGNAL_EDGE, SIGNAL_RING, statusSignal } from '@/lib/tone'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateWorkOrderDialog } from '@/components/dialogs/create-work-order-dialog'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
@@ -23,15 +24,13 @@ import { StatusBoard, type CardDrag } from '@/components/shared/status-board'
 import { useUrlState } from '@/lib/use-route'
 
 // Theme-aware status presentation — matches the Task Center kanban.
-const STATUS_META: Record<IssueStatus, { dot: string; accent: string; ring: string }> = {
-  open:          { dot: 'bg-blue-500',    accent: 'border-t-blue-500',    ring: 'ring-blue-500/40' },
-  assigned:      { dot: 'bg-violet-500',  accent: 'border-t-violet-500',  ring: 'ring-violet-500/40' },
-  'in-progress': { dot: 'bg-amber-500',   accent: 'border-t-amber-500',   ring: 'ring-amber-500/40' },
-  waiting:       { dot: 'bg-cyan-500',    accent: 'border-t-cyan-500',    ring: 'ring-cyan-500/40' },
-  resolved:      { dot: 'bg-emerald-500', accent: 'border-t-emerald-500', ring: 'ring-emerald-500/40' },
-  closed:        { dot: 'bg-slate-400',   accent: 'border-t-slate-400',   ring: 'ring-slate-400/40' },
-  cancelled:     { dot: 'bg-rose-400',    accent: 'border-t-rose-400',    ring: 'ring-rose-400/40' },
-}
+// Column look follows the three signals (Todo-Modern-UI Fase 1).
+const STATUS_META = Object.fromEntries(
+  (['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed', 'cancelled'] as IssueStatus[]).map((s) => {
+    const signal = statusSignal(s)
+    return [s, { dot: SIGNAL_DOT[signal], accent: SIGNAL_EDGE[signal], ring: SIGNAL_RING[signal] }]
+  }),
+) as Record<IssueStatus, { dot: string; accent: string; ring: string }>
 
 // Maintenance board shows the active pipeline only — 'closed' issues drop off the board.
 const COLUMN_ORDER: IssueStatus[] = ['open', 'assigned', 'in-progress', 'waiting', 'resolved']
@@ -120,11 +119,11 @@ export function MaintenanceModulePage() {
         </div>
         <div className="p-4 rounded-2xl border border-border bg-card">
           <p className="text-xs font-medium text-muted-foreground mb-1">{t('maintenance.critical')}</p>
-          <p className="text-2xl font-bold text-red-600">{stats.critical}</p>
+          <p className="text-2xl font-bold text-destructive">{stats.critical}</p>
         </div>
         <div className="p-4 rounded-2xl border border-border bg-card">
           <p className="text-xs font-medium text-muted-foreground mb-1">{t('maintenance.slaBreached')}</p>
-          <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{stats.overdue}</p>
+          <p className="text-2xl font-bold text-warning">{stats.overdue}</p>
         </div>
       </div>
 
@@ -245,10 +244,10 @@ export function MaintenanceModulePage() {
             </div>
 
             {/* Issue reference */}
-            <div className="p-3 rounded-md bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs">
-              <p className="text-blue-700 dark:text-blue-300 font-medium">{t('maintenance.issueRef')}</p>
-              <p className="text-blue-700 dark:text-blue-300 font-mono font-bold mt-0.5">{selectedIssue.number}</p>
-              <p className="text-blue-600 dark:text-blue-400 mt-0.5">{selectedIssue.outlet}</p>
+            <div className="p-3 rounded-md bg-muted border border-border text-xs">
+              <p className="text-muted-foreground font-medium">{t('maintenance.issueRef')}</p>
+              <p className="text-foreground font-mono font-bold mt-0.5">{selectedIssue.number}</p>
+              <p className="text-muted-foreground mt-0.5">{selectedIssue.outlet}</p>
             </div>
 
             {/* ----------------------------------------------------------------
@@ -381,7 +380,7 @@ function IssueCard({
       <div className="flex items-start gap-2 mb-2">
         <Wrench className={cn(
           'size-4 mt-0.5 flex-shrink-0',
-          issue.priority === 'critical' ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'
+          issue.priority === 'critical' ? 'text-destructive' : 'text-muted-foreground'
         )} />
         <h4 className="font-medium text-sm leading-snug line-clamp-2 flex-1">{issue.title}</h4>
         {drag.draggable && <GripVertical className="size-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />}
@@ -399,7 +398,7 @@ function IssueCard({
           <span className="truncate">{issue.outlet}</span>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {issue.slaBreach && issue.status !== 'resolved' && (
-              <span className="flex items-center gap-0.5 text-red-600 dark:text-red-400 font-medium">
+              <span className="flex items-center gap-0.5 text-destructive font-medium">
                 <AlertCircle className="size-3" /> SLA
               </span>
             )}

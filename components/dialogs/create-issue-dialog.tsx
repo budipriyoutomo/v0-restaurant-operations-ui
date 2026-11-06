@@ -289,20 +289,20 @@ export function CreateIssueDialog({
         {sent ? (
           <div className="p-6 space-y-4 text-center" role="status">
             {sent.queued ? (<>
-              <CloudUpload className="size-12 text-amber-700 dark:text-amber-400 mx-auto" />
+              <CloudUpload className="size-12 text-warning mx-auto" />
               <p className="text-lg font-bold">{t('createIssue.queuedTitle')}</p>
               <p className="text-sm text-muted-foreground">{t('createIssue.queuedHint')}</p>
             </>) : (<>
-              <CheckCircle2 className="size-12 text-emerald-700 dark:text-emerald-400 mx-auto" />
+              <CheckCircle2 className="size-12 text-success mx-auto" />
               <p className="text-lg font-bold">{t('createIssue.sent', { number: sent.number })}</p>
               <p className="text-sm text-muted-foreground">{t('createIssue.sentHint', { outlet: sent.outlet })}</p>
             </>)}
             {whatsappOptIn && !sent.queued && (
-              <p className="flex items-center justify-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+              <p className="flex items-center justify-center gap-1.5 text-sm text-success">
                 <MessageCircle className="size-4" /> {t('createIssue.whatsapp')}
               </p>
             )}
-            {sent.photo === 'queued' && <p className="text-sm text-amber-700 dark:text-amber-400">{t('createIssue.photoQueued')}</p>}
+            {sent.photo === 'queued' && <p className="text-sm text-warning">{t('createIssue.photoQueued')}</p>}
             {sent.photo === 'failed' && <p className="text-sm text-destructive">{t('createIssue.photoFailed')}</p>}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={reset}
@@ -363,7 +363,7 @@ export function CreateIssueDialog({
             </label>
             {quick && outletOptions.length === 0 ? (
               // The server would refuse a typed name: staff only report for their own outlets.
-              <p id={`${id}-outlet`} role="alert" className="px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-sm text-amber-800 dark:text-amber-300">
+              <p id={`${id}-outlet`} role="alert" className="px-3 py-2 rounded-lg border border-warning-mark/40 bg-warning-mark/10 text-sm text-warning">
                 {/* Offline on a device that never loaded the outlets: not an access problem. */}
                 {typeof navigator !== 'undefined' && !navigator.onLine ? t('createIssue.noOutletsOffline') : t('createIssue.noOutletAccess')}
               </p>
@@ -530,7 +530,7 @@ export function CreateIssueDialog({
                         className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
                       />
                       {needsApproval && (
-                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                        <p className="text-xs text-warning mt-1">
                           {t('createIssue.needsApproval', { threshold: rupiah(threshold) })}
                         </p>
                       )}

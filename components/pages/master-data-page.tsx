@@ -282,7 +282,7 @@ export function MasterDataPage() {
                           <h3 className="font-bold text-foreground">{category.name}</h3>
                           <span className={cn(
                             'text-xs font-semibold px-2 py-0.5 rounded-full',
-                            category.module === 'maintenance' ? 'bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                            category.module === 'maintenance' ? 'bg-warning-mark/10 text-warning' : 'bg-muted text-foreground'
                           )}>
                             {label('categoryModule', category.module)}
                           </span>
@@ -403,8 +403,8 @@ export function MasterDataPage() {
                               className={cn(
                                 'text-xs font-semibold px-2.5 py-1 rounded-full',
                                 isMaintenance
-                                  ? 'bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300'
-                                  : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                                  ? 'bg-warning-mark/10 text-warning'
+                                  : 'bg-muted text-foreground'
                               )}
                             >
                               {getCategoryName(catId)}

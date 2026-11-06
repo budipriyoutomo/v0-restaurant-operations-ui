@@ -24,7 +24,7 @@ type Tab = 'campaigns' | 'approvals' | 'issues'
 
 const STATUS_COLORS: Record<CampaignStatus, string> = {
   draft:     'bg-muted text-muted-foreground',
-  active:    'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+  active:    'bg-primary/10 text-primary',
   completed: 'bg-success/15 text-success',
   cancelled: 'bg-destructive/10 text-destructive',
 }
@@ -90,8 +90,8 @@ export function MarketingPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard label={t('marketing.totalCampaigns')} value={stats.campaigns} color="text-foreground" />
-        <StatCard label={label('campaignStatus', 'active')} value={stats.active}    color="text-blue-600"   />
-        <StatCard label={t('assetsPage.pending')} value={stats.pending}  color="text-amber-700 dark:text-amber-400"  />
+        <StatCard label={label('campaignStatus', 'active')} value={stats.active}    color="text-foreground" />
+        <StatCard label={t('assetsPage.pending')} value={stats.pending}  color="text-warning"  />
         <StatCard label={label('campaignStatus', 'completed')} value={stats.completed} color="text-success"    />
       </div>
 
@@ -139,7 +139,7 @@ export function MarketingPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700 dark:text-amber-400" />}
+                  {a.status === 'pending'  && <Clock className="size-4 text-warning" />}
                   {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
                   {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
                   <StatusBadge status={a.status} />
@@ -250,7 +250,7 @@ function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatu
             {c.outlet && <p>{t('training.outlet', { name: c.outlet })}</p>}
             {c.pic && <p>{t('marketing.pic', { name: c.pic })}</p>}
             {c.budget !== null && <p>{t('marketing.budgetLabel')} <span className="font-semibold text-foreground">{formatMoney(c.budget, c.currency)}</span></p>}
-            {c.budget === null && c.budget_legacy && <p className="text-amber-700 dark:text-amber-400">{t('marketing.oldBudget', { text: c.budget_legacy })}</p>}
+            {c.budget === null && c.budget_legacy && <p className="text-warning">{t('marketing.oldBudget', { text: c.budget_legacy })}</p>}
             {(c.start_date || c.end_date) && (
               <p className="flex items-center gap-1">
                 <Calendar className="size-3" />
@@ -553,7 +553,7 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
               <p className="text-xs text-muted-foreground mt-1">{formatMoney(parseMoneyInput(form.budget), form.currency)}</p>
             )}
             {campaign?.budget_legacy && campaign.budget === null && (
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{t('marketing.oldBudgetShort', { text: campaign.budget_legacy })}</p>
+              <p className="text-xs text-warning mt-1">{t('marketing.oldBudgetShort', { text: campaign.budget_legacy })}</p>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">

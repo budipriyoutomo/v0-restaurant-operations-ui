@@ -293,8 +293,8 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
 
         {/* Bulk close of finished work (Todo-Pilot §18) */}
         {readyOnly && can.updateIssueStatus && readyIds.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 text-sm dark:bg-emerald-950/30 dark:border-emerald-900">
-            <span className="text-emerald-800 dark:text-emerald-400">
+          <div className="flex items-center gap-2 flex-wrap p-3 rounded-xl border border-success/40 bg-success/10/60 text-sm">
+            <span className="text-success">
               {readyIds.length === 1 ? t('issues.bulkHintOne') : t('issues.bulkHintMany', { count: readyIds.length })}
             </span>
             {confirmBulkClose ? (
@@ -302,7 +302,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                 <button
                   onClick={runBulkClose}
                   disabled={bulkClosing}
-                  className="px-3.5 h-9 rounded-lg bg-emerald-700 text-white font-semibold hover:bg-emerald-800 disabled:opacity-60"
+                  className="px-3.5 h-9 rounded-lg bg-success text-success-foreground font-semibold hover:bg-success/90 disabled:opacity-60"
                 >
                   {readyIds.length === 1 ? t('issues.bulkConfirmOne') : t('issues.bulkConfirmMany', { count: readyIds.length })}
                 </button>
@@ -313,7 +313,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
             ) : (
               <button
                 onClick={() => setConfirmBulkClose(true)}
-                className="px-3.5 h-9 rounded-lg bg-emerald-700 text-white font-semibold hover:bg-emerald-800"
+                className="px-3.5 h-9 rounded-lg bg-success text-success-foreground font-semibold hover:bg-success/90"
               >
                 {t('issues.closeAll', { count: readyIds.length })}
               </button>
@@ -334,7 +334,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
           )}
           {lateOnly && (
             <button onClick={() => setLateOnly(null)}
-              className="inline-flex items-center gap-1 min-h-8 px-3 rounded-full bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 text-xs font-medium hover:bg-red-200">
+              className="inline-flex items-center gap-1 min-h-8 px-3 rounded-full bg-destructive-soft text-destructive text-xs font-medium hover:bg-destructive/15">
               {t('issues.chipLate')} <X className="size-3" aria-hidden="true" />
             </button>
           )}
@@ -414,22 +414,22 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                   <span className="bg-muted px-2 py-0.5 rounded-md font-medium text-foreground/80">{label('category', issue.category)}</span>
                   <span>{issue.outlet}</span>
                   {sla.kind === 'breached' && (
-                    <span className="bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                    <span className="bg-destructive-soft text-destructive px-2 py-0.5 rounded font-medium flex items-center gap-1">
                       <AlertTriangle className="size-3" /> {sla.days === 1 ? t('issues.slaOverdueOne') : t('issues.slaOverdue', { n: sla.days })}
                     </span>
                   )}
                   {sla.kind === 'today' && (
-                    <span className="bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                    <span className="bg-warning-mark/10 text-warning px-2 py-0.5 rounded font-medium flex items-center gap-1">
                       <Clock className="size-3" /> {t('issues.slaToday')}
                     </span>
                   )}
                   {sla.kind === 'left' && (
-                    <span className={cn('flex items-center gap-1', sla.days === 1 && 'text-amber-800 dark:text-amber-400 font-medium')}>
+                    <span className={cn('flex items-center gap-1', sla.days === 1 && 'text-warning font-medium')}>
                       <Clock className="size-3" /> {sla.days === 1 ? t('issues.slaLeftOne') : t('issues.slaLeft', { n: sla.days })}
                     </span>
                   )}
                   {issue.readyToClose && (
-                    <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                    <span className="bg-success/10 text-success px-2 py-0.5 rounded font-medium flex items-center gap-1">
                       <CheckCircle2 className="size-3" /> {t('issues.readyBadge')}
                     </span>
                   )}
@@ -439,17 +439,17 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                   <div className="flex items-center gap-2 flex-wrap text-xs mb-3">
                     {appr?.kind === 'pending' && (
                       <span className={cn('px-2 py-0.5 rounded font-medium flex items-center gap-1',
-                        appr.escalated ? 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300' : 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300')}>
+                        appr.escalated ? 'bg-destructive-soft text-destructive' : 'bg-warning-mark/10 text-warning')}>
                         <CheckCircle2 className="size-3" /> {t('issues.approvalStep', { step: appr.step, total: appr.total })}
                       </span>
                     )}
                     {appr?.kind === 'rejected' && (
-                      <span className="bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                      <span className="bg-destructive-soft text-destructive px-2 py-0.5 rounded font-medium flex items-center gap-1">
                         <XCircle className="size-3" /> {t('issues.approvalRejected')}
                       </span>
                     )}
                     {appr?.kind === 'approved' && (
-                      <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                      <span className="bg-success/10 text-success px-2 py-0.5 rounded font-medium flex items-center gap-1">
                         <CheckCircle2 className="size-3" /> {t('issues.approvalApproved')}
                       </span>
                     )}
@@ -592,13 +592,13 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                   {linkedApproval && (
                     <LinkedRow to={canViewPage('approvals') ? recordPath('approvals', linkedApproval.id) : null}>
                       <div className="flex items-center gap-2 min-w-0">
-                        <CheckCircle2 className="size-3.5 text-amber-700 dark:text-amber-400 flex-shrink-0" />
+                        <CheckCircle2 className="size-3.5 text-warning flex-shrink-0" />
                         <span className="text-xs font-mono font-bold text-primary truncate">{linkedApproval.number}</span>
                       </div>
                       <span className={cn(
                         'text-xs font-semibold px-2 py-0.5 rounded-full capitalize',
-                        linkedApproval.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' :
-                        linkedApproval.status === 'approved' ? 'bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+                        linkedApproval.status === 'pending' ? 'bg-warning-mark/10 text-warning' :
+                        linkedApproval.status === 'approved' ? 'bg-success/10 text-success' : 'bg-destructive-soft text-destructive'
                       )}>
                         {label('approvalStatus', linkedApproval.status)}
                       </span>
@@ -607,7 +607,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                   {linkedWorkOrders.map((wo) => (
                     <LinkedRow key={wo.id} to={canViewPage('cmms') ? recordPath('cmms', wo.id) : null}>
                       <div className="flex items-center gap-2 min-w-0">
-                        <Wrench className="size-3.5 text-blue-600 flex-shrink-0" />
+                        <Wrench className="size-3.5 text-muted-foreground flex-shrink-0" />
                         <span className="text-xs font-mono font-bold text-primary truncate">{wo.number}</span>
                       </div>
                       <StatusBadge status={wo.status} />
@@ -617,32 +617,32 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
               )}
 
               {selectedIssue.slaBreach && (
-                <div className="p-4 rounded-md bg-red-100/50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 space-y-2">
-                  <p className="text-sm font-semibold text-red-700 dark:text-red-400 flex items-center gap-2">
+                <div className="p-4 rounded-md bg-destructive-soft/50 border border-destructive/40 space-y-2">
+                  <p className="text-sm font-semibold text-destructive flex items-center gap-2">
                     <AlertTriangle className="size-4" /> {t('issueDrawer.slaBreached')}
                   </p>
-                  <p className="text-xs text-red-700 dark:text-red-400">{t('issueDrawer.slaText')}</p>
+                  <p className="text-xs text-destructive">{t('issueDrawer.slaText')}</p>
                 </div>
               )}
 
               {selectedIssue.readyToClose && (
-                <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-400 flex items-start gap-2">
+                <div className="p-3 rounded-md bg-success/10 border border-success/40 text-xs text-success flex items-start gap-2">
                   <CheckCircle2 className="size-4 flex-shrink-0" />
                   <span>{t('issueDrawer.readyText')}</span>
                 </div>
               )}
 
               {selectedIssue.closureBlockers.length > 0 && !FINAL_STATUSES.includes(selectedIssue.status) && (
-                <div className="p-4 rounded-md bg-amber-100/50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 space-y-2">
-                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-400 flex items-center gap-2">
+                <div className="p-4 rounded-md bg-warning-mark/10/50 border border-warning-mark/40 space-y-2">
+                  <p className="text-sm font-semibold text-warning flex items-center gap-2">
                     <Lock className="size-4" /> {t('issueDrawer.blockedTitle')}
                   </p>
-                  <p className="text-xs text-amber-800 dark:text-amber-400">{t('issueDrawer.blockedText')}</p>
+                  <p className="text-xs text-warning">{t('issueDrawer.blockedText')}</p>
                   <ul className="space-y-1">
                     {selectedIssue.closureBlockers.map((b) => (
                       <li key={b.id} className="flex items-center justify-between text-xs">
-                        <span className="font-mono font-bold text-amber-900 dark:text-amber-400">{b.number}</span>
-                        <span className="text-amber-800 dark:text-amber-400">{t(`blocker.${b.type}` as MessageKey)} · {label(b.type === 'work_order' ? 'woStatus' : b.type === 'approval' ? 'approvalStatus' : 'status', b.status)}</span>
+                        <span className="font-mono font-bold text-warning">{b.number}</span>
+                        <span className="text-warning">{t(`blocker.${b.type}` as MessageKey)} · {label(b.type === 'work_order' ? 'woStatus' : b.type === 'approval' ? 'approvalStatus' : 'status', b.status)}</span>
                       </li>
                     ))}
                   </ul>
@@ -726,7 +726,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                         </button>
                       )}
                       {!FINAL_STATUSES.includes(selectedIssue.status) && (
-                        <button onClick={() => openAction('cancel')} className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg border border-red-200 text-red-700 text-sm font-medium hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40">
+                        <button onClick={() => openAction('cancel')} className="flex items-center gap-1.5 px-3.5 h-9 rounded-lg border border-destructive/40 text-destructive text-sm font-medium hover:bg-destructive-soft">
                           <Ban className="size-3.5" /> {t('issueDrawer.cancelIssue')}
                         </button>
                       )}
@@ -766,7 +766,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                           }
                           className={cn(
                             'px-3.5 h-9 rounded-lg text-sm font-semibold disabled:opacity-50',
-                            lifecycleAction === 'cancel' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            lifecycleAction === 'cancel' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : 'bg-primary text-primary-foreground hover:bg-primary/90'
                           )}
                         >
                           {actionBusy ? t('common.saving') : t('common.confirm')}

@@ -19,7 +19,7 @@ export function complianceTone(c: number | null): 'good' | 'warning' | 'critical
   if (c >= 70) return 'warning'
   return 'critical'
 }
-const TONE_TEXT = { good: 'text-emerald-700 dark:text-emerald-400', warning: 'text-amber-700 dark:text-amber-400', critical: 'text-red-700 dark:text-red-400', none: 'text-muted-foreground' }
+const TONE_TEXT = { good: 'text-success', warning: 'text-warning', critical: 'text-destructive', none: 'text-muted-foreground' }
 
 export function OpsKpiPanel({ onOutlet, compact = false }: { onOutlet: (outlet: string) => void; compact?: boolean }) {
   const { t, date } = useT()
@@ -100,11 +100,11 @@ export function OpsKpiPanel({ onOutlet, compact = false }: { onOutlet: (outlet: 
                     <p className="text-xs text-muted-foreground flex flex-wrap gap-x-3">
                       <span>{t('opsKpi.counts', { onTime: o.onTime, late: o.late, missed: o.missed, scheduled: o.scheduled })}</span>
                       {o.avgScore !== null && <span>{t('opsKpi.avgScore', { score: o.avgScore })}</span>}
-                      {o.excursions > 0 && <span className="text-amber-700 dark:text-amber-400 inline-flex items-center gap-1"><Thermometer className="size-3" aria-hidden /> {t('opsKpi.excursionCount', { count: o.excursions })}</span>}
+                      {o.excursions > 0 && <span className="text-warning inline-flex items-center gap-1"><Thermometer className="size-3" aria-hidden /> {t('opsKpi.excursionCount', { count: o.excursions })}</span>}
                       {o.issuesCreated > 0 && <span>{t('opsKpi.issueCount', { count: o.issuesCreated })}</span>}
                     </p>
                     {!compact && o.topFailing.length > 0 && (
-                      <p className="text-xs text-red-700 dark:text-red-400 inline-flex items-center gap-1">
+                      <p className="text-xs text-destructive inline-flex items-center gap-1">
                         <AlertTriangle className="size-3" aria-hidden />
                         {t('opsKpi.topFailing')}: {o.topFailing.map((f) => `${f.title} (${f.count}×)`).join(', ')}
                       </p>

@@ -137,9 +137,9 @@ export function ApprovalCenterPage() {
   const noneAtAll = statusCounts !== null && statusCounts.pending + statusCounts.approved + statusCounts.rejected === 0
 
   const stats = [
-    { label: label('approvalStatus', 'pending'), count: statusCounts?.pending ?? '—', color: toneIfAny(statusCounts?.pending, 'text-amber-700 dark:text-amber-400') },
-    { label: label('approvalStatus', 'approved'), count: statusCounts?.approved ?? '—', color: toneIfAny(statusCounts?.approved, 'text-green-700 dark:text-green-400') },
-    { label: label('approvalStatus', 'rejected'), count: statusCounts?.rejected ?? '—', color: toneIfAny(statusCounts?.rejected, 'text-red-600') },
+    { label: label('approvalStatus', 'pending'), count: statusCounts?.pending ?? '—', color: toneIfAny(statusCounts?.pending, 'text-warning') },
+    { label: label('approvalStatus', 'approved'), count: statusCounts?.approved ?? '—', color: toneIfAny(statusCounts?.approved, 'text-success') },
+    { label: label('approvalStatus', 'rejected'), count: statusCounts?.rejected ?? '—', color: toneIfAny(statusCounts?.rejected, 'text-destructive') },
   ]
 
   const handleDecision = async (decision: 'approved' | 'rejected') => {
@@ -254,13 +254,13 @@ export function ApprovalCenterPage() {
             >
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <div className="text-amber-700 dark:text-amber-400 mt-0.5 flex-shrink-0">{typeIcons[approval.type]}</div>
+                  <div className="text-warning mt-0.5 flex-shrink-0">{typeIcons[approval.type]}</div>
                   <div className="flex-1 min-w-0">
                     <p className="font-mono text-xs text-primary font-bold mb-1">{approval.number}</p>
                     <h3 className="font-semibold text-sm line-clamp-2">{approval.title}</h3>
                   </div>
                 </div>
-                <Clock className="size-5 text-amber-700 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <Clock className="size-5 text-warning flex-shrink-0 mt-0.5" />
               </div>
 
               <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground mb-2">
@@ -293,14 +293,14 @@ export function ApprovalCenterPage() {
         <SideDrawer
           label={`${t('term.approval')} ${selectedApproval.number}`}
           number={selectedApproval.number}
-          title={<span className="flex items-start gap-2"><span className="text-amber-700 dark:text-amber-400 mt-1 flex-shrink-0">{typeIcons[selectedApproval.type]}</span>{selectedApproval.title}</span>}
+          title={<span className="flex items-start gap-2"><span className="text-warning mt-1 flex-shrink-0">{typeIcons[selectedApproval.type]}</span>{selectedApproval.title}</span>}
           closeLabel={t('common.close')}
           onClose={() => setSelectedApproval(null)}
         >
               <div className="space-y-3 pb-6 border-b border-border">
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-medium text-muted-foreground">{t('common.type')}</span>
-                  <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">{label('approvalType', selectedApproval.type)}</span>
+                  <span className="text-sm font-semibold text-warning">{label('approvalType', selectedApproval.type)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <span className="text-sm font-medium text-muted-foreground">{t('common.status')}</span>
@@ -374,9 +374,9 @@ export function ApprovalCenterPage() {
                           <div className="flex flex-col items-center flex-shrink-0">
                             <div className={cn(
                               'size-6 rounded-full flex items-center justify-center text-xs font-bold ring-2',
-                              step.status === 'approved' ? 'bg-green-500 text-white ring-green-200' :
-                              step.status === 'rejected' ? 'bg-red-500 text-white ring-red-200' :
-                              isActive ? 'bg-amber-400 text-white ring-amber-200 animate-pulse' :
+                              step.status === 'approved' ? 'bg-success text-success-foreground ring-success/30' :
+                              step.status === 'rejected' ? 'bg-destructive text-destructive-foreground ring-destructive/30' :
+                              isActive ? 'bg-warning-mark/15 text-warning ring-warning-mark/40 animate-pulse' :
                               'bg-muted text-muted-foreground ring-border',
                             )}>
                               {step.status === 'approved' ? <CheckCircle2 className="size-3" /> :
@@ -386,7 +386,7 @@ export function ApprovalCenterPage() {
                             {idx < selectedApproval.steps.length - 1 && (
                               <div className={cn(
                                 'w-px h-6 mt-1',
-                                step.status === 'approved' ? 'bg-green-300' : 'bg-border',
+                                step.status === 'approved' ? 'bg-success/40' : 'bg-border',
                               )} />
                             )}
                           </div>
@@ -395,9 +395,9 @@ export function ApprovalCenterPage() {
                               <p className="text-xs font-semibold">{label('tier', step.approverRole)}</p>
                               <span className={cn(
                                 'text-xs font-semibold px-2 py-0.5 rounded-md capitalize flex-shrink-0',
-                                step.status === 'approved' ? 'bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300' :
-                                step.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300' :
-                                isActive ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' :
+                                step.status === 'approved' ? 'bg-success/10 text-success' :
+                                step.status === 'rejected' ? 'bg-destructive-soft text-destructive' :
+                                isActive ? 'bg-warning-mark/10 text-warning' :
                                 'bg-muted text-muted-foreground',
                               )}>
                                 {isActive ? t('approvals.activeStep') : label('approvalStatus', step.status)}
@@ -425,9 +425,9 @@ export function ApprovalCenterPage() {
                   return (
                     <div className={cn(
                       'p-4 rounded-md border space-y-1',
-                      selectedApproval.status === 'approved' ? 'bg-green-100/50 border-green-200 dark:bg-green-950/30 dark:border-green-900' : 'bg-red-100/50 border-red-200 dark:bg-red-950/30 dark:border-red-900'
+                      selectedApproval.status === 'approved' ? 'bg-success/10/50 border-success/40' : 'bg-destructive-soft/50 border-destructive/40'
                     )}>
-                      <p className={cn('text-sm font-semibold', selectedApproval.status === 'approved' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400')}>
+                      <p className={cn('text-sm font-semibold', selectedApproval.status === 'approved' ? 'text-success' : 'text-destructive')}>
                         {t('approvals.hasBeen', { status: label('approvalStatus', selectedApproval.status).toLowerCase() })}
                       </p>
                     </div>
@@ -447,9 +447,9 @@ export function ApprovalCenterPage() {
                   <>
                     <div className={cn(
                       'p-4 rounded-md border space-y-1',
-                      canDecideStep ? 'bg-blue-100/50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-900' : 'bg-muted/30 border-border',
+                      canDecideStep ? 'bg-primary/5 border-primary/30' : 'bg-muted/30 border-border',
                     )}>
-                      <p className={cn('text-sm font-semibold', canDecideStep ? 'text-blue-700 dark:text-blue-400' : 'text-muted-foreground')}>
+                      <p className={cn('text-sm font-semibold', canDecideStep ? 'text-primary' : 'text-muted-foreground')}>
                         {canDecideStep
                           ? activeStep ? t('approvals.yourTurn', { step: activeStep.stepOrder, role: label('tier', activeStep.approverRole) }) : t('approvals.pendingYours')
                           : activeStep ? t('approvals.waitingFor', { role: label('tier', activeStep.approverRole) }) : t('approvals.awaiting')}
@@ -500,7 +500,7 @@ export function ApprovalCenterPage() {
                                   disabled={isDeciding}
                                   className={cn(
                                     'flex-1 min-h-11 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed',
-                                    pendingDecision === 'approved' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-600 text-white hover:bg-red-700',
+                                    pendingDecision === 'approved' ? 'bg-success text-success-foreground hover:bg-success/90' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
                                   )}
                                 >
                                   {isDeciding && <Loader2 className="size-4 animate-spin" />}
@@ -512,7 +512,7 @@ export function ApprovalCenterPage() {
                             <>
                           <button
                             onClick={() => setPendingDecision('approved')}
-                            className="w-full min-h-11 px-4 py-2.5 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                            className="w-full min-h-11 px-4 py-2.5 rounded-lg bg-success text-success-foreground text-sm font-semibold hover:bg-success/90 transition-colors flex items-center justify-center gap-2"
                           >
                             <CheckCircle2 className="size-4" />
                             {activeStep && activeStep.stepOrder < selectedApproval.steps.length
@@ -521,7 +521,7 @@ export function ApprovalCenterPage() {
                           </button>
                           <button
                             onClick={() => setPendingDecision('rejected')}
-                            className="w-full min-h-11 px-4 py-2.5 rounded-lg bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 text-sm font-semibold hover:bg-red-200 dark:hover:bg-red-950 transition-colors flex items-center justify-center gap-2"
+                            className="w-full min-h-11 px-4 py-2.5 rounded-lg bg-destructive-soft text-destructive text-sm font-semibold hover:bg-destructive/15 transition-colors flex items-center justify-center gap-2"
                           >
                             <XCircle className="size-4" />
                             {t('approvals.reject')}

@@ -6,29 +6,16 @@ import { toast } from 'sonner'
 import { useIssueStore } from '@/lib/store'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 import { usePermissions } from '@/lib/permissions'
-import { PurchaseOrder, PurchaseRequest, PurchaseRequestStatus, PurchaseOrderStatus, VendorPerformanceSummary, PartPriceHistoryEntry } from '@/lib/types'
+import { PurchaseOrder, PurchaseRequest, VendorPerformanceSummary, PartPriceHistoryEntry } from '@/lib/types'
 import { useT } from '@/lib/i18n'
-import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { StatusLabel } from '@/components/shared/status-label'
+import { statusSignal } from '@/lib/tone'
 
 const rp = (n: number) => formatMoney(n ?? 0)
 
-const PR_BADGE: Record<PurchaseRequestStatus, string> = {
-  pending_approval: 'bg-warning/15 text-warning border-warning/30',
-  approved:         'bg-primary/15 text-primary border-primary/30',
-  rejected:         'bg-destructive/15 text-destructive border-destructive/30',
-  ordered:          'bg-blue-500/15 text-blue-600 border-blue-500/30',
-  received:         'bg-success/15 text-success border-success/30',
-  cancelled:        'bg-muted text-muted-foreground border-border',
-}
-const PO_BADGE: Record<PurchaseOrderStatus, string> = {
-  sent:               'bg-warning/15 text-warning border-warning/30',
-  partially_received: 'bg-blue-500/15 text-blue-600 border-blue-500/30',
-  received:           'bg-success/15 text-success border-success/30',
-  cancelled:          'bg-muted text-muted-foreground border-border',
-}
 
 export function PurchasingPanel() {
   const { t, label } = useT()
@@ -116,9 +103,7 @@ export function PurchasingPanel() {
                     <td className="py-2.5 text-muted-foreground">{pr.source === 'auto_reorder' ? t('purchasing.auto') : t('purchasing.manual')}</td>
                     <td className="py-2.5 text-right">{rp(pr.totalEst)}</td>
                     <td className="py-2.5">
-                      <span className={cn('rounded px-1.5 py-0.5 text-xs font-semibold border', PR_BADGE[pr.status])}>
-                        {label('prStatus', pr.status)}
-                      </span>
+                      <StatusLabel signal={statusSignal(pr.status)}>{label('prStatus', pr.status)}</StatusLabel>
                     </td>
                     <td className="py-2.5 text-right">
                       {pr.status === 'approved' && can.manageProcurement && (
@@ -171,9 +156,7 @@ export function PurchasingPanel() {
                       <td className="py-2.5 text-muted-foreground">{t('purchasing.received', { recv, ord })}</td>
                       <td className="py-2.5 text-right">{rp(po.total)}</td>
                       <td className="py-2.5">
-                        <span className={cn('rounded px-1.5 py-0.5 text-xs font-semibold border', PO_BADGE[po.status])}>
-                          {label('poStatus', po.status)}
-                        </span>
+                        <StatusLabel signal={statusSignal(po.status)}>{label('poStatus', po.status)}</StatusLabel>
                       </td>
                       <td className="py-2.5 text-right">
                         {(po.status === 'sent' || po.status === 'partially_received') && can.manageProcurement && (

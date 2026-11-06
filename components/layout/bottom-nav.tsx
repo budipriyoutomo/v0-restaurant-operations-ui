@@ -39,7 +39,7 @@ export function BottomNav({ currentPage }: { currentPage: string }) {
                 <span className={cn('relative', id === 'report' && 'size-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center')}>
                   <Icon className="size-5" />
                   {!!badge && badge > 0 && (
-                    <span className="absolute -top-1.5 -right-2.5 min-w-5 h-5 px-1 rounded-full bg-destructive text-white text-xs font-bold ring-2 ring-background flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-2.5 min-w-5 h-5 px-1 rounded-full bg-destructive text-destructive-foreground text-xs font-bold ring-2 ring-background flex items-center justify-center">
                       {badge > 9 ? '9+' : badge}
                     </span>
                   )}

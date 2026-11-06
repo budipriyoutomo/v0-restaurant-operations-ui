@@ -63,7 +63,7 @@ export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?
                 <td className="px-4 py-3 text-right text-muted-foreground hidden sm:table-cell">{o.audits}</td>
                 <td className="px-4 py-3 text-right">
                   {o.repeatFindings > 0
-                    ? <span className="inline-flex items-center gap-1 text-orange-700 dark:text-orange-400 font-semibold"><Repeat className="size-3" />{o.repeatFindings}</span>
+                    ? <span className="inline-flex items-center gap-1 text-warning font-semibold"><Repeat className="size-3" />{o.repeatFindings}</span>
                     : <span className="text-muted-foreground">0</span>}
                 </td>
               </tr>

@@ -2,7 +2,7 @@
 // Todo-UI 0.3). Written first (TDD).
 import { describe, expect, it } from 'vitest'
 import {
-  ASSET_SIGNAL, PRIORITY_SIGNAL, SIGNAL_DOT, SIGNAL_TEXT, STATUS_SIGNAL, WINDOW_SIGNAL,
+  ASSET_SIGNAL, PRIORITY_SIGNAL, SIGNAL_DOT, SIGNAL_EDGE, SIGNAL_RING, SIGNAL_TEXT, STATUS_SIGNAL, WINDOW_SIGNAL,
   prioritySignal, statusSignal, toneIfAny, type Signal,
 } from './tone'
 
@@ -34,7 +34,7 @@ describe('signals', () => {
   })
 
   it('every signal has a text and a dot class made of theme tokens', () => {
-    for (const map of [SIGNAL_TEXT, SIGNAL_DOT]) {
+    for (const map of [SIGNAL_TEXT, SIGNAL_DOT, SIGNAL_EDGE, SIGNAL_RING]) {
       expect(Object.keys(map).sort()).toEqual(['action', 'done', 'neutral', 'waiting'])
       for (const cls of Object.values(map)) expect(cls).not.toMatch(/-(red|amber|green|emerald|gray|blue)-\d/)
     }

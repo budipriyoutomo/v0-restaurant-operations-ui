@@ -18,6 +18,7 @@ import { useUrlState } from '@/lib/use-route'
 import { PriorityBadge } from '@/components/shared/priority-badge'
 import { useOutletFilter } from '@/lib/permissions'
 import { outletQuery } from '@/lib/outlet-filter'
+import { SIGNAL_DOT, SIGNAL_EDGE, SIGNAL_RING, statusSignal } from '@/lib/tone'
 
 // Cards per column; the rest is counted (Todo-Pilot §22).
 const COLUMN_LIMIT = 50
@@ -26,15 +27,13 @@ const COLUMN_LIMIT = 50
 // Status + priority presentation metadata (theme-aware — no hardcoded white)
 // ---------------------------------------------------------------------------
 // Labels: label('status', id).
-const STATUS_META: Record<TaskStatus, { dot: string; accent: string; ring: string }> = {
-  open:          { dot: 'bg-blue-500',    accent: 'border-t-blue-500',    ring: 'ring-blue-500/40' },
-  assigned:      { dot: 'bg-violet-500',  accent: 'border-t-violet-500',  ring: 'ring-violet-500/40' },
-  'in-progress': { dot: 'bg-amber-500',   accent: 'border-t-amber-500',   ring: 'ring-amber-500/40' },
-  waiting:       { dot: 'bg-cyan-500',    accent: 'border-t-cyan-500',    ring: 'ring-cyan-500/40' },
-  resolved:      { dot: 'bg-emerald-500', accent: 'border-t-emerald-500', ring: 'ring-emerald-500/40' },
-  closed:        { dot: 'bg-slate-400',   accent: 'border-t-slate-400',   ring: 'ring-slate-400/40' },
-  cancelled:     { dot: 'bg-rose-400',    accent: 'border-t-rose-400',    ring: 'ring-rose-400/40' },
-}
+// Column look follows the three signals (Todo-Modern-UI Fase 1).
+const STATUS_META = Object.fromEntries(
+  (['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed', 'cancelled'] as TaskStatus[]).map((s) => {
+    const signal = statusSignal(s)
+    return [s, { dot: SIGNAL_DOT[signal], accent: SIGNAL_EDGE[signal], ring: SIGNAL_RING[signal] }]
+  }),
+) as Record<TaskStatus, { dot: string; accent: string; ring: string }>
 
 // 'cancelled' (parent Issue cancelled) is kept off the board.
 const COLUMN_ORDER: TaskStatus[] = ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed']
@@ -189,9 +188,9 @@ function StatCard({
 }) {
   const toneCls = {
     neutral: 'text-muted-foreground bg-muted',
-    blue:    'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-950/50',
-    red:     'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50',
-    green:   'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/50',
+    blue:    'text-primary bg-primary/10',
+    red:     'text-destructive bg-destructive-soft',
+    green:   'text-success bg-success/10',
   }[tone]
 
   return (
@@ -255,7 +254,7 @@ function TaskCard({
           className={cn(
             'flex items-center justify-center size-6 rounded-full text-xs font-bold shrink-0',
             // amber = a name that is not a user: nobody gets notified (Todo-Pilot §17)
-            unlinkedAssigneeWarning(task, locale) ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 ring-1 ring-amber-400' : 'bg-primary/10 text-primary',
+            unlinkedAssigneeWarning(task, locale) ? 'bg-warning-mark/10 text-warning ring-1 ring-warning-mark' : 'bg-primary/10 text-primary',
           )}
         >
           {initials(task.assignee)}
@@ -264,7 +263,7 @@ function TaskCard({
         <span
           className={cn(
             'flex items-center gap-1 ml-auto shrink-0',
-            overdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-muted-foreground',
+            overdue ? 'text-destructive font-medium' : 'text-muted-foreground',
           )}
         >
           <Calendar className="size-3" />

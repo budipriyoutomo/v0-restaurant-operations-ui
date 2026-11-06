@@ -170,7 +170,7 @@ function AuditRow({ audit: a, onOpen }: { audit: QAAuditSummary; onOpen: () => v
             <p className={cn('text-lg font-bold leading-none', TONE_CLASS[scoreTone(a.score)])}>{a.score ?? '—'}</p>
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 justify-end">
               {t('qa.failed', { count: a.failedCount })}
-              {a.repeatCount > 0 && <span className="text-orange-700 dark:text-orange-400 inline-flex items-center gap-0.5"><Repeat className="size-3" />{a.repeatCount}</span>}
+              {a.repeatCount > 0 && <span className="text-warning inline-flex items-center gap-0.5"><Repeat className="size-3" />{a.repeatCount}</span>}
             </p>
           </>
         ) : (

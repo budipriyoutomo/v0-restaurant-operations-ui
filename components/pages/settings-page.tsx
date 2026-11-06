@@ -266,7 +266,7 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
     <SettingGroup label="WhatsApp">
       <div className="px-4 py-3.5 space-y-2">
         {serverEnabled === false && (
-          <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-100/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md px-2.5 py-1.5">
+          <p className="text-xs text-warning bg-warning-mark/10/60 border border-warning-mark/40 rounded-md px-2.5 py-1.5">
             {t('settings.wa.notConfigured')}
           </p>
         )}

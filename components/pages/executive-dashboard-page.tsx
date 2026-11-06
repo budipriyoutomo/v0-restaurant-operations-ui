@@ -129,7 +129,7 @@ export function ExecutiveDashboardPage() {
         <div className="lg:col-span-2 p-5 rounded-2xl border border-border bg-card">
           <h3 className="font-semibold mb-4">{t('dashboard.criticalHigh')}</h3>
           {data.issues.urgent.length === 0 ? (
-            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl p-3 dark:text-green-300 dark:bg-green-950/30 dark:border-green-900">
+            <div className="flex items-center gap-2 text-sm text-success bg-success/10 border border-success/40 rounded-xl p-3">
               <CheckCircle2 className="size-4 flex-shrink-0" />
               {t('dashboard.noCriticalHigh')}
             </div>
@@ -146,7 +146,7 @@ export function ExecutiveDashboardPage() {
                     </div>
                     <span className={cn(
                       'text-xs font-semibold px-2 py-1 rounded-full ml-2 whitespace-nowrap',
-                      issue.priority === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                      issue.priority === 'critical' ? 'bg-destructive-soft text-destructive' : 'bg-warning-mark/10 text-warning'
                     )}>
                       {label('priority', issue.priority)}
                     </span>

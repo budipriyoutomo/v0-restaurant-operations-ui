@@ -166,7 +166,7 @@ function Stat({ icon: Icon, label, value, tone }: { icon: React.ElementType; lab
   return (
     <div className="p-3 rounded-2xl border border-border bg-card">
       <p className="text-xs text-muted-foreground flex items-center gap-1"><Icon className="size-3" /> {label}</p>
-      <p className={cn('text-lg font-bold', tone === 'warn' && 'text-amber-700 dark:text-amber-400', tone === 'bad' && 'text-red-600')}>{value}</p>
+      <p className={cn('text-lg font-bold', tone === 'warn' && 'text-warning', tone === 'bad' && 'text-destructive')}>{value}</p>
     </div>
   )
 }

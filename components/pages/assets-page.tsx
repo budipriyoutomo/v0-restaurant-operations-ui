@@ -69,7 +69,7 @@ export function AssetsPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard label={t('assetsPage.total')} value={purchaseStats.total}    color="text-foreground" />
-        <StatCard label={t('assetsPage.pending')} value={purchaseStats.pending}  color="text-amber-700 dark:text-amber-400"  />
+        <StatCard label={t('assetsPage.pending')} value={purchaseStats.pending}  color="text-warning"  />
         <StatCard label={label('approvalStatus', 'approved')} value={purchaseStats.approved} color="text-success"    />
         <StatCard label={label('approvalStatus', 'rejected')} value={purchaseStats.rejected} color="text-destructive" />
       </div>
@@ -129,7 +129,7 @@ export function AssetsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700 dark:text-amber-400" />}
+                  {a.status === 'pending'  && <Clock className="size-4 text-warning" />}
                   {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
                   {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
                   <StatusBadge status={a.status} />

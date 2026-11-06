@@ -61,6 +61,20 @@ export const SIGNAL_DOT: Record<Signal, string> = {
   neutral: 'bg-muted-foreground',
 }
 
+// Kanban columns: top edge and drop-target ring per signal.
+export const SIGNAL_EDGE: Record<Signal, string> = {
+  action: 'border-t-destructive',
+  waiting: 'border-t-warning-mark',
+  done: 'border-t-success',
+  neutral: 'border-t-muted-foreground',
+}
+export const SIGNAL_RING: Record<Signal, string> = {
+  action: 'ring-destructive/40',
+  waiting: 'ring-warning-mark/40',
+  done: 'ring-success/40',
+  neutral: 'ring-muted-foreground/40',
+}
+
 export const statusSignal = (status: string): Signal => STATUS_SIGNAL[status] ?? 'neutral'
 export const prioritySignal = (priority: string): Signal => PRIORITY_SIGNAL[priority] ?? 'neutral'
 

@@ -36,7 +36,7 @@ export function OutletComparison() {
       <button type="button" onClick={() => navigate(to)} aria-label={label}
         data-flag={flag && r.flags.includes(flag) ? 'true' : undefined}
         className={cn('min-w-10 min-h-9 px-2 rounded-md tabular-nums hover:bg-muted',
-          flag && r.flags.includes(flag) && 'bg-red-100 text-red-800 font-semibold dark:bg-red-950/60 dark:text-red-300')}>
+          flag && r.flags.includes(flag) && 'bg-destructive-soft text-destructive font-semibold')}>
         {text}
       </button>
     </td>
@@ -47,7 +47,7 @@ export function OutletComparison() {
       <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-border">
         <div className="flex-1 min-w-48">
           <h2 id="outlet-cmp-title" className="font-semibold">{t('outletCompare.title')}</h2>
-          <p className={cn('text-xs flex items-center gap-1', flagged.length ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground')}>
+          <p className={cn('text-xs flex items-center gap-1', flagged.length ? 'text-destructive' : 'text-muted-foreground')}>
             {flagged.length > 0 && <AlertTriangle className="size-3.5" />}
             {flagged.length === 0 ? t('outletCompare.allClear')
               : flagged.length === 1 ? t('outletCompare.attentionOne') : t('outletCompare.attentionMany', { count: flagged.length })}

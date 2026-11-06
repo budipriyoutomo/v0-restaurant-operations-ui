@@ -114,7 +114,7 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
           <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
             <Store className="size-3" />
             {outletSummary(user, outlets, t)}
-            {user.outlet_ids.length > 0 && <span className="text-amber-700 dark:text-amber-400 font-medium">{t('users.custom')}</span>}
+            {user.outlet_ids.length > 0 && <span className="text-warning font-medium">{t('users.custom')}</span>}
           </p>
           {user.whatsapp_number && (
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
@@ -123,7 +123,7 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
           )}
         </div>
         {user.role === 'admin' && (
-          <Shield className="size-4 text-red-600 flex-shrink-0 mt-0.5" />
+          <Shield className="size-4 text-destructive flex-shrink-0 mt-0.5" />
         )}
       </div>
 
