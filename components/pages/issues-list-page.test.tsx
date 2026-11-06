@@ -464,10 +464,10 @@ describe('IssuesListPage — server paging (Todo-Pilot §22)', () => {
     useIssueStore.setState({ issues: Array.from({ length: 30 }, (_, n) => issue(String(n + 1).padStart(5, '0'), { priority: 'high' })) })
     nav.search = '?priority=high&open=1'
     await renderList()
-    expect(fakeApi.getPage).toHaveBeenLastCalledWith('/api/issues?priority=high&active=true&limit=12&offset=0')
+    expect(fakeApi.getPage).toHaveBeenLastCalledWith('/api/issues?priority=high&active=true&sort=urgent&limit=12&offset=0')
     expect(screen.getByText(/Showing 1–12 of 30 issues/)).toBeInTheDocument()
     await userEvent.click(screen.getAllByRole('button', { name: /next/i })[0])
-    await waitFor(() => expect(fakeApi.getPage).toHaveBeenLastCalledWith('/api/issues?priority=high&active=true&limit=12&offset=12'))
+    await waitFor(() => expect(fakeApi.getPage).toHaveBeenLastCalledWith('/api/issues?priority=high&active=true&sort=urgent&limit=12&offset=12'))
   })
 
   it('opens an issue that is not on the page by reading it from the server', async () => {
@@ -509,5 +509,54 @@ describe('IssuesListPage — issue detail', () => {
     expect(warning.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(rail.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(drawer).queryByRole('region', { name: 'History' })).not.toBeInTheDocument()   // needs reports view
+  })
+})
+
+// Todo-Modern-UI Fase 3: a dense list instead of cards — one row per issue with
+// its columns as text, the most urgent first.
+describe('IssuesListPage — dense list', () => {
+  const row = (title: string) => screen.getByRole('button', { name: new RegExp(title) })
+
+  it('asks for the most urgent first; Newest is one choice away and lives in the URL', async () => {
+    await renderList()
+    expect(fakeApi.getPage).toHaveBeenLastCalledWith('/api/issues?sort=urgent&limit=12&offset=0')
+    await userEvent.click(screen.getByRole('button', { name: 'Sort: Most urgent' }))
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'Newest' }))
+    expect(replaceState).toHaveBeenLastCalledWith(null, '', '/issues?sort=newest')
+  })
+
+  it('newest from the URL sends no sort, and sorting is not a filter', async () => {
+    nav.search = '?sort=newest'
+    await renderList()
+    expect(fakeApi.getPage).toHaveBeenLastCalledWith('/api/issues?limit=12&offset=0')
+    expect(screen.getByRole('button', { name: 'Sort: Newest' })).toBeInTheDocument()
+  })
+
+  it('a row shows outlet, status, priority and linked work as text', async () => {
+    useIssueStore.setState({
+      issues: [issue('00001', { title: 'AC rusak', outlet: 'Kemang', priority: 'high', status: 'in-progress',
+        workOrderId: 'w1', taskIds: ['t1', 't2'] })],
+      workOrders: [{ id: 'w1', number: 'WO-2026-00007', issueId: '00001', status: 'scheduled' }] as never,
+    })
+    await renderList()
+    const r = row('AC rusak')
+    expect(r).toHaveAccessibleName('ISS-2026-00001 AC rusak')
+    for (const text of ['Kemang', 'In progress', 'High', 'WO-2026-00007', 'Scheduled']) expect(r).toHaveTextContent(text)
+    expect(r).toHaveAccessibleDescription(/Kemang/)
+    expect(within(r).getByLabelText('2 tasks')).toBeInTheDocument()
+  })
+
+  it('finished work waiting for the close says so in the status column', async () => {
+    useIssueStore.setState({ issues: [issue('00001', { title: 'Beres', status: 'in-progress', readyToClose: true })] })
+    await renderList()
+    expect(row('Beres')).toHaveTextContent('Ready to close')
+    expect(row('Beres')).not.toHaveTextContent('In progress')
+  })
+
+  it('names the columns once for the whole list', async () => {
+    await renderList()
+    const head = screen.getByTestId('issue-list-head')
+    expect(head).toHaveAttribute('aria-hidden', 'true')
+    expect(head).toHaveTextContent(/Issue.*Outlet.*Due.*Status.*Priority.*Linked/)
   })
 })

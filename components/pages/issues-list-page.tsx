@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Plus, AlertTriangle, X, CheckSquare, CheckCircle2, ChevronLeft, ChevronRight, ChevronDown, Lock, Ban, RotateCcw, RefreshCw, Wrench, Clock, Camera, XCircle, Inbox } from 'lucide-react'
+import { Search, Plus, AlertTriangle, X, CheckCircle2, ChevronLeft, ChevronRight, ChevronDown, Lock, Ban, RotateCcw, RefreshCw, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
@@ -14,7 +14,7 @@ import type { CategoryModule, CategorySystemKey, Issue, IssueStatus } from '@/li
 import { activeCategories } from '@/lib/categories'
 import { CreateIssueDialog } from '@/components/dialogs/create-issue-dialog'
 import { approvalThresholdsByOutlet } from '@/lib/outlet-threshold'
-import { approvalBadge, linkedWorkOrder, slaState } from '@/lib/issue-card'
+import { linkedWorkOrder } from '@/lib/issue-card'
 import { closeBlockedReason } from '@/lib/action-reasons'
 import { runWithUndo } from '@/lib/undo'
 import { pagePath, recordPath } from '@/lib/routes'
@@ -27,6 +27,7 @@ import { useT, type MessageKey } from '@/lib/i18n'
 import { UnlinkedAssigneeNote } from '@/components/shared/unlinked-assignee-note'
 import { SideDrawer } from '@/components/shared/side-drawer'
 import { IssueTrail } from '@/components/issues/issue-trail'
+import { IssueRow, ROW_COLS, type IssueSort } from '@/components/issues/issue-row'
 import { IssueHistory } from '@/components/issues/issue-history'
 import { issueTrail } from '@/lib/issue-trail'
 import { canRead, hasPermission } from '@/lib/access'
@@ -121,6 +122,9 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   useEffect(() => {
     if (newFlag === '1') { setCreateOpen(true); setNewFlag(null) }
   }, [newFlag]) // eslint-disable-line react-hooks/exhaustive-deps
+  // "Paling mendesak" first (Todo-Modern-UI Fase 3); the server sorts, since it pages.
+  const [sortParam, setSort] = useUrlState('sort', null, routed)
+  const sort: IssueSort = sortParam === 'newest' ? 'newest' : 'urgent'
   const [page, setPage] = useState(1)
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
 
@@ -129,11 +133,11 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   const debouncedSearch = useDebounced(searchQuery)
   const category = viewDef ? null : filterCategory
   const viewModule = viewDef?.module ?? null
-  const filterKey = [debouncedSearch, filterPriority, category, viewModule, hideFinished, readyOnly, outlet, lateOnly, dueToday].join('|')
+  const filterKey = [debouncedSearch, filterPriority, category, viewModule, hideFinished, readyOnly, outlet, lateOnly, dueToday, sort].join('|')
   useEffect(() => { setPage(1) }, [filterKey])
   const list = usePagedList<Issue>('/api/issues', {
     q: debouncedSearch.trim(), priority: filterPriority, category, module: viewModule, active: hideFinished, ready: readyOnly,
-    outlet, late: lateOnly, due: dueToday ? 'today' : null,
+    outlet, late: lateOnly, due: dueToday ? 'today' : null, sort: sort === 'urgent' ? 'urgent' : null,
   }, { page, pageSize: PAGE_SIZE, onItems: upsertIssues })
   const pagedIssues = (list.ids ?? []).map((id) => issues.find((i) => i.id === id)).filter((i): i is Issue => !!i)
   const totalCount = list.total
@@ -300,6 +304,9 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
               options={activeCategories(categories).map(({ name: c }) => ({ value: c, label: label('category', c) }))}
               onChange={(c) => { setFilterCategory(c); setPage(1) }} />
           )}
+          <FilterSelect label={t('issues.sortLabel')} value={sort}
+            options={[{ value: 'urgent', label: t('issues.sortUrgent') }, { value: 'newest', label: t('issues.sortNewest') }]}
+            onChange={(v) => { setSort(v === 'newest' ? 'newest' : null); setPage(1) }} />
           <FilterOptions label={t('common.filterOptions')} items={[
             { label: t('issues.hideFinished'), checked: hideFinished, onChange: (on) => { setHideFinished(on ? '1' : null); setPage(1) } },
             { label: t('issues.readyOnly'), checked: readyOnly, onChange: (on) => { setReadyOnly(on ? '1' : null); setPage(1); setConfirmBulkClose(false) } },
@@ -369,138 +376,54 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
         </p>
       )}
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
-        {list.ids === null ? (
-          <div className="lg:col-span-2 2xl:col-span-3"><ListSkeleton rows={4} className="p-0 sm:p-0" /></div>
-        ) : pagedIssues.length === 0 ? (
-          // Empty states say what to do next (Todo-Pilot §24).
-          noIssuesYet ? (
-            <EmptyState
-              className="lg:col-span-2 2xl:col-span-3"
-              icon={Inbox}
-              title={t('issues.emptyTitle')}
-              description={t('issues.emptyHint')}
-              action={
-                <button onClick={() => setCreateOpen(true)}
-                  className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90">
-                  <Plus className="size-4" /> {t('issues.createFirst')}
-                </button>
-              }
-            />
-          ) : (
-            <EmptyState
-              className="lg:col-span-2 2xl:col-span-3 bg-card"
-              icon={Search}
-              title={hasFilters ? t('issues.noMatch') : t('issues.noneFound')}
-              action={hasFilters && (
-                <button onClick={clearFilters}
-                  className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg border border-border text-sm font-medium hover:bg-muted/50">
-                  <X className="size-4" /> {t('issues.clearFilters')}
-                </button>
-              )}
-            />
-          )
+      {/* Main Content: a dense list, one row per issue (Todo-Modern-UI Fase 3) */}
+      {list.ids === null ? (
+        <ListSkeleton rows={4} className="p-0 sm:p-0" />
+      ) : pagedIssues.length === 0 ? (
+        // Empty states say what to do next (Todo-Pilot §24).
+        noIssuesYet ? (
+          <EmptyState
+            icon={Inbox}
+            title={t('issues.emptyTitle')}
+            description={t('issues.emptyHint')}
+            action={
+              <button onClick={() => setCreateOpen(true)}
+                className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90">
+                <Plus className="size-4" /> {t('issues.createFirst')}
+              </button>
+            }
+          />
         ) : (
-          pagedIssues.map((issue) => {
-            const taskCount = issue.taskIds.length
-            const sla = slaState(issue)
-            const appr = approvalBadge(issue.approval ?? approvals.find((a) => a.issueId === issue.id))
-            const wo = linkedWorkOrder(issue, workOrders)
-            const open = () => setSelectedIssue(issue)
-            return (
-              <div
-                key={issue.id}
-                role="button"
-                tabIndex={0}
-                // Named by number + title; badges are the description (Todo-Pilot §26).
-                aria-labelledby={`card-${issue.id}-number card-${issue.id}-title`}
-                aria-describedby={`card-${issue.id}-meta`}
-                onClick={open}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } }}
-                className={cn(
-                  'p-4 sm:p-5 rounded-xl border bg-card cursor-pointer transition-[border-color,box-shadow] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                  selectedIssue?.id === issue.id ? 'border-primary ring-2 ring-primary/15' : 'border-border hover:border-primary/40'
-                )}
-              >
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <p id={`card-${issue.id}-number`} className="font-mono text-xs text-primary font-bold mb-1">{issue.number}</p>
-                    <h3 id={`card-${issue.id}-title`} className="font-semibold text-sm line-clamp-2">{issue.title}</h3>
-                  </div>
-                  <PriorityBadge priority={issue.priority} />
-                </div>
-
-                <div id={`card-${issue.id}-meta`}>
-                <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap text-xs text-muted-foreground mb-3">
-                  <span className="bg-muted px-2 py-0.5 rounded-md font-medium text-foreground/80">{label('category', issue.category)}</span>
-                  <span>{issue.outlet}</span>
-                  {sla.kind === 'breached' && (
-                    <span className="bg-destructive-soft text-destructive px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                      <AlertTriangle className="size-3" /> {sla.days === 1 ? t('issues.slaOverdueOne') : t('issues.slaOverdue', { n: sla.days })}
-                    </span>
-                  )}
-                  {sla.kind === 'today' && (
-                    <span className="bg-warning-mark/10 text-warning px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                      <Clock className="size-3" /> {t('issues.slaToday')}
-                    </span>
-                  )}
-                  {sla.kind === 'left' && (
-                    <span className={cn('flex items-center gap-1', sla.days === 1 && 'text-warning font-medium')}>
-                      <Clock className="size-3" /> {sla.days === 1 ? t('issues.slaLeftOne') : t('issues.slaLeft', { n: sla.days })}
-                    </span>
-                  )}
-                  {issue.readyToClose && (
-                    <span className="bg-success/10 text-success px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                      <CheckCircle2 className="size-3" /> {t('issues.readyBadge')}
-                    </span>
-                  )}
-                </div>
-
-                {(appr || wo) && (
-                  <div className="flex items-center gap-2 flex-wrap text-xs mb-3">
-                    {appr?.kind === 'pending' && (
-                      <span className={cn('px-2 py-0.5 rounded font-medium flex items-center gap-1',
-                        appr.escalated ? 'bg-destructive-soft text-destructive' : 'bg-warning-mark/10 text-warning')}>
-                        <CheckCircle2 className="size-3" /> {t('issues.approvalStep', { step: appr.step, total: appr.total })}
-                      </span>
-                    )}
-                    {appr?.kind === 'rejected' && (
-                      <span className="bg-destructive-soft text-destructive px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                        <XCircle className="size-3" /> {t('issues.approvalRejected')}
-                      </span>
-                    )}
-                    {appr?.kind === 'approved' && (
-                      <span className="bg-success/10 text-success px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                        <CheckCircle2 className="size-3" /> {t('issues.approvalApproved')}
-                      </span>
-                    )}
-                    {wo && (
-                      <span className="bg-muted px-2 py-0.5 rounded flex items-center gap-1 text-muted-foreground">
-                        <Wrench className="size-3" /> <span className="font-mono">{wo.number}</span> · {label('woStatus', wo.status)}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between text-xs">
-                  <StatusBadge status={issue.status} />
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    {taskCount > 0 && (
-                      <span className="flex items-center gap-1"><CheckSquare className="size-3" /> {taskCount}</span>
-                    )}
-                    {(issue.photoCount ?? 0) > 0 && (
-                      <span className="flex items-center gap-1"><Camera className="size-3" /> {issue.photoCount}</span>
-                    )}
-                    <span title={date(issue.createdDate)}>{issue.createdAt ? relative(issue.createdAt) : date(issue.createdDate)}</span>
-                  </div>
-                </div>
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
+          <EmptyState
+            className="bg-card"
+            icon={Search}
+            title={hasFilters ? t('issues.noMatch') : t('issues.noneFound')}
+            action={hasFilters && (
+              <button onClick={clearFilters}
+                className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg border border-border text-sm font-medium hover:bg-muted/50">
+                <X className="size-4" /> {t('issues.clearFilters')}
+              </button>
+            )}
+          />
+        )
+      ) : (
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          {/* Column names for the eye; each row carries its own text for screen readers. */}
+          <div data-testid="issue-list-head" aria-hidden="true"
+            className={cn('hidden md:grid gap-x-4 px-4 py-2 border-b border-border bg-muted/40 text-xs font-medium text-muted-foreground', ROW_COLS)}>
+            <span>{t('issues.colIssue')}</span><span>{t('issues.colOutlet')}</span><span>{t('issues.colDue')}</span>
+            <span>{t('issues.colStatus')}</span><span>{t('issues.colPriority')}</span><span>{t('issues.colLinked')}</span>
+          </div>
+          <ul className="divide-y divide-border">
+            {pagedIssues.map((issue) => (
+              <IssueRow key={issue.id} issue={issue} selected={selectedIssue?.id === issue.id}
+                approval={issue.approval ?? approvals.find((a) => a.issueId === issue.id)}
+                workOrder={linkedWorkOrder(issue, workOrders)}
+                onOpen={() => setSelectedIssue(issue)} />
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Bottom pagination */}
       {totalPages > 1 && (
