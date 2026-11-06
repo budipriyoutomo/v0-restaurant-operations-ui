@@ -24,6 +24,12 @@ describe('BottomNav', () => {
     expect(screen.getByRole('button', { name: /^My Work$/ })).toHaveAttribute('aria-current', 'page')
   })
 
+  it('orders them Home, My Work, Report (in the middle), Alerts, Account (Todo-Modern-UI Fase 3)', () => {
+    render(<BottomNav currentPage="my-work" />)
+    const names = screen.getAllByRole('button').map((b) => b.textContent?.replace(/\d+/, ''))
+    expect(names).toEqual(['Home', 'My Work', 'Report', 'Alerts', 'Account'])
+  })
+
   it('Report opens the new-issue form from anywhere', async () => {
     render(<BottomNav currentPage="dashboard" />)
     await userEvent.click(screen.getByRole('button', { name: /^Report$/ }))

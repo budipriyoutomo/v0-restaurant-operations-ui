@@ -16,9 +16,10 @@ export function BottomNav({ currentPage }: { currentPage: string }) {
   const unread = useIssueStore((s) => s.unreadCount)
 
   const items = [
+    // Report sits in the middle, under the thumb (Todo-Modern-UI Fase 3).
     { id: 'home', label: t('bottomNav.home'), icon: Home, to: '/' },
-    ...(canViewPage('issues') ? [{ id: 'report', label: t('bottomNav.report'), icon: Plus, to: '/issues?new=1' }] : []),
     { id: 'my-work', label: t('bottomNav.myWork'), icon: ListChecks, to: '/my-work' },
+    ...(canViewPage('issues') ? [{ id: 'report', label: t('bottomNav.report'), icon: Plus, to: '/issues?new=1' }] : []),
     { id: 'notifications', label: t('bottomNav.notifications'), icon: Bell, to: '/notifications', badge: unread },
     { id: 'settings', label: t('bottomNav.account'), icon: UserRound, to: '/settings' },
   ]
