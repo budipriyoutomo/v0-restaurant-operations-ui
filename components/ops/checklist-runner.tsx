@@ -18,7 +18,8 @@ import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 import { useIssueStore } from '@/lib/store'
 import { ScanTab } from '@/components/cmms/qr-dialog'
 import type { QRResolveResult } from '@/lib/types'
-import { WINDOW_TONE } from '@/lib/tone'
+import { WINDOW_SIGNAL } from '@/lib/tone'
+import { StatusLabel } from '@/components/shared/status-label'
 import { ListSkeleton } from '@/components/shared/skeleton'
 
 const RESULT_BUTTONS: { value: OpsResult; icon: React.ElementType; active: string }[] = [
@@ -27,7 +28,6 @@ const RESULT_BUTTONS: { value: OpsResult; icon: React.ElementType; active: strin
   { value: 'na',   icon: Minus, active: 'bg-slate-500 text-white border-slate-500' },
 ]
 
-export { WINDOW_TONE } from '@/lib/tone'
 
 interface Props {
   runId: string
@@ -137,9 +137,9 @@ export function ChecklistRunner({ runId, onClose, onChanged }: Props) {
             <h2 className="font-semibold text-lg leading-snug truncate">{run.templateName}</h2>
             <p className="text-xs text-muted-foreground">{run.outlet} · {date(run.runDate)}</p>
             <p className="text-xs mt-1.5 flex items-center gap-1.5 flex-wrap">
-              <span className={cn('px-2 py-0.5 rounded-md text-xs font-semibold', WINDOW_TONE[queuedSubmit ? 'open' : state])}>
+              <StatusLabel signal={WINDOW_SIGNAL[queuedSubmit ? 'open' : state]}>
                 {queuedSubmit ? t('ops.state.queued') : t(`ops.state.${state}`)}
-              </span>
+              </StatusLabel>
               <span className="text-muted-foreground inline-flex items-center gap-1">
                 <Clock className="size-3" aria-hidden /> {t('ops.dueAt', { time: dateTime(run.dueAt) })}
                 {(state === 'open' || state === 'upcoming') && ` · ${relative(run.dueAt)}`}

@@ -12,6 +12,8 @@ import { useOutletFilter, usePermissions } from '@/lib/permissions'
 import { useT } from '@/lib/i18n'
 import { navigate } from '@/lib/use-route'
 import { OnboardingChecklist } from '@/components/shared/onboarding-checklist'
+import { StatCard } from '@/components/shared/stat-card'
+import { toneIfAny } from '@/lib/tone'
 import { OutletComparison } from '@/components/dashboard/outlet-comparison'
 import { PageHeader } from '@/components/shared/page-header'
 
@@ -59,24 +61,24 @@ export function ExecutiveDashboardPage() {
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KPICard title={t('dashboard.totalIssues')} value={String(data.issues.total)} subtitle={t('dashboard.allTime')} />
-        <KPICard title={t('dashboard.inProgress')} value={String(data.issues.inProgress)} subtitle={t('dashboard.inProgressSub')} />
-        <KPICard
+        <StatCard title={t('dashboard.totalIssues')} value={String(data.issues.total)} subtitle={t('dashboard.allTime')} />
+        <StatCard title={t('dashboard.inProgress')} value={String(data.issues.inProgress)} subtitle={t('dashboard.inProgressSub')} />
+        <StatCard
           title={t('dashboard.awaitingClose')}
           value={String(data.issues.awaitingClose)}
           subtitle={t('dashboard.awaitingCloseSub')}
           onClick={canViewPage('issues') ? () => navigate('/issues?ready=1') : undefined}
         />
-        <KPICard
+        <StatCard
           title={t('dashboard.slaBreaches')}
           value={String(data.issues.slaBreached)}
           subtitle={t('dashboard.overdue')}
-          tone={data.issues.slaBreached > 0 ? 'critical' : undefined}
+          variant={toneIfAny(data.issues.slaBreached, 'critical' as const)}
           onClick={canViewPage('issues') ? () => navigate('/issues?late=1') : undefined}
         />
-        <KPICard title={t('dashboard.activeTasks')} value={data.tasks ? String(data.tasks.active) : '—'} subtitle={t('dashboard.activeTasksSub')} />
-        <KPICard title={t('dashboard.pendingApprovals')} value={data.approvals ? String(data.approvals.pending) : '—'} subtitle={t('dashboard.pendingApprovalsSub')}
-          tone={(data.approvals?.pending ?? 0) > 0 ? 'warning' : undefined} />
+        <StatCard title={t('dashboard.activeTasks')} value={data.tasks ? String(data.tasks.active) : '—'} subtitle={t('dashboard.activeTasksSub')} />
+        <StatCard title={t('dashboard.pendingApprovals')} value={data.approvals ? String(data.approvals.pending) : '—'} subtitle={t('dashboard.pendingApprovalsSub')}
+          variant={toneIfAny(data.approvals?.pending, 'warning' as const)} />
       </div>
 
       {/* Issues by Category & Outlet */}
@@ -176,28 +178,5 @@ export function ExecutiveDashboardPage() {
         </div>
       </div>
     </div>
-  )
-}
-
-// Same look as shared/stat-card; numbers wear text colour, status colour only
-// for a state to act on (dataviz). Clickable cards drill down to the filtered list.
-function KPICard({
-  title, value, subtitle, tone, onClick,
-}: {
-  title: string; value: string; subtitle: string; tone?: 'warning' | 'critical'; onClick?: () => void
-}) {
-  const body = (
-    <>
-      <p className="text-xs font-medium text-muted-foreground mb-1">{title}</p>
-      <p className={cn('text-2xl font-bold tabular-nums', tone === 'critical' && 'text-destructive', tone === 'warning' && 'text-amber-700 dark:text-amber-300')}>{value}</p>
-      <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{subtitle}</p>
-    </>
-  )
-  const cls = 'p-4 rounded-2xl border border-border bg-card shadow-xs transition-[border-color,box-shadow]'
-  // Clickable cards drill down to the matching filtered list.
-  return onClick ? (
-    <button type="button" data-kpi onClick={onClick} className={cn(cls, 'text-left w-full hover:border-primary/40 hover:shadow-sm')}>{body}</button>
-  ) : (
-    <div data-kpi className={cls}>{body}</div>
   )
 }

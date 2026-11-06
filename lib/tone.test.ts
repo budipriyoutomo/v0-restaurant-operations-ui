@@ -1,27 +1,46 @@
-// One source of badge colours (Todo-UI 0.3). Written first (TDD).
+// Three signals + neutral (Todo-Modern-UI Fase 1; was one colour per status,
+// Todo-UI 0.3). Written first (TDD).
 import { describe, expect, it } from 'vitest'
-import { PRIORITY_TONE, STATUS_TONE, WINDOW_TONE, priorityTone, statusTone, toneIfAny } from './tone'
+import {
+  ASSET_SIGNAL, PRIORITY_SIGNAL, SIGNAL_DOT, SIGNAL_TEXT, STATUS_SIGNAL, WINDOW_SIGNAL,
+  prioritySignal, statusSignal, toneIfAny, type Signal,
+} from './tone'
 
-describe('badge tones', () => {
-  it('every tone has a dark-mode variant', () => {
-    for (const tone of [...Object.values(PRIORITY_TONE), ...Object.values(STATUS_TONE), ...Object.values(WINDOW_TONE)]) {
-      expect(tone).toMatch(/dark:bg-/)
-      expect(tone).toMatch(/dark:text-/)
+const byStatus = (signal: Signal) => Object.keys(STATUS_SIGNAL).filter((s) => STATUS_SIGNAL[s] === signal).sort()
+
+describe('signals', () => {
+  it('maps every status to one of three signals or neutral', () => {
+    expect(byStatus('action')).toEqual(['escalated', 'missed', 'overdue', 'rejected'])
+    expect(byStatus('waiting')).toEqual(['late', 'on-hold', 'pending', 'pending_approval', 'waiting'])
+    expect(byStatus('done')).toEqual(['approved', 'completed', 'resolved', 'submitted'])
+    for (const s of ['open', 'scheduled', 'assigned', 'in-progress', 'in_progress', 'closed', 'cancelled',
+      'upcoming', 'skipped', 'draft', 'ordered', 'received', 'sent']) {
+      expect(statusSignal(s), s).toBe('neutral')
     }
   })
 
-  it('covers issue, task, work order, approval and ops statuses', () => {
-    for (const s of ['open', 'assigned', 'in-progress', 'in_progress', 'waiting', 'resolved', 'closed', 'cancelled',
-      'scheduled', 'on-hold', 'completed', 'overdue', 'escalated', 'pending', 'approved', 'rejected', 'submitted', 'missed']) {
-      expect(STATUS_TONE[s], s).toBeDefined()
-    }
-    expect(Object.keys(WINDOW_TONE).sort()).toEqual(['late', 'missed', 'open', 'submitted', 'upcoming'])
+  it('unknown statuses are neutral', () => {
+    expect(statusSignal('something-new')).toBe('neutral')
+    expect(prioritySignal('weird')).toBe('neutral')
   })
 
-  it('falls back to a neutral tone', () => {
-    expect(statusTone('something-new')).toBe(STATUS_TONE.closed)
-    expect(priorityTone('weird')).toBe(PRIORITY_TONE.low)
-    expect(priorityTone('critical')).toBe(PRIORITY_TONE.critical)
+  it('priority: only critical asks for action, high waits', () => {
+    expect(PRIORITY_SIGNAL).toEqual({ critical: 'action', high: 'waiting', medium: 'neutral', low: 'neutral' })
+  })
+
+  it('daily checklist windows and asset states', () => {
+    expect(WINDOW_SIGNAL).toEqual({ upcoming: 'neutral', open: 'neutral', late: 'waiting', missed: 'action', submitted: 'done' })
+    expect(ASSET_SIGNAL).toEqual({ critical: 'action', warning: 'waiting', maintenance: 'waiting', operational: 'neutral' })
+  })
+
+  it('every signal has a text and a dot class made of theme tokens', () => {
+    for (const map of [SIGNAL_TEXT, SIGNAL_DOT]) {
+      expect(Object.keys(map).sort()).toEqual(['action', 'done', 'neutral', 'waiting'])
+      for (const cls of Object.values(map)) expect(cls).not.toMatch(/-(red|amber|green|emerald|gray|blue)-\d/)
+    }
+    // Amber text on white fails AA: the brighter amber is for dots only.
+    expect(SIGNAL_DOT.waiting).toBe('bg-warning-mark')
+    expect(SIGNAL_TEXT.waiting).toBe('text-warning')
   })
 })
 

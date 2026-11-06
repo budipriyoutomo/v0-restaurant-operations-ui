@@ -63,7 +63,7 @@ function App() {
   const { page: routePage, notFound } = useRoute()
   const onNavigate = (page: string) => navigate(pagePath(page))
   const [sessionChecked, setSessionChecked] = useState(false)
-  const { currentUser, authLoading, loadAll, isLoading, error, lastSyncedAt } = useIssueStore()
+  const { currentUser, authLoading, loadAll, isLoading, error, lastSyncedAt, locale } = useIssueStore()
   const { canViewPage } = usePermissions()
   const { t } = useT()
 
@@ -88,6 +88,9 @@ function App() {
         .catch(() => {})
     }
   }, [currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // <html lang> follows the language in use (screen readers, hyphenation).
+  useEffect(() => { document.documentElement.lang = locale }, [locale])
 
   // Signed in on /login: replace the address with the role's home ('/').
   useEffect(() => {

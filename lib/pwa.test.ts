@@ -15,21 +15,11 @@ function pngSize(file: string): [number, number] {
   return [buf.readUInt32BE(16), buf.readUInt32BE(20)]
 }
 
-// globals.css token → sRGB hex, so the manifest follows a palette change.
+// globals.css token (hex since Todo-Modern-UI Fase 1), so the manifest follows a palette change.
 function tokenHex(selector: ':root' | '.dark', name: string): string {
   const css = readFileSync(path.join(root, 'app/globals.css'), 'utf8')
   const block = css.slice(css.indexOf(`${selector} {`))
-  const [L, C, h] = block.match(new RegExp(`--${name}: oklch\\(([^)]*)\\)`))![1].split(/\s+/).map(Number)
-  const a = C * Math.cos((h * Math.PI) / 180), b = C * Math.sin((h * Math.PI) / 180)
-  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
-  const mm = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
-  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3
-  return '#' + [4.0767416621 * l - 3.3077115913 * mm + 0.2309699292 * s,
-    -1.2684380046 * l + 2.6097574011 * mm - 0.3413193965 * s,
-    -0.0041960863 * l - 0.7034186147 * mm + 1.707614701 * s]
-    .map((x) => Math.min(Math.max(x, 0), 1))
-    .map((x) => (x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055))
-    .map((x) => Math.round(x * 255).toString(16).padStart(2, '0')).join('')
+  return block.match(new RegExp(`--${name}: (#[0-9a-fA-F]{6})\\b`))![1].toLowerCase()
 }
 
 describe('web app manifest', () => {

@@ -55,7 +55,7 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges, 
     {mobileOpen && <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40 md:hidden" onClick={onMobileClose} aria-hidden="true" />}
     <aside
       className={cn(
-        'flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width,transform] duration-300 ease-in-out flex-shrink-0',
+        'flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width,transform] duration-300 ease-in-out flex-shrink-0 [&_*]:outline-sidebar-ring',
         // phone: fixed drawer, hidden until opened
         'fixed inset-y-0 left-0 z-50 w-72 shadow-xl pt-[env(safe-area-inset-top)] md:pt-0',
         mobileOpen ? 'translate-x-0' : '-translate-x-full invisible',
@@ -66,12 +66,12 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges, 
     >
       {/* Brand */}
       <div className={cn('h-14 flex items-center gap-3 px-4 flex-shrink-0', iconsOnly && 'md:justify-center md:px-0')}>
-        <div className="flex-shrink-0 size-8 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-          <Utensils className="size-4 text-primary-foreground" />
+        <div className="flex-shrink-0 size-8 rounded-md bg-sidebar-primary flex items-center justify-center">
+          <Utensils className="size-4 text-sidebar-primary-foreground" />
         </div>
         <div className={cn('min-w-0', iconsOnly && 'md:hidden')}>
-          <p className="text-[15px] font-semibold text-foreground leading-tight truncate">RestaurantOps</p>
-          <p className="text-xs text-muted-foreground leading-tight">{t('shell.platform')}</p>
+          <p className="text-[15px] font-semibold text-sidebar-foreground leading-tight truncate">RestaurantOps</p>
+          <p className="text-xs text-sidebar-muted leading-tight">{t('shell.platform')}</p>
         </div>
       </div>
 
@@ -97,14 +97,14 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges, 
                   onClick={() => toggleGroup(group)}
                   aria-expanded={open}
                   disabled={holdsCurrent}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground disabled:hover:text-muted-foreground transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-sidebar-muted hover:text-sidebar-foreground disabled:hover:text-sidebar-muted transition-colors"
                 >
                   <span className="flex-1 text-left">{groupLabel}</span>
-                  {hiddenCount > 0 && <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />}
+                  {hiddenCount > 0 && <span className="size-1.5 rounded-full bg-sidebar-foreground" aria-hidden="true" />}
                   {!holdsCurrent && <ChevronDown className={cn('size-3.5 transition-transform', !open && '-rotate-90')} />}
                 </button>
               ) : (
-                <p className="px-3 py-1.5 text-xs font-medium text-muted-foreground">{groupLabel}</p>
+                <p className="px-3 py-1.5 text-xs font-medium text-sidebar-muted">{groupLabel}</p>
               )}
 
               {open && (
@@ -124,17 +124,17 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges, 
                         aria-label={iconsOnly ? label : undefined}
                         title={iconsOnly ? label : undefined}
                         className={cn(
-                          'w-full h-10 flex items-center gap-3 px-3 rounded-lg text-sm transition-colors',
+                          'w-full h-10 flex items-center gap-3 px-3 rounded-md text-sm transition-colors',
                           iconsOnly && 'md:justify-center md:px-0',
                           active
-                            ? 'bg-primary/10 text-primary font-semibold'
-                            : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground'
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground font-semibold'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                         )}
                       >
                         <span className="relative flex-shrink-0">
                           <Icon className="size-[18px]" />
                           {iconsOnly && count > 0 && (
-                            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-primary ring-2 ring-sidebar" />
+                            <span className="absolute -top-1 -right-1 size-2 rounded-full bg-sidebar-foreground ring-2 ring-sidebar" />
                           )}
                         </span>
 
@@ -142,7 +142,7 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges, 
                         {count > 0 && (
                           <span className={cn(
                             'text-xs font-semibold rounded-full min-w-6 h-5 px-1.5 flex items-center justify-center tabular-nums',
-                            active ? 'bg-primary text-primary-foreground' : 'bg-sidebar-accent text-foreground',
+                            active ? 'bg-sidebar text-sidebar-foreground' : 'bg-sidebar-accent text-sidebar-accent-foreground',
                             iconsOnly && 'md:hidden',
                           )}>
                             {count > 99 ? '99+' : count}
@@ -164,7 +164,7 @@ export function Sidebar({ collapsed, onToggle, currentPage, onNavigate, badges, 
           type="button"
           onClick={onToggle}
           className={cn(
-            'w-full h-9 flex items-center gap-3 px-3 rounded-lg text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors',
+            'w-full h-9 flex items-center gap-3 px-3 rounded-md text-sm text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors',
             collapsed && 'justify-center px-0',
           )}
           aria-label={collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')}

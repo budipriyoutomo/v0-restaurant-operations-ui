@@ -1,13 +1,18 @@
 import type { AssetStatus } from '@/lib/types'
+import { ASSET_SIGNAL, type Signal } from '@/lib/tone'
+
+// Pill until the CMMS pass (Todo-Modern-UI Fase 4) moves it to StatusLabel;
+// the colours already follow the three signals.
+const PILL: Record<Signal, string> = {
+  action: 'bg-destructive-soft text-destructive border-destructive/30',
+  waiting: 'bg-warning-mark/10 text-warning border-warning-mark/40',
+  done: 'bg-success/10 text-success border-success/30',
+  neutral: 'bg-muted text-foreground border-border',
+}
 
 // ---------------------------------------------------------------------------
 // Asset status badge
 // ---------------------------------------------------------------------------
 export function assetStatusColor(status: AssetStatus) {
-  switch (status) {
-    case 'operational': return 'bg-success/15 text-success border-success/30'
-    case 'warning':     return 'bg-warning/15 text-warning border-warning/30'
-    case 'maintenance': return 'bg-primary/15 text-primary border-primary/30'
-    case 'critical':    return 'bg-destructive/15 text-destructive border-destructive/30'
-  }
+  return PILL[ASSET_SIGNAL[status] ?? 'neutral']
 }

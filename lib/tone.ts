@@ -1,57 +1,68 @@
-// One source of badge colours (Todo-UI 0.3): pale background + dark text in
-// light mode, deep background + light text in dark mode. lib/contrast.test.ts
-// checks every pair against WCAG AA in both modes.
+// Three signals + neutral (Todo-Modern-UI Fase 1): "needs action", "waiting",
+// "done", and everything else neutral. Colours are theme tokens (app/globals.css),
+// checked in both modes by lib/contrast.test.ts. A signal is never colour alone:
+// it always sits next to its text label (shared/status-label.tsx).
 
-const blue    = 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-const purple  = 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
-const amber   = 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-const orange  = 'bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300'
-const cyan    = 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300'
-const green   = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-const red     = 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
-const rose    = 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
-const neutral = 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+export type Signal = 'action' | 'waiting' | 'done' | 'neutral'
 
-export const PRIORITY_TONE: Record<string, string> = {
-  critical: red,
-  high: orange,
-  medium: amber,
-  low: neutral,
+/** Issue, Task, Work Order, Approval, purchase and checklist statuses. Unlisted = neutral. */
+export const STATUS_SIGNAL: Record<string, Signal> = {
+  overdue: 'action',
+  escalated: 'action',
+  rejected: 'action',
+  missed: 'action',
+  pending: 'waiting',
+  pending_approval: 'waiting',
+  late: 'waiting',
+  waiting: 'waiting',
+  'on-hold': 'waiting',
+  resolved: 'done',
+  completed: 'done',
+  approved: 'done',
+  submitted: 'done',
 }
 
-/** Issue, Task, Work Order, Approval and checklist statuses. */
-export const STATUS_TONE: Record<string, string> = {
-  open: blue,
-  scheduled: blue,
-  assigned: purple,
-  'in-progress': amber,
-  in_progress: amber,
-  pending: amber,
-  waiting: cyan,
-  'on-hold': cyan,
-  resolved: green,
-  completed: green,
-  approved: green,
-  submitted: green,
-  escalated: red,
-  overdue: red,
-  rejected: red,
-  missed: red,
-  cancelled: rose,
-  closed: neutral,
+export const PRIORITY_SIGNAL: Record<string, Signal> = {
+  critical: 'action',
+  high: 'waiting',
+  medium: 'neutral',
+  low: 'neutral',
 }
 
 /** Daily Ops checklist window state (lib/ops-checklist.windowState). */
-export const WINDOW_TONE: Record<string, string> = {
-  upcoming: neutral,
-  open: blue,
-  late: amber,
-  missed: red,
-  submitted: green,
+export const WINDOW_SIGNAL: Record<string, Signal> = {
+  upcoming: 'neutral',
+  open: 'neutral',
+  late: 'waiting',
+  missed: 'action',
+  submitted: 'done',
 }
 
-export const statusTone = (status: string) => STATUS_TONE[status] ?? STATUS_TONE.closed
-export const priorityTone = (priority: string) => PRIORITY_TONE[priority] ?? PRIORITY_TONE.low
+/** CMMS asset condition; running normally needs no signal. */
+export const ASSET_SIGNAL: Record<string, Signal> = {
+  critical: 'action',
+  warning: 'waiting',
+  maintenance: 'waiting',
+  operational: 'neutral',
+}
+
+export const SIGNAL_TEXT: Record<Signal, string> = {
+  action: 'text-destructive',
+  waiting: 'text-warning',
+  done: 'text-success',
+  neutral: 'text-foreground',
+}
+
+// --warning-mark is brighter than --warning: fine for a dot, too light for text.
+export const SIGNAL_DOT: Record<Signal, string> = {
+  action: 'bg-destructive',
+  waiting: 'bg-warning-mark',
+  done: 'bg-success',
+  neutral: 'bg-muted-foreground',
+}
+
+export const statusSignal = (status: string): Signal => STATUS_SIGNAL[status] ?? 'neutral'
+export const prioritySignal = (priority: string): Signal => PRIORITY_SIGNAL[priority] ?? 'neutral'
 
 /** A count or percentage gets its colour only when there is something to see:
  *  0 and "no data" stay neutral (Todo-Modern-UI Fase 0). */
