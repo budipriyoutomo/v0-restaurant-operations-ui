@@ -1,6 +1,6 @@
 // One source of badge colours (Todo-UI 0.3). Written first (TDD).
 import { describe, expect, it } from 'vitest'
-import { PRIORITY_TONE, STATUS_TONE, WINDOW_TONE, priorityTone, statusTone } from './tone'
+import { PRIORITY_TONE, STATUS_TONE, WINDOW_TONE, priorityTone, statusTone, toneIfAny } from './tone'
 
 describe('badge tones', () => {
   it('every tone has a dark-mode variant', () => {
@@ -22,5 +22,15 @@ describe('badge tones', () => {
     expect(statusTone('something-new')).toBe(STATUS_TONE.closed)
     expect(priorityTone('weird')).toBe(PRIORITY_TONE.low)
     expect(priorityTone('critical')).toBe(PRIORITY_TONE.critical)
+  })
+})
+
+// A zero or a missing value is not a signal (Todo-Modern-UI Fase 0).
+describe('toneIfAny', () => {
+  it('keeps the tone only for a value above zero', () => {
+    expect(toneIfAny(3, 'critical')).toBe('critical')
+    expect(toneIfAny(0, 'critical')).toBeUndefined()
+    expect(toneIfAny(null, 'success')).toBeUndefined()
+    expect(toneIfAny(undefined, 'text-red-600')).toBeUndefined()
   })
 })

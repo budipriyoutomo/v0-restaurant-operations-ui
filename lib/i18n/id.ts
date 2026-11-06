@@ -920,7 +920,7 @@ export const id = {
     opsChecklists: "Checklist outlet hari ini",
     approvals: "Menunggu keputusan saya",
     due: "Tenggat {date}",
-    empty: "Tidak ada yang menunggu Anda. 🎉",
+    empty: "Tidak ada yang menunggu Anda.",
     escalated: "Dieskalasi",
     guestWaiting: "Keluhan tamu belum ditanggapi",
     loadFailed: "Gagal memuat pekerjaan Anda.",

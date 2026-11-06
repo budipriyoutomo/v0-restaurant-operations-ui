@@ -922,7 +922,7 @@ export const en: Messages = {
     opsChecklists: "Today's outlet checklists",
     approvals: "Waiting for my decision",
     due: "Due {date}",
-    empty: "Nothing is waiting for you. 🎉",
+    empty: "Nothing is waiting for you.",
     escalated: "Escalated",
     guestWaiting: "Guest complaints waiting for a response",
     loadFailed: "Could not load your work.",

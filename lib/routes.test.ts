@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { notificationPath, pagePath, parseRoute, recordPath, withSearch } from './routes'
+import { notificationPath, pagePath, parseRoute, PUBLIC_LOGIN_PAGE, recordPath, withSearch } from './routes'
 
 // Todo-Pilot §14 (UX-1): every page and record has a URL.
 
@@ -37,6 +37,11 @@ describe('parseRoute', () => {
 
   it('flags unknown pages as not found', () => {
     expect(parseRoute('/nope')).toMatchObject({ notFound: true, recordId: null })
+  })
+
+  it('knows /login, so signing in there does not end on "not found" (Todo-Modern-UI Fase 0)', () => {
+    expect(parseRoute('/login')).toEqual({ page: PUBLIC_LOGIN_PAGE, recordId: null, notFound: false })
+    expect(parseRoute('/login/x')).toMatchObject({ notFound: true })
   })
 
   it('flags a record under a page without records as not found', () => {

@@ -47,12 +47,12 @@ export function ExecutiveDashboardPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-5">
-      <OnboardingChecklist />
       {/* Header */}
       <PageHeader
         title={t('dashboard.title')}
         description={t('dashboard.subtitle')}
       />
+      <OnboardingChecklist />
 
       {/* Outlets side by side, exceptions first (Todo-Pilot §25) */}
       <OutletComparison />

@@ -8,6 +8,7 @@ import { usePermissions } from '@/lib/permissions'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
+import { toneIfAny } from '@/lib/tone'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 
 function fmtHours(h: number, t: (k: 'cmmsAnalytics.days' | 'cmmsAnalytics.hours', v: { n: string }) => string): string {
@@ -54,7 +55,7 @@ export function CMMSAnalyticsPanel() {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
             <StatCard title={t('cmmsAnalytics.avgMttr')} value={fmtHours(fleet?.avgMttrHours ?? 0, t)} subtitle={t('cmmsAnalytics.mttrSub')} icon={Timer} />
             <StatCard title={t('cmmsAnalytics.avgMtbf')} value={fmtHours(fleet?.avgMtbfHours ?? 0, t)} subtitle={t('cmmsAnalytics.mtbfSub')} icon={Activity} />
-            <StatCard title={t('cmmsAnalytics.avgUptime')} value={`${(fleet?.avgUptimePct ?? 100).toFixed(1)}%`} subtitle={t('cmmsAnalytics.uptimeSub')} icon={TrendingUp} variant="success" />
+            <StatCard title={t('cmmsAnalytics.avgUptime')} value={fleet?.assetCount ? `${fleet.avgUptimePct.toFixed(1)}%` : '—'} subtitle={t('cmmsAnalytics.uptimeSub')} icon={TrendingUp} variant={toneIfAny(fleet?.assetCount, 'success' as const)} />
             <StatCard title={t('cmmsAnalytics.totalCost')} value={fmtRp(fleet?.totalCost ?? 0)} subtitle={t('cmmsAnalytics.totalCostSub')} icon={DollarSign} />
             <StatCard title={t('cmmsAnalytics.replace')} value={String(fleet?.replaceCandidates ?? 0)} subtitle={t('cmmsAnalytics.replaceSub')} icon={AlertTriangle} variant={(fleet?.replaceCandidates ?? 0) > 0 ? 'warning' : undefined} />
           </div>

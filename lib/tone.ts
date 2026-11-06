@@ -52,3 +52,8 @@ export const WINDOW_TONE: Record<string, string> = {
 
 export const statusTone = (status: string) => STATUS_TONE[status] ?? STATUS_TONE.closed
 export const priorityTone = (priority: string) => PRIORITY_TONE[priority] ?? PRIORITY_TONE.low
+
+/** A count or percentage gets its colour only when there is something to see:
+ *  0 and "no data" stay neutral (Todo-Modern-UI Fase 0). */
+export const toneIfAny = <T,>(value: number | null | undefined, tone: T): T | undefined =>
+  value ? tone : undefined

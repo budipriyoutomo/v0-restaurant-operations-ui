@@ -2,9 +2,10 @@
 
 // "Siapkan perusahaan Anda" — the first admin's checklist (Todo-Pilot §24 /
 // UX-11). Steps come from the server and are done when the data exists; each
-// open step is one tap to the page where it is done.
+// open step is one tap to the page where it is done. Collapsed to one line
+// under the page title until opened (Todo-Modern-UI Fase 0).
 import { useCallback, useEffect, useState } from 'react'
-import { CheckCircle2, Circle, ChevronRight, Sparkles, X } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Circle, ChevronRight, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { apiErrorMessage } from '@/lib/api-client'
@@ -22,6 +23,7 @@ export function OnboardingChecklist() {
   const allowed = hasPermission(currentUser, 'users', 'manage')
   const [status, setStatus] = useState<Onboarding | null>(null)
   const [hidden, setHidden] = useState(false)
+  const [open, setOpen] = useState(false)
   const [confirmDemo, setConfirmDemo] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -54,63 +56,69 @@ export function OnboardingChecklist() {
   }
 
   return (
-    <section aria-labelledby="onboarding-title" className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
-      <div className="flex items-start gap-3">
-        <div className="flex-1">
-          <h2 id="onboarding-title" className="font-semibold">{t('onboarding.title')}</h2>
-          <p className="text-xs text-muted-foreground">{t('onboarding.progress', { done, total: status.steps.length })}</p>
-        </div>
+    <section aria-labelledby="onboarding-title" className="rounded-lg border border-primary/30 bg-primary/5">
+      <div className="flex items-center gap-2 pr-1">
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="onboarding-steps"
+          className="flex-1 min-h-11 flex items-center gap-3 px-3 py-2 text-left text-sm">
+          <span id="onboarding-title" className="font-semibold">{t('onboarding.title')}</span>
+          <span className="text-muted-foreground tabular-nums whitespace-nowrap">{t('onboarding.progress', { done, total: status.steps.length })}</span>
+          <span className="hidden sm:block flex-1 max-w-32 h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
+            <span className="block h-full bg-primary transition-all" style={{ width: `${(done / status.steps.length) * 100}%` }} />
+          </span>
+          <ChevronDown className={cn('size-4 ml-auto text-muted-foreground shrink-0 transition-transform', open && 'rotate-180')} aria-hidden="true" />
+        </button>
         <button type="button" onClick={hide} aria-label={t('onboarding.hide')} title={t('onboarding.hide')}
           className="size-9 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground">
           <X className="size-4" />
         </button>
       </div>
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden" aria-hidden="true">
-        <div className="h-full bg-primary transition-all" style={{ width: `${(done / status.steps.length) * 100}%` }} />
-      </div>
 
-      <ol className="space-y-1">
-        {status.steps.map((s) => (
-          <li key={s.key}>
-            {s.done ? (
-              <p className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground line-through">
-                <CheckCircle2 className="size-4 text-emerald-700 dark:text-emerald-400 shrink-0" /> {t(`onboarding.step.${s.key}`)}
-              </p>
-            ) : (
-              <button type="button" onClick={() => navigate(pagePath(STEP_PAGE[s.key]))}
-                className={cn('w-full min-h-11 flex items-center gap-2 px-2 py-2 rounded-md text-left text-sm hover:bg-background',
-                  s.key === next && 'bg-background font-medium shadow-sm')}>
-                <Circle className="size-4 text-muted-foreground shrink-0" />
-                <span className="flex-1">
-                  {t(`onboarding.step.${s.key}`)}
-                  {s.key === next && <span className="block text-xs font-normal text-muted-foreground">{t(`onboarding.hint.${s.key}`)}</span>}
-                </span>
-                <ChevronRight className="size-4 text-muted-foreground shrink-0" />
-              </button>
-            )}
-          </li>
-        ))}
-      </ol>
+      {open && (
+        <div id="onboarding-steps" className="px-4 pb-4 space-y-3">
+          <ol className="space-y-1">
+            {status.steps.map((s) => (
+              <li key={s.key}>
+                {s.done ? (
+                  <p className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground line-through">
+                    <CheckCircle2 className="size-4 text-emerald-700 dark:text-emerald-400 shrink-0" /> {t(`onboarding.step.${s.key}`)}
+                  </p>
+                ) : (
+                  <button type="button" onClick={() => navigate(pagePath(STEP_PAGE[s.key]))}
+                    className={cn('w-full min-h-11 flex items-center gap-2 px-2 py-2 rounded-md text-left text-sm hover:bg-background',
+                      s.key === next && 'bg-background font-medium shadow-sm')}>
+                    <Circle className="size-4 text-muted-foreground shrink-0" />
+                    <span className="flex-1">
+                      {t(`onboarding.step.${s.key}`)}
+                      {s.key === next && <span className="block text-xs font-normal text-muted-foreground">{t(`onboarding.hint.${s.key}`)}</span>}
+                    </span>
+                    <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ol>
 
-      {status.demoAvailable && (
-        <div className="pt-2 border-t border-border">
-          {confirmDemo ? (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">{t('onboarding.demoConfirm')}</p>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setConfirmDemo(false)} disabled={busy}
-                  className="flex-1 min-h-10 rounded-md border border-border text-sm font-medium hover:bg-muted/50">{t('common.cancel')}</button>
-                <button type="button" onClick={addDemo} disabled={busy}
-                  className="flex-1 min-h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
-                  {t('onboarding.demoYes')}
+          {status.demoAvailable && (
+            <div className="pt-2 border-t border-border">
+              {confirmDemo ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">{t('onboarding.demoConfirm')}</p>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setConfirmDemo(false)} disabled={busy}
+                      className="flex-1 min-h-10 rounded-md border border-border text-sm font-medium hover:bg-muted/50">{t('common.cancel')}</button>
+                    <button type="button" onClick={addDemo} disabled={busy}
+                      className="flex-1 min-h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
+                      {t('onboarding.demoYes')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setConfirmDemo(true)}
+                  className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+                  <Sparkles className="size-4" /> {t('onboarding.demo')}
                 </button>
-              </div>
+              )}
             </div>
-          ) : (
-            <button type="button" onClick={() => setConfirmDemo(true)}
-              className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-              <Sparkles className="size-4" /> {t('onboarding.demo')}
-            </button>
           )}
         </div>
       )}

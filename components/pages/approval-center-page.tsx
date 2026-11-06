@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Search, CheckCircle2, XCircle, Clock, ShoppingCart, Megaphone, BookOpen, Package, Wrench, X, Loader2, AlertTriangle, UserCheck, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { toneIfAny } from '@/lib/tone'
 import { useIssueStore } from '@/lib/store'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 import { useDebounced, usePagedList } from '@/lib/use-paged-list'
@@ -136,9 +137,9 @@ export function ApprovalCenterPage() {
   const noneAtAll = statusCounts !== null && statusCounts.pending + statusCounts.approved + statusCounts.rejected === 0
 
   const stats = [
-    { label: label('approvalStatus', 'pending'), count: statusCounts?.pending ?? '—', color: 'text-amber-700 dark:text-amber-400' },
-    { label: label('approvalStatus', 'approved'), count: statusCounts?.approved ?? '—', color: 'text-green-700 dark:text-green-400' },
-    { label: label('approvalStatus', 'rejected'), count: statusCounts?.rejected ?? '—', color: 'text-red-600' },
+    { label: label('approvalStatus', 'pending'), count: statusCounts?.pending ?? '—', color: toneIfAny(statusCounts?.pending, 'text-amber-700 dark:text-amber-400') },
+    { label: label('approvalStatus', 'approved'), count: statusCounts?.approved ?? '—', color: toneIfAny(statusCounts?.approved, 'text-green-700 dark:text-green-400') },
+    { label: label('approvalStatus', 'rejected'), count: statusCounts?.rejected ?? '—', color: toneIfAny(statusCounts?.rejected, 'text-red-600') },
   ]
 
   const handleDecision = async (decision: 'approved' | 'rejected') => {

@@ -236,8 +236,11 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   const newButton = (
     <button
       onClick={() => setCreateOpen(true)}
-      // Phones: floating, thumb-sized and always on screen (Todo-Pilot §15)
-      className="flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors fixed bottom-20 right-4 z-30 h-14 px-5 rounded-full shadow-lg text-sm sm:static sm:h-10 sm:px-4 sm:rounded-lg sm:shadow-sm"
+      // Phones already have "Lapor" in the bottom navigation, which shows when
+      // the user can open Issues (Todo-Modern-UI Fase 0); without it the button
+      // stays floating, thumb-sized and always on screen (Todo-Pilot §15).
+      className={cn('items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors text-sm md:flex md:static md:h-10 md:px-4 md:rounded-lg md:shadow-sm',
+        canViewPage('issues') ? 'hidden' : 'flex fixed bottom-20 right-4 z-30 h-14 px-5 rounded-full shadow-lg')}
     >
       <Plus className="size-4" /> {t('issues.new')}
     </button>

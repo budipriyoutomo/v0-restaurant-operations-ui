@@ -8,7 +8,7 @@ import { api, cachedUser } from '@/lib/api-client'
 import { restoreSession } from '@/lib/session'
 import { User } from '@/lib/types'
 import { usePermissions } from '@/lib/permissions'
-import { pagePath, PUBLIC_RESET_PAGE } from '@/lib/routes'
+import { pagePath, PUBLIC_LOGIN_PAGE, PUBLIC_RESET_PAGE } from '@/lib/routes'
 import { homePage } from '@/lib/home'
 import { normalizeLocale, useT } from '@/lib/i18n'
 import { navigate, useRoute } from '@/lib/use-route'
@@ -89,6 +89,11 @@ function App() {
     }
   }, [currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Signed in on /login: replace the address with the role's home ('/').
+  useEffect(() => {
+    if (currentUser && routePage === PUBLIC_LOGIN_PAGE) navigate('/', { replace: true })
+  }, [currentUser, routePage])
+
   // Public: the link from the "forgot password" email, signed in or not.
   if (routePage === PUBLIC_RESET_PAGE) return <ResetPasswordPage />
 
@@ -112,7 +117,7 @@ function App() {
   }
 
   // '/' = the role's home page (Todo-Pilot §19): set per role, default My Work.
-  const currentPage = routePage === 'home' ? homePage(currentUser) : routePage
+  const currentPage = routePage === 'home' || routePage === PUBLIC_LOGIN_PAGE ? homePage(currentUser) : routePage
 
   const renderPage = () => {
     if (notFound) return <NotFoundView />

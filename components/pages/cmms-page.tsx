@@ -22,6 +22,7 @@ import { byOutlet } from '@/lib/outlet-filter'
 import { useRecordRoute } from '@/lib/use-route'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
+import { toneIfAny } from '@/lib/tone'
 import { assetStatusColor } from '@/components/cmms/asset-status'
 import { PMCalendar } from '@/components/cmms/pm-calendar'
 import { AssetDetailPanel } from '@/components/cmms/asset-detail-panel'
@@ -76,10 +77,12 @@ export function CMMSPage() {
   })
   const pmCompliance = (() => {
     const pmWOs = workOrders.filter((wo) => wo.type === 'preventive')
-    if (pmWOs.length === 0) return 0
+    if (pmWOs.length === 0) return null
     const done = pmWOs.filter((wo) => wo.status === 'completed').length
     return Math.round((done / pmWOs.length) * 100)
   })()
+
+  const correctiveCount = workOrders.filter((wo) => wo.type === 'corrective').length
 
   // Downtime by outlet — hours approximated by count of completed corrective WOs
   const downtimeData = (() => {
@@ -144,8 +147,8 @@ export function CMMSPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard title={t('cmms.totalAssets')} value={String(assets.length)} subtitle={t('cmms.registered')} icon={Package} />
         <StatCard title={t('cmms.openWos')} value={String(openWOs.length)} subtitle={t('cmms.overdueCount', { count: overdueWOs.length })} icon={Wrench} variant={overdueWOs.length > 0 ? 'warning' : undefined} />
-        <StatCard title={t('cmms.pmCompliance')} value={`${pmCompliance}%`} subtitle={t('cmms.pmCompleted')} icon={Calendar} variant="success" />
-        <StatCard title={t('cmms.correctiveWos')} value={String(workOrders.filter((wo) => wo.type === 'corrective').length)} subtitle={t('cmms.allTime')} icon={Clock} variant="critical" />
+        <StatCard title={t('cmms.pmCompliance')} value={pmCompliance === null ? '—' : `${pmCompliance}%`} subtitle={t('cmms.pmCompleted')} icon={Calendar} variant={toneIfAny(pmCompliance, 'success' as const)} />
+        <StatCard title={t('cmms.correctiveWos')} value={String(correctiveCount)} subtitle={t('cmms.allTime')} icon={Clock} variant={toneIfAny(correctiveCount, 'critical' as const)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

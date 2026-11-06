@@ -103,8 +103,10 @@ export function MaintenanceModulePage() {
         description={t('maintenance.subtitle')}
         actions={<button
           onClick={() => setShowReport(true)}
-          // Phones: floating, thumb-sized and always on screen (Todo-Pilot §15)
-          className="flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors fixed bottom-20 right-4 z-30 h-14 px-5 rounded-full shadow-lg text-sm sm:static sm:h-10 sm:px-4 sm:rounded-lg sm:shadow-sm"
+          // In the header, not floating: on phones the bottom navigation's
+          // "Lapor" is the floating entry (Todo-Modern-UI Fase 0); this one opens
+          // the maintenance form, so it stays.
+          className="flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors h-11 px-4 rounded-lg shadow-sm text-sm sm:h-10"
         >
           <Plus className="size-4" /> {t('maintenance.report')}
         </button>}

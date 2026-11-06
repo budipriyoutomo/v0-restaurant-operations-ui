@@ -60,7 +60,8 @@ test('phone: menu, list, drawers and main actions fit a 360px screen', async ({ 
   await expectNoSidewaysScroll(page)
   const main = await page.locator('main').boundingBox()
   expect(main!.width).toBeGreaterThanOrEqual(PHONE.width - 1)
-  await expectTouchTargetOnScreen(page.getByRole('button', { name: 'Laporan Baru' }))
+  // One report button on phones: the bottom navigation's "Lapor" (Todo-Modern-UI Fase 0).
+  await expect(page.getByRole('button', { name: 'Laporan Baru' })).toBeHidden()
 
   // 1b. Bottom navigation (Todo-Pilot §19): "Lapor" opens the report form from
   //     anywhere; "Pekerjaan" opens My Work. Both thumb-sized.
