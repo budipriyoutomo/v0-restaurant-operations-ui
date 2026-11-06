@@ -1,25 +1,25 @@
 'use client'
 
 // "Pekerjaan Saya" — the home of field users (Todo-Pilot §19 / UX-6): what is
-// waiting for *me*, computed by the server (GET /api/my-work), each row one tap
-// from its record. Sections the role cannot open come back null and are hidden.
+// waiting for *me*, computed by the server (GET /api/my-work). One queue, most
+// urgent first (lib/my-work-queue, Todo-Modern-UI Fase 3): the top item is a
+// ticket on the service rail with its one action, the rest are compact rows.
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronRight, ClipboardCheck, ClipboardList, ListChecks, MessageSquareWarning, RefreshCw, Wrench } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { AlertTriangle, CheckCircle2, ChevronRight, RefreshCw } from 'lucide-react'
 import { apiErrorMessage } from '@/lib/api-client'
-import { myWorkApi, type MyWork, type Section } from '@/lib/my-work-api'
-import { recordPath } from '@/lib/routes'
+import { myWorkApi, type MyWork } from '@/lib/my-work-api'
+import { buildQueue, hiddenCounts, type QueueItem } from '@/lib/my-work-queue'
 import { navigate } from '@/lib/use-route'
-import { useT } from '@/lib/i18n'
-import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
+import { useT, type MessageKey } from '@/lib/i18n'
+import { formatMoney } from '@/lib/money'
 import { OnboardingChecklist } from '@/components/shared/onboarding-checklist'
 import { InstallNudge } from '@/components/shared/install-app'
-import { formatMoney } from '@/lib/money'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
+import { RecordId } from '@/components/shared/record-id'
+import { StatusLabel } from '@/components/shared/status-label'
+import { RailTicket, ServiceRail } from '@/components/shared/service-rail'
 import { useOutletFilter } from '@/lib/permissions'
-
-type Row = { key: string; to: string; number: string; title: string; meta: string; badge?: React.ReactNode }
 
 export function MyWorkPage() {
   const { t, date, relative } = useT()
@@ -34,64 +34,33 @@ export function MyWorkPage() {
 
   useEffect(() => { load() }, [load])
 
-  const rupiah = (n: number | null) => (n == null ? '' : formatMoney(n))
+  const queue = work ? buildQueue(work) : []
+  const hidden = work ? hiddenCounts(work) : []
+  const [first, ...rest] = queue
 
-  const sections: { id: keyof MyWork; title: string; icon: React.ElementType; section: Section<unknown> | null; rows: Row[] }[] = work ? [
-    {
-      // First: a checklist has a deadline today (Todo-Ops-Checklist Fase 1).
-      id: 'opsChecklists', title: t('myWork.opsChecklists'), icon: ClipboardList, section: work.opsChecklists ?? null,
-      rows: (work.opsChecklists?.items ?? []).map((c) => {
-        const late = c.dueAt !== null && Date.parse(c.dueAt) < Date.now()
-        return {
-          key: c.id, to: recordPath('ops', c.id), number: c.number, title: c.templateName,
-          meta: [c.outlet, c.dueAt ? t('myWork.checklistDue', { time: relative(c.dueAt) }) : '',
-            t('myWork.checklistProgress', { answered: c.answered, total: c.itemCount })].filter(Boolean).join(' · '),
-          badge: late ? <span className="text-xs px-2 py-0.5 rounded-md bg-warning/15 text-warning dark:text-warning font-semibold">{t('myWork.checklistLate')}</span> : undefined,
-        }
-      }),
-    },
-    {
-      id: 'approvals', title: t('myWork.approvals'), icon: CheckCircle2, section: work.approvals,
-      rows: (work.approvals?.items ?? []).map((a) => ({
-        key: a.id, to: recordPath('approvals', a.id), number: a.number, title: a.title,
-        meta: [a.outlet, rupiah(a.amount), t('myWork.step', { step: a.stepOrder, total: a.stepCount }),
-          a.waitingSince ? t('myWork.waitingSince', { time: relative(a.waitingSince) }) : ''].filter(Boolean).join(' · '),
-        badge: a.escalated ? <span className="text-xs px-2 py-0.5 rounded-md bg-destructive/10 text-destructive font-semibold">{t('myWork.escalated')}</span> : undefined,
-      })),
-    },
-    {
-      id: 'workOrders', title: t('myWork.workOrders'), icon: Wrench, section: work.workOrders,
-      rows: (work.workOrders?.items ?? []).map((w) => ({
-        key: w.id, to: recordPath('cmms', w.id), number: w.number, title: w.title,
-        meta: [w.assetName, w.outlet, w.scheduledDate ? t('myWork.scheduled', { date: date(w.scheduledDate) }) : ''].filter(Boolean).join(' · '),
-        badge: <><PriorityBadge priority={w.priority as never} /><StatusBadge status={w.status as never} /></>,
-      })),
-    },
-    {
-      id: 'tasks', title: t('myWork.tasks'), icon: ListChecks, section: work.tasks,
-      rows: (work.tasks?.items ?? []).map((task) => ({
-        key: task.id, to: recordPath('issues', task.issueId), number: task.number, title: task.title,
-        meta: [task.issueNumber, task.outlet, task.dueDate ? t('myWork.due', { date: date(task.dueDate) }) : ''].filter(Boolean).join(' · '),
-        badge: <PriorityBadge priority={task.priority as never} />,
-      })),
-    },
-    {
-      id: 'readyToClose', title: t('myWork.readyToClose'), icon: ClipboardCheck, section: work.readyToClose,
-      rows: (work.readyToClose?.items ?? []).map((i) => ({
-        key: i.id, to: recordPath('issues', i.id), number: i.number, title: i.title, meta: i.outlet,
-      })),
-    },
-    {
-      id: 'guestWaiting', title: t('myWork.guestWaiting'), icon: MessageSquareWarning, section: work.guestWaiting,
-      rows: (work.guestWaiting?.items ?? []).map((g) => ({
-        key: g.id, to: recordPath('issues', g.issueId), number: g.issueNumber, title: g.title,
-        meta: [g.outlet, g.reportedAt ? t('myWork.reported', { time: relative(g.reportedAt) }) : ''].filter(Boolean).join(' · '),
-      })),
-    },
-  ] : []
-
-  const visible = sections.filter((s) => s.section !== null)
-  const nothing = work !== null && visible.every((s) => (s.section?.count ?? 0) === 0)
+  // The one fact that ranks the item: its deadline, or how long it has waited.
+  const when = (i: QueueItem): string => {
+    switch (i.kind) {
+      case 'opsChecklist':
+        return [i.dueAt ? t('myWork.checklistDue', { time: relative(i.dueAt) }) : '',
+          t('myWork.checklistProgress', { answered: i.detail.answered ?? 0, total: i.detail.total ?? 0 })].filter(Boolean).join(' · ')
+      case 'approval':
+        return [i.detail.amount != null ? formatMoney(Number(i.detail.amount)) : '',
+          t('myWork.step', { step: i.detail.step ?? 1, total: i.detail.steps ?? 1 }),
+          i.since ? t('myWork.waitingSince', { time: relative(i.since) }) : ''].filter(Boolean).join(' · ')
+      case 'workOrder':
+        return [i.detail.asset, i.dueAt ? t('myWork.scheduled', { date: date(i.dueAt) }) : ''].filter(Boolean).join(' · ')
+      case 'task':
+        return [i.detail.issue, i.dueAt ? t('myWork.due', { date: date(i.dueAt) }) : ''].filter(Boolean).join(' · ')
+      case 'guest':
+        return i.since ? t('myWork.reported', { time: relative(i.since) }) : ''
+      default:
+        return ''
+    }
+  }
+  const status = (i: QueueItem) =>
+    i.late ? (i.kind === 'approval' ? t('myWork.escalated') : t('myWork.late'))
+      : i.signal === 'waiting' ? t('myWork.waiting') : null
 
   return (
     <div className="p-4 sm:p-6 space-y-4 max-w-3xl">
@@ -115,49 +84,57 @@ export function MyWorkPage() {
       )}
       {work === null && !error && (
         <div className="space-y-3" aria-busy="true">
-          {[1, 2, 3].map((i) => <div key={i} className="h-28 rounded-2xl bg-muted animate-pulse" />)}
+          {[1, 2, 3].map((i) => <div key={i} className="h-20 rounded-md bg-muted animate-pulse" />)}
         </div>
       )}
-      {nothing && (
+      {work !== null && queue.length === 0 && (
         <EmptyState icon={CheckCircle2} title={t('myWork.empty')} />
       )}
 
-      {!nothing && visible.map(({ id, title, icon: Icon, section, rows }) => (
-        <section key={id} aria-label={title} className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
-          <h2 className="flex items-center gap-3 px-4 py-3 border-b border-border text-[15px] font-semibold">
-            <span className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-              <Icon className="size-4" />
+      {first && (
+        <ServiceRail label={t('myWork.next')}>
+          <RailTicket
+            className="w-full"
+            signal={first.signal}
+            status={status(first) ?? t(`myWork.kind.${first.kind}` as MessageKey)}
+            title={first.title}
+            meta={<><span>{t(`myWork.kind.${first.kind}` as MessageKey)} · </span><RecordId id={first.number} />{first.outlet && ` · ${first.outlet}`}{when(first) && <span className="block mt-0.5">{when(first)}</span>}</>}
+            onClick={() => navigate(first.to)}
+          >
+            <span className="mt-3 inline-flex items-center gap-1 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-semibold">
+              {t(`myWork.action.${first.kind}` as MessageKey)} <ChevronRight className="size-4" aria-hidden="true" />
             </span>
-            {title}
-            <span className={cn('ml-auto text-xs min-w-7 h-6 px-2 rounded-full font-bold flex items-center justify-center tabular-nums',
-              (section?.count ?? 0) > 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-              {section?.count ?? 0}
-            </span>
-          </h2>
-          {rows.length === 0 ? (
-            <p className="px-4 py-4 text-sm text-muted-foreground">{t('myWork.sectionEmpty')}</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {rows.map((r) => (
-                <li key={r.key}>
-                  <button type="button" onClick={() => navigate(r.to)}
-                    className="group w-full min-h-16 text-left px-4 py-3 hover:bg-muted/40 transition-colors flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{r.title}</p>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5"><span className="font-mono">{r.number}</span>{r.meta && ` · ${r.meta}`}</p>
-                    </div>
-                    {r.badge && <div className="flex items-center gap-1 flex-shrink-0">{r.badge}</div>}
-                    <ChevronRight className="size-4 text-muted-foreground/50 group-hover:text-foreground flex-shrink-0" aria-hidden="true" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {(section?.count ?? 0) > rows.length && (
-            <p className="px-4 py-2.5 text-xs text-muted-foreground border-t border-border bg-muted/20">{t('myWork.more', { count: (section?.count ?? 0) - rows.length })}</p>
-          )}
+          </RailTicket>
+        </ServiceRail>
+      )}
+
+      {rest.length > 0 && (
+        <section aria-label={t('myWork.queue')} className="rounded-md border border-border bg-card overflow-hidden">
+          <ul className="divide-y divide-border">
+            {rest.map((i) => (
+              <li key={i.key}>
+                <button type="button" onClick={() => navigate(i.to)}
+                  className="group w-full min-h-14 text-left px-4 py-2.5 hover:bg-muted/40 transition-colors flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{i.title}</p>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {t(`myWork.kind.${i.kind}` as MessageKey)} · <RecordId id={i.number} />{i.outlet && ` · ${i.outlet}`}{when(i) && ` · ${when(i)}`}
+                    </p>
+                  </div>
+                  {status(i) && <StatusLabel signal={i.signal} className="flex-shrink-0">{status(i)}</StatusLabel>}
+                  <ChevronRight className="size-4 text-muted-foreground/50 group-hover:text-foreground flex-shrink-0" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
         </section>
-      ))}
+      )}
+
+      {hidden.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {t('myWork.hidden', { list: hidden.map((h) => t(`myWork.hiddenKind.${h.kind}` as MessageKey, { count: h.count })).join(', ') })}
+        </p>
+      )}
     </div>
   )
 }

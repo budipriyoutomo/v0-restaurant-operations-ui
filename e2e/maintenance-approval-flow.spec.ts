@@ -67,9 +67,9 @@ test('maintenance issue > Rp 1 juta: 2-step approval → work order completed �
 
   // 2. Manager approves step 1 — straight from "Pekerjaan Saya", the manager's
   //    home page (Todo-Pilot §19): the approval is waiting for them there.
+  //    One queue since Todo-Modern-UI Fase 3: on the rail or in the list below.
   await manager.goto('/')
-  const waiting = manager.getByRole('region', { name: 'Menunggu keputusan saya' })
-  await waiting.getByText(`Approval biaya: ${title}`).click()
+  await manager.getByRole('main').getByText(`Approval biaya: ${title}`).click()
   await expect(manager.getByText(/giliran anda — langkah 1 \(manajer\)/i)).toBeVisible()
   await manager.getByRole('button', { name: 'Setujui Langkah 1' }).click()
   // The decision is confirmed after reading what it does (Todo-Pilot §23).
