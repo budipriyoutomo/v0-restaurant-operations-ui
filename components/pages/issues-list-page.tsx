@@ -101,6 +101,9 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   const outlet = filterOutlet ?? globalOutlet
   const [lateParam, setLateOnly] = useUrlState('late', null, routed)
   const lateOnly = lateParam === '1'
+  // "Akan lewat tenggat hari ini" from the GM dashboard (Todo-Modern-UI Fase 3).
+  const [dueParam, setDue] = useUrlState('due', null, routed)
+  const dueToday = dueParam === 'today'
   const [confirmBulkClose, setConfirmBulkClose] = useState(false)
   const [bulkClosing, setBulkClosing] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
@@ -122,19 +125,19 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   const debouncedSearch = useDebounced(searchQuery)
   const category = viewDef ? null : filterCategory
   const viewModule = viewDef?.module ?? null
-  const filterKey = [debouncedSearch, filterPriority, category, viewModule, hideFinished, readyOnly, outlet, lateOnly].join('|')
+  const filterKey = [debouncedSearch, filterPriority, category, viewModule, hideFinished, readyOnly, outlet, lateOnly, dueToday].join('|')
   useEffect(() => { setPage(1) }, [filterKey])
   const list = usePagedList<Issue>('/api/issues', {
     q: debouncedSearch.trim(), priority: filterPriority, category, module: viewModule, active: hideFinished, ready: readyOnly,
-    outlet, late: lateOnly,
+    outlet, late: lateOnly, due: dueToday ? 'today' : null,
   }, { page, pageSize: PAGE_SIZE, onItems: upsertIssues })
   const pagedIssues = (list.ids ?? []).map((id) => issues.find((i) => i.id === id)).filter((i): i is Issue => !!i)
   const totalCount = list.total
-  const hasFilters = Boolean(searchQuery || filterPriority || filterCategory || hideFinished || readyOnly || outlet || lateOnly)
+  const hasFilters = Boolean(searchQuery || filterPriority || filterCategory || hideFinished || readyOnly || outlet || lateOnly || dueToday)
   const noIssuesYet = list.ids !== null && totalCount === 0 && !hasFilters
   const clearFilters = () => {
     setSearchQuery(null); setFilterPriority(null); setFilterCategory(null); setHideFinished(null); setReadyOnly(null)
-    setFilterOutlet(null); setLateOnly(null); setGlobalOutlet(null)
+    setFilterOutlet(null); setLateOnly(null); setDue(null); setGlobalOutlet(null)
   }
   // "Close all" acts on the ready issues shown on this page.
   const readyIds = pagedIssues.filter((i) => i.readyToClose).map((i) => i.id)
@@ -324,7 +327,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
 
       {/* Issues count + pagination info */}
       {/* Filters that came from a link (GM view) have no control of their own: show them as removable chips. */}
-      {(filterOutlet || lateOnly) && (
+      {(filterOutlet || lateOnly || dueToday) && (
         <div className="flex flex-wrap gap-2">
           {filterOutlet && (
             <button onClick={() => setFilterOutlet(null)}
@@ -336,6 +339,12 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
             <button onClick={() => setLateOnly(null)}
               className="inline-flex items-center gap-1 min-h-8 px-3 rounded-full bg-destructive-soft text-destructive text-xs font-medium hover:bg-destructive/15">
               {t('issues.chipLate')} <X className="size-3" aria-hidden="true" />
+            </button>
+          )}
+          {dueToday && (
+            <button onClick={() => setDue(null)}
+              className="inline-flex items-center gap-1 min-h-8 px-3 rounded-full bg-warning-mark/10 text-warning text-xs font-medium hover:bg-warning-mark/20">
+              {t('issues.chipDueToday')} <X className="size-3" aria-hidden="true" />
             </button>
           )}
         </div>

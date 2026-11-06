@@ -11,7 +11,7 @@ import { expect, test, type APIRequestContext, type Locator, type Page } from '@
 const API = 'http://localhost:8001'
 const ADMIN = { email: 'admin@restaurant.com', password: 'admin123' }
 const MANAGER = { id: '00000000-0000-0000-0000-000000000002', email: 'manager@restaurant.com', password: 'manager123' }
-const OUTLET_ID = '44444444-0000-0000-0000-000000000001'   // KL Central
+const OUTLET_ID = '44444444-0000-0000-0000-000000000001'   // Kemang
 const PHONE = { width: 360, height: 740 }
 const SHOTS = 'test-results/mobile'
 
@@ -41,7 +41,7 @@ test('phone: menu, list, drawers and main actions fit a 360px screen', async ({ 
   const res = await request.post(`${API}/api/issues`, {
     headers: auth,
     data: {
-      title: `E2E HP ${Date.now()}`, description: 'Kompor tidak menyala sama sekali sejak pagi', outlet: 'KL Central',
+      title: `E2E HP ${Date.now()}`, description: 'Kompor tidak menyala sama sekali sejak pagi', outlet: 'Kemang',
       category: 'Maintenance', priority: 'high', generateTask: false, generateWorkOrder: true, estimatedCost: 2_500_000,
     },
   })

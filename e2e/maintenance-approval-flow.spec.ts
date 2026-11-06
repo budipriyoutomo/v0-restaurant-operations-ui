@@ -10,7 +10,7 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test'
 
 const API = 'http://localhost:8001'
-const OUTLET = { id: '44444444-0000-0000-0000-000000000001', name: 'KL Central' }
+const OUTLET = { id: '44444444-0000-0000-0000-000000000001', name: 'Kemang' }
 const MANAGER = { id: '00000000-0000-0000-0000-000000000002', email: 'manager@restaurant.com', password: 'manager123' }
 const ADMIN = { email: 'admin@restaurant.com', password: 'admin123' }
 

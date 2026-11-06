@@ -1,11 +1,20 @@
 'use client'
 
-import { TrendingUp, TrendingDown, AlertCircle, CheckCircle2, Clock, Zap, ShoppingCart, Megaphone, BookOpen, Package, Wrench } from 'lucide-react'
+// GM dashboard (Todo-Modern-UI Fase 3): the title says how today is going, then
+// the outlet rail (most urgent first), the decisions waiting for me and what
+// goes past due today. The numbers and charts follow under "Details".
+import { CheckCircle2, ChevronRight, ShoppingCart, Megaphone, BookOpen, Package, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { ApprovalType } from '@/lib/types'
 import { useEffect, useState } from 'react'
 import { overviewApi, type Overview } from '@/lib/overview-api'
+import { outletsApi, type OutletComparison as CompareData } from '@/lib/outlets-api'
+import { myWorkApi, type MyWork } from '@/lib/my-work-api'
+import { api } from '@/lib/api-client'
+import { headlineParts } from '@/lib/dashboard'
+import { formatMoney } from '@/lib/money'
+import type { Issue } from '@/lib/types'
 import { recordPath } from '@/lib/routes'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { useOutletFilter, usePermissions } from '@/lib/permissions'
@@ -15,12 +24,15 @@ import { OnboardingChecklist } from '@/components/shared/onboarding-checklist'
 import { StatCard } from '@/components/shared/stat-card'
 import { toneIfAny } from '@/lib/tone'
 import { OutletComparison } from '@/components/dashboard/outlet-comparison'
+import { OutletRail } from '@/components/dashboard/outlet-rail'
+import { RecordId } from '@/components/shared/record-id'
+import { PriorityBadge } from '@/components/shared/priority-badge'
 import { PageHeader } from '@/components/shared/page-header'
 
 export function ExecutiveDashboardPage() {
   const listVersion = useIssueStore((st) => st.listVersion)
   const { canViewPage } = usePermissions()
-  const { t, label } = useT()
+  const { t, label, relative } = useT()
 
   // Counted by the server (Todo-Pilot §22) — the browser no longer holds every
   // issue. "In progress" vs "awaiting close" as in Todo-Pilot §18.
@@ -32,7 +44,28 @@ export function ExecutiveDashboardPage() {
     return () => { live = false }
   }, [listVersion, outlet])
 
+  // Today's three questions: which outlet, which decision, what goes late.
+  const [compare, setCompare] = useState<CompareData | null>(null)
+  const [decisions, setDecisions] = useState<MyWork['approvals']>(null)
+  const [dueToday, setDueToday] = useState<{ items: Issue[]; total: number } | null>(null)
+  const canIssues = canViewPage('issues')
+  useEffect(() => {
+    let live = true
+    outletsApi.compare(30).then((d) => { if (live) setCompare(d) }).catch(() => {})
+    myWorkApi.get(5, outlet).then((w) => { if (live) setDecisions(w.approvals) }).catch(() => {})
+    if (canIssues) {
+      api.getPage<Issue>(`/api/issues?due=today&limit=5${outlet ? `&outlet=${encodeURIComponent(outlet)}` : ''}`)
+        .then((d) => { if (live) setDueToday(d) }).catch(() => {})
+    }
+    return () => { live = false }
+  }, [listVersion, outlet, canIssues])
+
   if (!data) return <ListSkeleton rows={6} />
+
+  const flagged = compare?.outlets.filter((r) => r.flags.length > 0).length ?? 0
+  const headline = headlineParts(flagged, data.issues.slaBreached)
+    .map((p) => t(p.key, p.count === undefined ? undefined : { count: p.count })).join(' · ')
+  const showTable = () => document.getElementById('outlet-cmp-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   const categoryEntries = Object.entries(data.issues.byCategory).sort((a, b) => b[1] - a[1])
   const maxCat = categoryEntries[0]?.[1] ?? 1
@@ -50,14 +83,77 @@ export function ExecutiveDashboardPage() {
   return (
     <div className="p-4 sm:p-6 space-y-5">
       {/* Header */}
-      <PageHeader
-        title={t('dashboard.title')}
-        description={t('dashboard.subtitle')}
-      />
+      <PageHeader title={headline} description={t('dashboard.subtitle')} />
       <OnboardingChecklist />
 
-      {/* Outlets side by side, exceptions first (Todo-Pilot §25) */}
-      <OutletComparison />
+      {compare && <OutletRail rows={compare.outlets} onShowTable={showTable} />}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {decisions && (
+          <section aria-labelledby="dash-decisions" className="rounded-md border border-border bg-card">
+            <h2 id="dash-decisions" className="px-4 py-3 border-b border-border font-semibold">{t('dashboard.decisions')}</h2>
+            {decisions.items.length === 0 ? (
+              <p className="px-4 py-4 text-sm text-muted-foreground">{t('dashboard.decisionsEmpty')}</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {decisions.items.map((a) => (
+                  <li key={a.id}>
+                    <button type="button" onClick={() => navigate(recordPath('approvals', a.id))}
+                      className="w-full min-h-14 text-left px-4 py-2.5 hover:bg-muted/40 flex items-center gap-3">
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-medium truncate">{a.title}</span>
+                        <span className="block text-xs text-muted-foreground truncate mt-0.5">
+                          <RecordId id={a.number} />{a.outlet && ` · ${a.outlet}`}{a.amount != null && ` · ${formatMoney(a.amount)}`}
+                          {a.waitingSince && ` · ${t('myWork.waitingSince', { time: relative(a.waitingSince) })}`}
+                        </span>
+                      </span>
+                      <ChevronRight className="size-4 text-muted-foreground/50 flex-shrink-0" aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {decisions.count > decisions.items.length && (
+              <button type="button" onClick={() => navigate('/approvals')}
+                className="w-full px-4 py-2.5 text-left text-sm font-medium text-primary border-t border-border hover:bg-muted/40">
+                {t('dashboard.seeAll')} ({decisions.count})
+              </button>
+            )}
+          </section>
+        )}
+
+        {canIssues && dueToday && (
+          <section aria-labelledby="dash-due-today" className="rounded-md border border-border bg-card">
+            <h2 id="dash-due-today" className="px-4 py-3 border-b border-border font-semibold">{t('dashboard.dueToday')}</h2>
+            {dueToday.items.length === 0 ? (
+              <p className="px-4 py-4 text-sm text-muted-foreground">{t('dashboard.dueTodayEmpty')}</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {dueToday.items.map((i) => (
+                  <li key={i.id}>
+                    <button type="button" onClick={() => navigate(recordPath('issues', i.id))}
+                      className="w-full min-h-14 text-left px-4 py-2.5 hover:bg-muted/40 flex items-center gap-3">
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-medium truncate">{i.title}</span>
+                        <span className="block text-xs text-muted-foreground truncate mt-0.5"><RecordId id={i.number} />{i.outlet && ` · ${i.outlet}`}</span>
+                      </span>
+                      <PriorityBadge priority={i.priority} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {dueToday.total > 0 && (
+              <button type="button" onClick={() => navigate('/issues?due=today')}
+                className="w-full px-4 py-2.5 text-left text-sm font-medium text-primary border-t border-border hover:bg-muted/40">
+                {t('dashboard.seeAll')} ({dueToday.total})
+              </button>
+            )}
+          </section>
+        )}
+      </div>
+
+      <h2 className="pt-2 text-sm font-semibold text-muted-foreground">{t('dashboard.more')}</h2>
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -177,6 +273,9 @@ export function ExecutiveDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Outlets side by side, every number (Todo-Pilot §25) */}
+      <OutletComparison />
     </div>
   )
 }

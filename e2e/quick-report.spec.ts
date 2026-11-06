@@ -43,7 +43,7 @@ test('staff report a problem with a photo in a few taps', async ({ page, request
   // Advanced options are not offered to staff.
   await expect(dialog.getByLabel(/^Tenggat/)).toHaveCount(0)
   await expect(dialog.getByText('Buat Perintah Kerja (CMMS)')).toHaveCount(0)
-  await expect(dialog.getByText('KL Central', { exact: true })).toBeVisible()   // only outlet → preselected
+  await expect(dialog.getByText('Kemang', { exact: true })).toBeVisible()   // only outlet → preselected
 
   await dialog.getByLabel(/^Judul/).fill(title)
   await dialog.getByRole('radiogroup').getByText('Lainnya', { exact: true }).click()
@@ -62,7 +62,7 @@ test('staff report a problem with a photo in a few taps', async ({ page, request
   await expect.poll(async () => (await (await request.get(`${API}/api/issues/${issue.id}`, { headers: auth })).json()).photoCount)
     .toBe(1)
   const saved = await (await request.get(`${API}/api/issues/${issue.id}`, { headers: auth })).json()
-  expect(saved).toMatchObject({ title, outlet: 'KL Central', category: 'Other', priority: 'medium', dueDate: null })
+  expect(saved).toMatchObject({ title, outlet: 'Kemang', category: 'Other', priority: 'medium', dueDate: null })
 
   // "Lapor lagi" starts over.
   await dialog.getByRole('button', { name: 'Lapor lagi' }).click()
