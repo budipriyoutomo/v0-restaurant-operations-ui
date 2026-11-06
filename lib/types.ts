@@ -496,7 +496,7 @@ export interface AuditLog {
   id: string
   table_name: string
   record_id: string
-  action: 'INSERT' | 'UPDATE' | 'DELETE'
+  action: string   // 'INSERT' | 'UPDATE' | 'DELETE', or a service action such as 'status_change'
   old_value: Record<string, unknown> | null
   new_value: Record<string, unknown> | null
   performed_by: string

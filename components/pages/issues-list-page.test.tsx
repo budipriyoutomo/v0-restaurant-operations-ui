@@ -481,3 +481,33 @@ describe('IssuesListPage — server paging (Todo-Pilot §22)', () => {
   })
 
 })
+
+// Todo-Modern-UI Fase 3: warnings and decisions first, then the handling path
+// (every child with its status and owner), the story, and the details.
+describe('IssuesListPage — issue detail', () => {
+  it('leads with the warning, then the handling path, story and details', async () => {
+    useIssueStore.setState({
+      currentUser: { id: 'u1', name: 'Budi', permissions: { issues: 'manage', tasks: 'view' }, all_outlets: true } as unknown as User,
+      issues: [issue('00002', { slaBreach: true, taskIds: ['t1'],
+        approval: { id: 'a1', number: 'APR-1', status: 'pending', currentStepOrder: 1, stepCount: 2, escalated: false } })],
+    })
+    const get = api.get as unknown as ReturnType<typeof vi.fn>
+    const base = get.getMockImplementation()!
+    get.mockImplementation(async (path: string) => path.startsWith('/api/tasks?issue_id=')
+      ? [{ id: 't1', number: 'TSK-1', title: 'Ganti kompresor', status: 'in-progress', assignee: 'Agus', issueId: '00002' }]
+      : base(path))
+    nav.pathname = '/issues/00002'
+    await renderList()
+    const drawer = screen.getByRole('dialog', { name: /ISS-2026-00002/ })
+    const rail = await within(drawer).findByRole('region', { name: 'Handling path' })
+    await within(rail).findByText('Ganti kompresor')
+    expect(rail).toHaveTextContent(/Approval.*APR-1.*Step 1\/2/)
+    expect(rail).toHaveTextContent(/Worked on by Agus/)
+
+    const warning = within(drawer).getByText(/exceeded its SLA target/)
+    const details = within(drawer).getByRole('region', { name: 'Details' })
+    expect(warning.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(rail.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(drawer).queryByRole('region', { name: 'History' })).not.toBeInTheDocument()   // needs reports view
+  })
+})

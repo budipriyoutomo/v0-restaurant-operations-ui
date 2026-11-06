@@ -101,7 +101,8 @@ test('maintenance issue > Rp 1 juta: 2-step approval → work order completed �
   //    auto-resolve (roll-up needs ≥1 Task, Todo-Next §2.1) — the manager closes it.
   await goTo(manager, 'Laporan')
   await manager.getByText(title).first().click()
-  const linked = manager.getByText('Catatan terkait').locator('..')
+  // Every child on the handling path, with its own status (Todo-Modern-UI Fase 3).
+  const linked = manager.getByRole('region', { name: 'Jalur penanganan' })
   await expect(linked.getByText('Disetujui')).toBeVisible()
   await expect(linked.getByText('Selesai')).toBeVisible()           // the WO is listed too
   await expect(manager.getByText(/belum bisa diselesaikan|selesaikan atau batalkan/i)).toHaveCount(0)

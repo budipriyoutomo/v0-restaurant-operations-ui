@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Plus, AlertTriangle, X, CheckSquare, CheckCircle2, Sparkles, ChevronLeft, ChevronRight, ChevronDown, Lock, Ban, RotateCcw, RefreshCw, Wrench, Clock, Camera, XCircle, Inbox } from 'lucide-react'
+import { Search, Plus, AlertTriangle, X, CheckSquare, CheckCircle2, ChevronLeft, ChevronRight, ChevronDown, Lock, Ban, RotateCcw, RefreshCw, Wrench, Clock, Camera, XCircle, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
@@ -26,6 +26,10 @@ import { IssueComments } from '@/components/shared/issue-comments'
 import { useT, type MessageKey } from '@/lib/i18n'
 import { UnlinkedAssigneeNote } from '@/components/shared/unlinked-assignee-note'
 import { SideDrawer } from '@/components/shared/side-drawer'
+import { IssueTrail } from '@/components/issues/issue-trail'
+import { IssueHistory } from '@/components/issues/issue-history'
+import { issueTrail } from '@/lib/issue-trail'
+import { canRead, hasPermission } from '@/lib/access'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { PageHeader } from '@/components/shared/page-header'
@@ -52,7 +56,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
     issues, tasks, approvals, workOrders, outlets, pics, assets, createIssue, updateIssueStatus,
     cancelIssue, reopenIssue, reviseApproval, bulkCloseIssues, assignIssue,
     uploadIssuePhoto, loadIssuePhotos, loadIssueComments, addIssueComment, resolveQr, currentUser,
-    upsertIssues, fetchIssue, loadIssueChildren, categories,
+    upsertIssues, fetchIssue, loadIssueChildren, categories, listVersion,
   } = useIssueStore()
   // Outlet pickers must only offer outlets this user may write to (Tier 4).
   const myOutlets = useMyOutlets()
@@ -166,6 +170,15 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
   const linkedApproval = selectedIssue ? approvals.find((a) => a.issueId === selectedIssue.id) : undefined
   // Only loaded for roles that can read CMMS; the closure blockers list still names it otherwise.
   const linkedWorkOrders = selectedIssue ? workOrders.filter((w) => w.issueId === selectedIssue.id) : []
+  // Handling path (Todo-Modern-UI Fase 3); the children come from loadIssueChildren above.
+  const trail = selectedIssue ? issueTrail(selectedIssue, {
+    tasks: linkedTasks,
+    workOrders: canRead(currentUser, 'workOrders') ? linkedWorkOrders : null,
+    approval: linkedApproval ?? null,
+  }).map((step) => ({   // a record opens only when the role may view its page (Todo-Pilot §14)
+    ...step, to: step.to && canViewPage(step.kind === 'approval' ? 'approvals' : 'cmms') ? step.to : null,
+  })) : []
+  const canSeeHistory = hasPermission(currentUser, 'reports', 'view')
 
   const handleCreate = async (input: Parameters<typeof createIssue>[0]) => {
     const created = await createIssue(input)
@@ -518,113 +531,10 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
           title={selectedIssue.title}
           closeLabel={t('common.close')}
           onClose={closeDrawer}
+          wide
         >
-
-              <div className="space-y-3 pb-6 border-b border-border">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <span className="text-sm font-medium text-muted-foreground">{t('common.status')}</span>
-                  <StatusBadge status={selectedIssue.status} />
-                </div>
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <span className="text-sm font-medium text-muted-foreground">{t('common.priority')}</span>
-                  <PriorityBadge priority={selectedIssue.priority} />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-sm font-semibold">{t('issueDrawer.description')}</p>
-                <p className="text-sm text-foreground leading-relaxed">{selectedIssue.description}</p>
-              </div>
-
-              <IssuePhotos issueId={selectedIssue.id} count={selectedIssue.photoCount ?? 0} load={loadIssuePhotos} />
-              <IssueComments issueId={selectedIssue.id} load={loadIssueComments} add={addIssueComment} />
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">{t('common.outlet')}</p>
-                  <p className="text-sm font-semibold text-foreground">{selectedIssue.outlet}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">{t('common.category')}</p>
-                  <p className="text-sm font-semibold text-foreground">{label('category', selectedIssue.category)}</p>
-                </div>
-                <div className="col-span-2">
-                  {/* A user, so they are actually notified (Todo-Pilot §17) */}
-                  {can.updateIssueStatus && !FINAL_STATUSES.includes(selectedIssue.status) ? (
-                    <>
-                      <label htmlFor="issue-assignee" className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">{t('issueDrawer.assignedTo')}</label>
-                      <AssigneePicker
-                        id="issue-assignee"
-                        outlet={selectedIssue.outlet}
-                        value={selectedIssue.assigneeUserId ?? null}
-                        legacyName={selectedIssue.assignee}
-                        onChange={(userId) => {
-                          assignIssue(selectedIssue.id, userId).catch((e) => toast.error(apiErrorMessage(e)))
-                        }}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">{t('issueDrawer.assignedTo')}</p>
-                      <p className="text-sm font-semibold text-foreground">{selectedIssue.assignee}</p>
-                      <UnlinkedAssigneeNote record={selectedIssue} />
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-3 pb-6 border-b border-border">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <span className="text-sm font-medium text-muted-foreground">{t('common.createdDate')}</span>
-                  <span className="text-sm">{date(selectedIssue.createdDate)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <span className="text-sm font-medium text-muted-foreground">{t('common.dueDate')}</span>
-                  <span className="text-sm">{date(selectedIssue.dueDate)}</span>
-                </div>
-              </div>
-
-              {(linkedTasks.length > 0 || linkedApproval || linkedWorkOrders.length > 0) && (
-                <div className="space-y-3 pb-6 border-b border-border">
-                  <p className="text-sm font-semibold flex items-center gap-1.5">
-                    <Sparkles className="size-3.5 text-primary" /> {t('issueDrawer.linkedRecords')}
-                  </p>
-                  {linkedTasks.map((task) => (
-                    <div key={task.id} className="flex items-center justify-between p-2.5 rounded-md bg-muted/30 border border-border">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <CheckSquare className="size-3.5 text-primary flex-shrink-0" />
-                        <span className="text-xs font-mono font-bold text-primary truncate">{task.number}</span>
-                      </div>
-                      <StatusBadge status={task.status} />
-                    </div>
-                  ))}
-                  {linkedApproval && (
-                    <LinkedRow to={canViewPage('approvals') ? recordPath('approvals', linkedApproval.id) : null}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <CheckCircle2 className="size-3.5 text-warning flex-shrink-0" />
-                        <span className="text-xs font-mono font-bold text-primary truncate">{linkedApproval.number}</span>
-                      </div>
-                      <span className={cn(
-                        'text-xs font-semibold px-2 py-0.5 rounded-full capitalize',
-                        linkedApproval.status === 'pending' ? 'bg-warning-mark/10 text-warning' :
-                        linkedApproval.status === 'approved' ? 'bg-success/10 text-success' : 'bg-destructive-soft text-destructive'
-                      )}>
-                        {label('approvalStatus', linkedApproval.status)}
-                      </span>
-                    </LinkedRow>
-                  )}
-                  {linkedWorkOrders.map((wo) => (
-                    <LinkedRow key={wo.id} to={canViewPage('cmms') ? recordPath('cmms', wo.id) : null}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Wrench className="size-3.5 text-muted-foreground flex-shrink-0" />
-                        <span className="text-xs font-mono font-bold text-primary truncate">{wo.number}</span>
-                      </div>
-                      <StatusBadge status={wo.status} />
-                    </LinkedRow>
-                  ))}
-                </div>
-              )}
-
+              {/* Todo-Modern-UI Fase 3: warnings and decisions first, then the
+                  handling path, the story, the history and the details. */}
               {selectedIssue.slaBreach && (
                 <div className="p-4 rounded-md bg-destructive-soft/50 border border-destructive/40 space-y-2">
                   <p className="text-sm font-semibold text-destructive flex items-center gap-2">
@@ -659,7 +569,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
               )}
 
               {can.updateIssueStatus && !FINAL_STATUSES.includes(selectedIssue.status) && (
-                <div className="flex flex-col gap-2 pt-6 border-t border-border">
+                <div className="flex flex-col gap-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('issueDrawer.updateStatus')}</p>
                   <div className="relative">
                     <button
@@ -785,6 +695,82 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
                   )}
                 </div>
               )}
+
+              <IssueTrail steps={trail} />
+
+              <section aria-labelledby="issue-story" className="space-y-4">
+                <h3 id="issue-story" className="sr-only">{t('issueDrawer.story')}</h3>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold">{t('issueDrawer.description')}</p>
+                <p className="text-sm text-foreground leading-relaxed">{selectedIssue.description}</p>
+              </div>
+
+              <IssuePhotos issueId={selectedIssue.id} count={selectedIssue.photoCount ?? 0} load={loadIssuePhotos} />
+              <IssueComments issueId={selectedIssue.id} load={loadIssueComments} add={addIssueComment} />
+
+              </section>
+
+              {canSeeHistory && <IssueHistory issueId={selectedIssue.id} version={listVersion} />}
+
+              <section aria-labelledby="issue-details" className="space-y-4 pt-4 border-t border-border">
+                <h3 id="issue-details" className="text-sm font-semibold">{t('issueDrawer.details')}</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <span className="text-sm font-medium text-muted-foreground">{t('common.status')}</span>
+                  <StatusBadge status={selectedIssue.status} />
+                </div>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <span className="text-sm font-medium text-muted-foreground">{t('common.priority')}</span>
+                  <PriorityBadge priority={selectedIssue.priority} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">{t('common.outlet')}</p>
+                  <p className="text-sm font-semibold text-foreground">{selectedIssue.outlet}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">{t('common.category')}</p>
+                  <p className="text-sm font-semibold text-foreground">{label('category', selectedIssue.category)}</p>
+                </div>
+                <div className="col-span-2">
+                  {/* A user, so they are actually notified (Todo-Pilot §17) */}
+                  {can.updateIssueStatus && !FINAL_STATUSES.includes(selectedIssue.status) ? (
+                    <>
+                      <label htmlFor="issue-assignee" className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">{t('issueDrawer.assignedTo')}</label>
+                      <AssigneePicker
+                        id="issue-assignee"
+                        outlet={selectedIssue.outlet}
+                        value={selectedIssue.assigneeUserId ?? null}
+                        legacyName={selectedIssue.assignee}
+                        onChange={(userId) => {
+                          assignIssue(selectedIssue.id, userId).catch((e) => toast.error(apiErrorMessage(e)))
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">{t('issueDrawer.assignedTo')}</p>
+                      <p className="text-sm font-semibold text-foreground">{selectedIssue.assignee}</p>
+                      <UnlinkedAssigneeNote record={selectedIssue} />
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <span className="text-sm font-medium text-muted-foreground">{t('common.createdDate')}</span>
+                  <span className="text-sm">{date(selectedIssue.createdDate)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <span className="text-sm font-medium text-muted-foreground">{t('common.dueDate')}</span>
+                  <span className="text-sm">{date(selectedIssue.dueDate)}</span>
+                </div>
+              </div>
+
+              </section>
         </SideDrawer>
       )}
 
@@ -814,16 +800,4 @@ const CLOSING_STATUSES: IssueStatus[] = ['resolved', 'closed']
 function statusOptions(current: IssueStatus): IssueStatus[] {
   if (current === 'resolved') return ['resolved', 'closed']
   return ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed']
-}
-
-// A linked record in the Issue drawer; opens that record when the user may view
-// its page (Todo-Pilot §14).
-function LinkedRow({ to, children }: { to: string | null; children: React.ReactNode }) {
-  const cls = 'w-full flex items-center justify-between p-2.5 rounded-md bg-muted/30 border border-border'
-  if (!to) return <div className={cls}>{children}</div>
-  return (
-    <button type="button" onClick={() => navigate(to)} className={cn(cls, 'text-left hover:bg-muted/60 transition-colors')}>
-      {children}
-    </button>
-  )
 }
