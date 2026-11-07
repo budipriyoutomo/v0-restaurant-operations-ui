@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import {
-  X, CheckSquare, CheckCircle2, CloudUpload, Sparkles, Wrench, Camera, QrCode, MessageCircle,
+  X, CheckSquare, CheckCircle2, CloudUpload, Sparkles, Wrench, Camera, QrCode, MessageCircle, ChevronDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,7 @@ import { ScanTab } from '@/components/cmms/qr-dialog'
 import { useT } from '@/lib/i18n'
 import { formatMoney } from '@/lib/money'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { Select } from '@/components/shared/select'
 
 interface CreateIssueDialogProps {
   open: boolean
@@ -53,6 +54,23 @@ const PRIORITIES: Priority[] = ['low', 'medium', 'high', 'critical']
 export const DEFAULT_APPROVAL_THRESHOLD = 1_000_000
 
 const rupiah = (n: number) => formatMoney(n)
+
+const COMMON_CATEGORIES = 5
+
+// Quick due dates (Todo-Modern-UI Fase 3): days from today, local calendar.
+const DUE_QUICK = [['dueToday', 0], ['dueTomorrow', 1], ['dueIn3', 3], ['dueIn7', 7]] as const
+export function dayFromToday(days: number, today: Date = new Date()): string {
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Tiles and segmented choices share one look (Todo-Pilot §20 tiles, for every role now).
+const choice = (on: boolean) => cn(
+  'relative flex items-center justify-center rounded-lg border text-center text-xs font-medium cursor-pointer transition-colors',
+  'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/50',
+  on ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/40')
+const fieldLabel = 'block text-sm font-semibold mb-1.5'
+const input = 'w-full min-h-10 px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40'
 
 export function CreateIssueDialog({
   open, onOpenChange, outlets, assets, defaultSystemKey, approvalThresholds, onSubmit,
@@ -96,11 +114,20 @@ export function CreateIssueDialog({
   const [photo, setPhoto] = useState<File | null>(null)
   const [scanOpen, setScanOpen] = useState(false)
   const [scannedAsset, setScannedAsset] = useState<string | null>(null)
+  // Everything not required is folded under "Detail lain" (Todo-Modern-UI Fase 3).
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [allCategoriesOpen, setAllCategoriesOpen] = useState(false)
   // Quick report ends on a confirmation (Todo-Pilot §20).
   // `queued`: no signal — the report waits on the device (Todo-PWA).
   const [sent, setSent] = useState<{ number: string; outlet: string; photo: 'queued' | 'failed' | null; queued?: boolean } | null>(null)
 
   const selectedCategory = categoryOptions.find((c) => c.id === form.category)
+  // A company may have many categories: the common ones (system order) and
+  // "Other" first, the chosen one always, the rest behind one tap — so the
+  // required fields stay on the first screen (Todo-Modern-UI Fase 3).
+  const commonCategories = categoryOptions.filter((c, i) => i < COMMON_CATEGORIES || c.systemKey === 'other' || c.id === form.category)
+  const shownCategories = allCategoriesOpen ? categoryOptions : commonCategories
+  const hiddenCategoryCount = categoryOptions.length - commonCategories.length
   const isMaintenance = allowsWorkOrder(selectedCategory?.module)
   const threshold = approvalThresholds?.[form.outlet] ?? DEFAULT_APPROVAL_THRESHOLD
   // Strictly above, like backend work_order_service.needs_approval.
@@ -128,6 +155,8 @@ export function CreateIssueDialog({
       setPhoto(null)
       setScanOpen(false)
       setScannedAsset(null)
+      setDetailsOpen(false)
+      setAllCategoriesOpen(false)
       setSent(null)
   }
 
@@ -156,11 +185,21 @@ export function CreateIssueDialog({
     }
   }, [form.category, selectedCategory?.defaultGenerateTask, selectedCategory?.defaultGenerateApproval, touchedToggles]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Quick report needs only a title (and an outlet); the full form also asks
-  // for a description and a due date.
-  const isComplete = Boolean(selectedCategory) && (quick
-    ? Boolean(form.title.trim() && form.outlet)
-    : Boolean(form.title.trim() && form.description.trim() && form.dueDate && form.outlet))
+  // The minimum (Todo-Modern-UI Fase 3): title, outlet, category, and — when
+  // a manager files it — a due date, since lateness is counted from it. The
+  // description is optional, as in the API. A disabled button names what is missing.
+  const missing = [
+    !form.title.trim() && t('createIssue.missingTitle'),
+    !form.outlet && t('createIssue.missingOutlet'),
+    !selectedCategory && t('createIssue.missingCategory'),
+    !quick && !form.dueDate && t('createIssue.missingDue'),
+  ].filter((m): m is string => Boolean(m))
+  const isComplete = missing.length === 0
+  const willCreate = [
+    generateTask && t('createIssue.itemTask'),
+    isMaintenance && generateWorkOrder && t('createIssue.itemWo'),
+    generateApproval && t('createIssue.itemApproval'),
+  ].filter((m): m is string => Boolean(m))
 
   // A scanned asset sticker fills in where and what (Todo-Pilot §20).
   const handleQr = ({ asset }: QRResolveResult) => {
@@ -168,6 +207,7 @@ export function CreateIssueDialog({
     const scannedCategoryId = pinned ? defaultCategoryId
       : (categoryBySystemKey(categoryOptions, 'maintenance')?.id ?? defaultCategoryId)
     setScanOpen(false)
+    setDetailsOpen(true)   // the description and the work order it filled in
     setScannedAsset(`${asset.name} (${asset.number})`)
     setForm((prev) => {
       const outlet = outletOptions.includes(asset.outlet) ? asset.outlet : prev.outlet
@@ -333,29 +373,49 @@ export function CreateIssueDialog({
 
           {/* Title */}
           <div>
-            <label htmlFor={`${id}-title`} className="block text-sm font-semibold mb-1.5">{t('common.title')} <span className="text-destructive">*</span></label>
+            <label htmlFor={`${id}-title`} className={fieldLabel}>{t('common.title')} <span className="text-destructive">*</span></label>
             <input
               id={`${id}-title`} type="text" name="title" placeholder={t('createIssue.titlePlaceholder')}
-              value={form.title} onChange={handleChange}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
+              value={form.title} onChange={handleChange} className={input}
             />
           </div>
 
-          {/* Description */}
+          {/* Category: big tap targets with an icon, for every role */}
           <div>
-            <label htmlFor={`${id}-description`} className="block text-sm font-semibold mb-1.5">
-              {quick ? t('createIssue.descriptionOptional') : <>{t('common.description')} <span className="text-destructive">*</span></>}
-            </label>
-            <textarea
-              id={`${id}-description`} name="description" placeholder={t('createIssue.descriptionPlaceholder')}
-              value={form.description} onChange={handleChange} rows={3}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 resize-none"
-            />
+            <p id={`${id}-category-label`} className={fieldLabel}>{t('common.category')}</p>
+            {pinned && categoryOptions.length <= 1 ? (
+              <div role="textbox" aria-readonly="true" aria-labelledby={`${id}-category-label`}
+                className={cn(input, 'text-muted-foreground')}>
+                {label('category', pinned.name)}
+              </div>
+            ) : categoryOptions.length === 0 ? (
+              <p role="textbox" aria-readonly="true" aria-labelledby={`${id}-category-label`} className={cn(input, 'text-muted-foreground')}>
+                {t('createIssue.noCategories')}
+              </p>
+            ) : (
+              <>
+              <div role="radiogroup" aria-labelledby={`${id}-category-label`} className="grid grid-cols-3 gap-2">
+                {shownCategories.map((c) => (
+                  <label key={c.id} className={cn(choice(form.category === c.id), 'min-h-14 flex-col gap-1 p-2')}>
+                    <input type="radio" name="category" value={c.id} checked={form.category === c.id} onChange={handleChange} className="sr-only" />
+                    <CategoryIcon name={c.icon} className="size-5" />
+                    {label('category', c.name)}
+                  </label>
+                ))}
+              </div>
+              {!allCategoriesOpen && hiddenCategoryCount > 0 && (
+                <button type="button" onClick={() => setAllCategoriesOpen(true)}
+                  className="mt-2 min-h-10 text-sm font-medium text-primary hover:underline">
+                  {t('createIssue.moreCategories', { count: hiddenCategoryCount })}
+                </button>
+              )}
+              </>
+            )}
           </div>
 
           {/* Outlet */}
           <div>
-            <label htmlFor={`${id}-outlet`} className="block text-sm font-semibold mb-1.5">
+            <label htmlFor={`${id}-outlet`} className={fieldLabel}>
               {t('common.outlet')}
               {!quick && outlets && outlets.length === 0 && (
                 <span className="ml-2 text-xs font-normal text-muted-foreground">{t('createIssue.addOutletsHint')}</span>
@@ -373,207 +433,52 @@ export function CreateIssueDialog({
             ) : outletOptions.length === 0 ? (
               <input
                 id={`${id}-outlet`} type="text" name="outlet" placeholder={t('createIssue.outletPlaceholder')}
-                value={form.outlet} onChange={handleChange}
-                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
+                value={form.outlet} onChange={handleChange} className={input}
               />
             ) : (
-              <select id={`${id}-outlet`} name="outlet" value={form.outlet} onChange={handleChange}
-                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
+              <Select id={`${id}-outlet`} name="outlet" value={form.outlet} onChange={handleChange} className="w-full">
                 {outletOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
+              </Select>
             )}
           </div>
 
-          {/* Category */}
+          {/* Priority: four choices, one tap — it orders "Paling mendesak" */}
           <div>
-            <label htmlFor={`${id}-category`} className="block text-sm font-semibold mb-1.5">{t('common.category')}</label>
-            {quick && !pinned ? (
-              // Big tap targets with an icon — faster than a dropdown on a phone.
-              <div id={`${id}-category`} role="radiogroup" aria-label={t('common.category')} className="grid grid-cols-3 gap-2">
-                {categoryOptions.map((c) => {
-                  const on = form.category === c.id
+            <p id={`${id}-priority-label`} className={fieldLabel}>{t('common.priority')}</p>
+            <div role="radiogroup" aria-labelledby={`${id}-priority-label`} className="grid grid-cols-4 gap-2">
+              {PRIORITIES.map((p) => (
+                <label key={p} className={cn(choice(form.priority === p), 'min-h-10 px-1')}>
+                  <input type="radio" name="priority" value={p} checked={form.priority === p} onChange={handleChange} className="sr-only" />
+                  {label('priority', p)}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Due date: lateness is counted from it, so a manager picks it on purpose */}
+          {!quick && (
+            <div>
+              <label htmlFor={`${id}-dueDate`} className={fieldLabel}>{t('common.dueDate')} <span className="text-destructive">*</span></label>
+              <div role="group" aria-label={t('createIssue.dueQuick')} className="grid grid-cols-4 gap-2 mb-2">
+                {DUE_QUICK.map(([key, days]) => {
+                  const value = dayFromToday(days)
                   return (
-                    <label key={c.id} className={cn(
-                      'relative min-h-16 flex flex-col items-center justify-center gap-1 rounded-lg border p-2 text-center text-xs font-medium cursor-pointer transition-colors',
-                      'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/50',
-                      on ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/40')}>
-                      <input type="radio" name="category" value={c.id} checked={on} onChange={handleChange} className="sr-only" />
-                      <CategoryIcon name={c.icon} className="size-5" />
-                      {label('category', c.name)}
-                    </label>
+                    <button key={key} type="button" aria-pressed={form.dueDate === value}
+                      onClick={() => setForm((prev) => ({ ...prev, dueDate: value }))}
+                      className={cn(choice(form.dueDate === value), 'min-h-10 px-1')}>
+                      {t(`createIssue.${key}`)}
+                    </button>
                   )
                 })}
               </div>
-            ) : pinned && categoryOptions.length <= 1 ? (
-              <div id={`${id}-category`} role="textbox" aria-readonly="true"
-                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 text-muted-foreground">
-                {label('category', pinned.name)}
-              </div>
-            ) : (
-              <select id={`${id}-category`} name="category" value={form.category} onChange={handleChange}
-                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
-                {categoryOptions.length === 0 && <option value="">{t('createIssue.noCategories')}</option>}
-                {categoryOptions.map((c) => <option key={c.id} value={c.id}>{label('category', c.name)}</option>)}
-              </select>
-            )}
-          </div>
-
-          {/* Priority */}
-          <div>
-            <label htmlFor={`${id}-priority`} className="block text-sm font-semibold mb-1.5">{t('common.priority')}</label>
-            <select id={`${id}-priority`} name="priority" value={form.priority} onChange={handleChange}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
-              {PRIORITIES.map((p) => <option key={p} value={p}>{label('priority', p)}</option>)}
-            </select>
-          </div>
-
-          {!quick && (<>
-          {/* Assign To */}
-          <div>
-            <label htmlFor={`${id}-assignee`} className="block text-sm font-semibold mb-1.5">{t('common.assignTo')}</label>
-            <AssigneePicker
-              id={`${id}-assignee`}
-              outlet={form.outlet}
-              value={form.assigneeUserId}
-              onChange={(userId, name) => setForm((prev) => ({ ...prev, assigneeUserId: userId, assignee: name }))}
-            />
-          </div>
-
-          {/* Due Date */}
-          <div>
-            <label htmlFor={`${id}-dueDate`} className="block text-sm font-semibold mb-1.5">{t('common.dueDate')} <span className="text-destructive">*</span></label>
-            <input
-              id={`${id}-dueDate`} type="date" name="dueDate" value={form.dueDate} onChange={handleChange}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            />
-          </div>
-
-          {/* Auto-generation section */}
-          <div className="pt-2 border-t border-border space-y-3">
-            <div className="flex items-center gap-1.5 pt-3">
-              <Sparkles className="size-3.5 text-primary" />
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                {t('createIssue.autoGenerate')}
-              </p>
+              <input id={`${id}-dueDate`} type="date" name="dueDate" value={form.dueDate} onChange={handleChange} className={input} />
             </div>
-
-            <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer transition-colors">
-              <input
-                type="checkbox"
-                checked={generateTask}
-                onChange={(e) => { setTouchedToggles(true); setGenerateTask(e.target.checked) }}
-                className="mt-0.5 size-4 accent-primary"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-1.5 text-sm font-medium">
-                  <CheckSquare className="size-3.5" /> {t('createIssue.createTask')}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{t('createIssue.createTaskHint')}</p>
-              </div>
-            </label>
-
-            {/* Work Order toggle — Maintenance category only */}
-            {isMaintenance && (
-              <>
-                <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={generateWorkOrder}
-                    onChange={(e) => { setTouchedToggles(true); setGenerateWorkOrder(e.target.checked) }}
-                    className="mt-0.5 size-4 accent-primary"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5 text-sm font-medium">
-                      <Wrench className="size-3.5" /> {t('createIssue.createWo')}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {t('createIssue.createWoHint', { threshold: rupiah(threshold), outlet: form.outlet || t('createIssue.thisOutlet') })}
-                    </p>
-                  </div>
-                </label>
-
-                {generateWorkOrder && (
-                  <div className="space-y-3 pl-4 border-l-2 border-primary/30">
-                    <div>
-                      <label htmlFor={`${id}-asset`} className="block text-sm font-semibold mb-1.5">{t('createIssue.asset')}</label>
-                      {assets && assets.length > 0 ? (
-                        <select
-                          id={`${id}-asset`}
-                          name="assetId"
-                          value={form.assetId}
-                          onChange={handleChange}
-                          className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-                        >
-                          <option value="">{t('createIssue.selectAsset')}</option>
-                          {assets.map((a) => (
-                            <option key={a.id} value={a.id}>{a.name} ({a.number})</option>
-                          ))}
-                        </select>
-                      ) : (
-                        // No free-text box here on purpose: assetId is a UUID
-                        // foreign key, so an asset *name* typed in by hand can
-                        // only ever be rejected by the server.
-                        <p className="px-3 py-2 rounded-lg border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
-                          {t('createIssue.noAssets')}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label htmlFor={`${id}-estimatedCost`} className="block text-sm font-semibold mb-1.5">{t('createIssue.estimatedCost')}</label>
-                      <input
-                        id={`${id}-estimatedCost`}
-                        type="number"
-                        name="estimatedCost"
-                        placeholder={t('createIssue.costPlaceholder')}
-                        value={form.estimatedCost}
-                        onChange={handleChange}
-                        className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-                      />
-                      {needsApproval && (
-                        <p className="text-xs text-warning mt-1">
-                          {t('createIssue.needsApproval', { threshold: rupiah(threshold) })}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer transition-colors">
-              <input
-                type="checkbox"
-                checked={generateApproval}
-                onChange={(e) => { setTouchedToggles(true); setGenerateApproval(e.target.checked) }}
-                className="mt-0.5 size-4 accent-primary"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-1.5 text-sm font-medium">
-                  <CheckCircle2 className="size-3.5" /> {t('createIssue.sendApproval')}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{t('createIssue.sendApprovalHint')}</p>
-              </div>
-            </label>
-
-            {generateApproval && (
-              <div>
-                <label htmlFor={`${id}-approvalAmount`} className="block text-sm font-semibold mb-1.5">{t('createIssue.approvalAmount')}</label>
-                <input
-                  id={`${id}-approvalAmount`}
-                  type="number" name="approvalAmount" placeholder={t('createIssue.amountPlaceholder')}
-                  value={form.approvalAmount} onChange={handleChange}
-                  className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-                />
-              </div>
-            )}
-          </div>
-
-          </>)}
+          )}
 
           {/* Photo (Todo-Pilot §20) — uploaded after the issue exists, through the offline queue */}
           {onUploadPhoto && (
             <div>
-              <label htmlFor={`${id}-photo`} className="block text-sm font-semibold mb-1.5">{t('createIssue.photo')}</label>
+              <label htmlFor={`${id}-photo`} className={fieldLabel}>{t('createIssue.photo')}</label>
               {photo ? (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20 text-sm">
                   <Camera className="size-4 text-muted-foreground" />
@@ -590,6 +495,155 @@ export function CreateIssueDialog({
             </div>
           )}
 
+          {/* "Detail lain": optional fields, folded (Todo-Modern-UI Fase 3) */}
+          <div className="border-t border-border pt-3">
+            <button type="button" aria-expanded={detailsOpen} aria-controls={`${id}-details`}
+              onClick={() => setDetailsOpen((v) => !v)}
+              className="w-full min-h-10 flex items-center justify-between gap-2 text-sm font-semibold hover:text-primary">
+              {t('createIssue.moreDetails')}
+              <ChevronDown aria-hidden="true" className={cn('size-4 text-muted-foreground transition-transform', detailsOpen && 'rotate-180')} />
+            </button>
+            {/* Folded, the category's defaults still show: nothing is created silently. */}
+            {!quick && !detailsOpen && (
+              <p className="text-xs text-muted-foreground">
+                {willCreate.length > 0 ? t('createIssue.willCreate', { items: willCreate.join(' · ') }) : t('createIssue.willCreateNone')}
+              </p>
+            )}
+            {detailsOpen && (
+              <div id={`${id}-details`} className="space-y-4 pt-2">
+                {/* Description */}
+                <div>
+                  <label htmlFor={`${id}-description`} className={fieldLabel}>{t('createIssue.descriptionOptional')}</label>
+                  <textarea
+                    id={`${id}-description`} name="description" placeholder={t('createIssue.descriptionPlaceholder')}
+                    value={form.description} onChange={handleChange} rows={3} className={cn(input, 'resize-none')}
+                  />
+                </div>
+
+                {!quick && (<>
+                {/* Assign To */}
+                <div>
+                  <label htmlFor={`${id}-assignee`} className={fieldLabel}>{t('common.assignTo')}</label>
+                  <AssigneePicker
+                    id={`${id}-assignee`}
+                    outlet={form.outlet}
+                    value={form.assigneeUserId}
+                    onChange={(userId, name) => setForm((prev) => ({ ...prev, assigneeUserId: userId, assignee: name }))}
+                  />
+                </div>
+
+                {/* Auto-generation section */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="size-3.5 text-primary" />
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {t('createIssue.autoGenerate')}
+                    </p>
+                  </div>
+
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={generateTask}
+                      onChange={(e) => { setTouchedToggles(true); setGenerateTask(e.target.checked) }}
+                      className="mt-0.5 size-4 accent-primary"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5 text-sm font-medium">
+                        <CheckSquare className="size-3.5" /> {t('createIssue.createTask')}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t('createIssue.createTaskHint')}</p>
+                    </div>
+                  </label>
+
+                  {/* Work Order toggle — Maintenance category only */}
+                  {isMaintenance && (
+                    <>
+                      <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={generateWorkOrder}
+                          onChange={(e) => { setTouchedToggles(true); setGenerateWorkOrder(e.target.checked) }}
+                          className="mt-0.5 size-4 accent-primary"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1.5 text-sm font-medium">
+                            <Wrench className="size-3.5" /> {t('createIssue.createWo')}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {t('createIssue.createWoHint', { threshold: rupiah(threshold), outlet: form.outlet || t('createIssue.thisOutlet') })}
+                          </p>
+                        </div>
+                      </label>
+
+                      {generateWorkOrder && (
+                        <div className="space-y-3 pl-4 border-l-2 border-primary/30">
+                          <div>
+                            <label htmlFor={`${id}-asset`} className={fieldLabel}>{t('createIssue.asset')}</label>
+                            {assets && assets.length > 0 ? (
+                              <Select id={`${id}-asset`} name="assetId" value={form.assetId} onChange={handleChange} className="w-full">
+                                <option value="">{t('createIssue.selectAsset')}</option>
+                                {assets.map((a) => (
+                                  <option key={a.id} value={a.id}>{a.name} ({a.number})</option>
+                                ))}
+                              </Select>
+                            ) : (
+                              // No free-text box here on purpose: assetId is a UUID
+                              // foreign key, so an asset *name* typed in by hand can
+                              // only ever be rejected by the server.
+                              <p className="px-3 py-2 rounded-lg border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
+                                {t('createIssue.noAssets')}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <label htmlFor={`${id}-estimatedCost`} className={fieldLabel}>{t('createIssue.estimatedCost')}</label>
+                            <input
+                              id={`${id}-estimatedCost`} type="number" name="estimatedCost" placeholder={t('createIssue.costPlaceholder')}
+                              value={form.estimatedCost} onChange={handleChange} className={input}
+                            />
+                            {needsApproval && (
+                              <p className="text-xs text-warning mt-1">
+                                {t('createIssue.needsApproval', { threshold: rupiah(threshold) })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={generateApproval}
+                      onChange={(e) => { setTouchedToggles(true); setGenerateApproval(e.target.checked) }}
+                      className="mt-0.5 size-4 accent-primary"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5 text-sm font-medium">
+                        <CheckCircle2 className="size-3.5" /> {t('createIssue.sendApproval')}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t('createIssue.sendApprovalHint')}</p>
+                    </div>
+                  </label>
+
+                  {generateApproval && (
+                    <div>
+                      <label htmlFor={`${id}-approvalAmount`} className={fieldLabel}>{t('createIssue.approvalAmount')}</label>
+                      <input
+                        id={`${id}-approvalAmount`}
+                        type="number" name="approvalAmount" placeholder={t('createIssue.amountPlaceholder')}
+                        value={form.approvalAmount} onChange={handleChange} className={input}
+                      />
+                    </div>
+                  )}
+                </div>
+                </>)}
+              </div>
+            )}
+          </div>
+
           {submitError && (
             <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {submitError}
@@ -597,7 +651,13 @@ export function CreateIssueDialog({
           )}
 
           {/* Actions */}
-          <div className="sticky bottom-0 bg-background flex gap-3 py-4 border-t border-border">
+          <div className="sticky bottom-0 bg-background py-4 border-t border-border space-y-2">
+          {!isComplete && (
+            <p id={`${id}-missing`} className="text-xs text-muted-foreground text-right">
+              {t('createIssue.missing', { fields: missing.join(', ') })}
+            </p>
+          )}
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={() => !isSubmitting && onOpenChange(false)}
@@ -609,6 +669,7 @@ export function CreateIssueDialog({
             <button
               type="submit"
               disabled={!isComplete || isSubmitting}
+              aria-describedby={isComplete ? undefined : `${id}-missing`}
               className={cn(
                 'flex-1 h-10 px-4 rounded-lg font-semibold text-sm transition-colors',
                 isComplete && !isSubmitting
@@ -620,6 +681,7 @@ export function CreateIssueDialog({
                 ? (quick ? t('createIssue.sending') : t('common.creating'))
                 : (quick ? t('createIssue.submitQuick') : t('createIssue.submit'))}
             </button>
+          </div>
           </div>
         </form>
         )}
