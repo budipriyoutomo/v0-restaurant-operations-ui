@@ -14,6 +14,7 @@ import { FilterBar, FilterOptions, FilterSelect } from '@/components/shared/filt
 import { InviteModal } from '@/components/users/invite-modal'
 import { RolesTab } from '@/components/users/roles-tab'
 import { UserCard } from '@/components/users/user-card'
+import { KpiStrip } from '@/components/shared/kpi-strip'
 
 // ---------------------------------------------------------------------------
 // Main page
@@ -57,19 +58,13 @@ export function UsersPage() {
       </>}
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: t('users.totalUsers'), value: stats.total,  color: 'text-foreground' },
-          { label: t('users.active'),     value: stats.active, color: 'text-success' },
-          { label: t('users.admins'),     value: stats.admins, color: 'text-destructive' },
-          { label: t('users.roles'),      value: stats.roles,  color: 'text-foreground' },
-        ].map(s => (
-          <div key={s.label} className="p-4 rounded-2xl border border-border bg-card">
-            <p className="text-xs font-medium text-muted-foreground mb-1">{s.label}</p>
-            <p className={cn('text-2xl font-bold', s.color)}>{s.value}</p>
-          </div>
-        ))}
-      </div>
+      {/* One status bar; placeholders while users load, never a coloured 0 (Todo-Modern-UI Fase 4) */}
+      <KpiStrip label={t('users.kpiLabel')} loading={usersLoading && allUsers.length === 0} items={[
+        { label: t('users.totalUsers'), value: stats.total },
+        { label: t('users.active'),     value: stats.active },
+        { label: t('users.admins'),     value: stats.admins },
+        { label: t('users.roles'),      value: stats.roles },
+      ]} />
 
       <SegmentedTabs label={t('nav.users')} value={tab} onChange={setTab} tabs={[
         { id: 'users', label: t('users.tabUsers') },

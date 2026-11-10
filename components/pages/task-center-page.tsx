@@ -20,6 +20,7 @@ import { useOutletFilter } from '@/lib/permissions'
 import { outletQuery } from '@/lib/outlet-filter'
 import { SIGNAL_DOT, SIGNAL_EDGE, SIGNAL_RING, statusSignal } from '@/lib/tone'
 import { Select } from '@/components/shared/select'
+import { KpiStrip } from '@/components/shared/kpi-strip'
 
 // Cards per column; the rest is counted (Todo-Pilot §22).
 const COLUMN_LIMIT = 50
@@ -118,12 +119,12 @@ export function TaskCenterPage() {
       <PageHeader title={t('tasks.title')} description={t('tasks.subtitle')} />
 
       {/* Overview stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard icon={ListChecks}  label={t('tasks.total')} value={stats.total}   tone="neutral" />
-        <StatCard icon={Loader2}     label={t('tasks.active')}      value={stats.active}  tone="blue" />
-        <StatCard icon={AlertTriangle} label={t('tasks.overdue')}   value={stats.overdue} tone="red" />
-        <StatCard icon={CircleCheck} label={t('tasks.completed')}   value={stats.done}    tone="green" />
-      </div>
+      <KpiStrip label={t('tasks.kpiLabel')} loading={loading} items={[
+        { label: t('tasks.total'),     value: stats.total },
+        { label: t('tasks.active'),    value: stats.active },
+        { label: t('tasks.overdue'),   value: stats.overdue, signal: 'action' },
+        { label: t('tasks.completed'), value: stats.done },
+      ]} />
 
       {/* Toolbar */}
       <div className="flex flex-col lg:flex-row gap-3 lg:items-center rounded-2xl border border-border bg-card p-3 sm:p-4">
@@ -169,40 +170,6 @@ export function TaskCenterPage() {
           <TaskCard task={task} block={blockOf(task)} drag={drag} onMove={updateTaskStatus} />
         )}
       />
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Stat card
-// ---------------------------------------------------------------------------
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: number
-  tone: 'neutral' | 'blue' | 'red' | 'green'
-}) {
-  const toneCls = {
-    neutral: 'text-muted-foreground bg-muted',
-    blue:    'text-primary bg-primary/10',
-    red:     'text-destructive bg-destructive-soft',
-    green:   'text-success bg-success/10',
-  }[tone]
-
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-      <div className={cn('flex items-center justify-center size-9 rounded-lg shrink-0', toneCls)}>
-        <Icon className="size-4" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-2xl font-bold leading-none">{value}</p>
-        <p className="text-xs text-muted-foreground mt-1 truncate">{label}</p>
-      </div>
     </div>
   )
 }

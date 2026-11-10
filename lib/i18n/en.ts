@@ -97,6 +97,7 @@ export const en: Messages = {
   assetsPage: {
     assetTag: "asset",
     by: "By: {name}",
+    kpiLabel: "Asset purchase summary",
     neededBy: "Needed by: {date}",
     new: "New Asset Request",
     noApprovals: "No asset purchase approvals",
@@ -1933,6 +1934,7 @@ export const en: Messages = {
     searchPlaceholder: "Search by title, task/issue no., or assignee...",
     subtitle: "Tasks are auto-generated from Issues · change status from the card",
     title: "Tasks",
+    kpiLabel: "Tasks summary",
     total: "Total tasks",
   },
   temp: {
@@ -2113,6 +2115,7 @@ export const en: Messages = {
     removeUser: "Remove user",
     roleFilter: "Role:",
     roleUsers: "{count} active user(s) · approves as",
+    kpiLabel: "Users summary",
     roles: "Roles",
     rolesIntro: "A role sets which modules its users can open and which outlets' data they see.",
     selectedOutlets: "Selected outlets only",

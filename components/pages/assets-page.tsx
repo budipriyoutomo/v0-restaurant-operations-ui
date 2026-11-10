@@ -16,6 +16,7 @@ import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
 import { SegmentedTabs } from '@/components/shared/segmented-tabs'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { KpiStrip } from '@/components/shared/kpi-strip'
 
 type Tab = 'requests' | 'approvals'
 
@@ -67,12 +68,12 @@ export function AssetsPage() {
       </>}
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label={t('assetsPage.total')} value={purchaseStats.total}    color="text-foreground" />
-        <StatCard label={t('assetsPage.pending')} value={purchaseStats.pending}  color="text-warning"  />
-        <StatCard label={label('approvalStatus', 'approved')} value={purchaseStats.approved} color="text-success"    />
-        <StatCard label={label('approvalStatus', 'rejected')} value={purchaseStats.rejected} color="text-destructive" />
-      </div>
+      <KpiStrip label={t('assetsPage.kpiLabel')} items={[
+        { label: t('assetsPage.total'), value: purchaseStats.total },
+        { label: t('assetsPage.pending'), value: purchaseStats.pending, signal: 'waiting' },
+        { label: label('approvalStatus', 'approved'), value: purchaseStats.approved },
+        { label: label('approvalStatus', 'rejected'), value: purchaseStats.rejected, signal: 'action' },
+      ]} />
 
       {/* Tabs */}
       <SegmentedTabs label={t('nav.assets')} value={tab} onChange={setTab}
@@ -155,15 +156,6 @@ export function AssetsPage() {
 // ---------------------------------------------------------------------------
 // Local helpers
 // ---------------------------------------------------------------------------
-
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="p-4 rounded-2xl border border-border bg-card">
-      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-      <p className={cn('text-2xl font-bold', color)}>{value}</p>
-    </div>
-  )
-}
 
 function EmptyState({ icon: Icon, message, hint }: { icon: React.ElementType; message: string; hint: string }) {
   return (

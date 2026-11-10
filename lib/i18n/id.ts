@@ -95,6 +95,7 @@ export const id = {
   assetsPage: {
     assetTag: "aset",
     by: "Oleh: {name}",
+    kpiLabel: "Ringkasan pembelian aset",
     neededBy: "Dibutuhkan: {date}",
     new: "Permintaan Aset Baru",
     noApprovals: "Belum ada persetujuan pembelian aset",
@@ -1931,6 +1932,7 @@ export const id = {
     searchPlaceholder: "Cari judul, no. tugas/laporan, atau penanggung jawab…",
     subtitle: "Tugas dibuat otomatis dari Laporan · ubah status dari kartu",
     title: "Tugas",
+    kpiLabel: "Ringkasan tugas",
     total: "Total tugas",
   },
   temp: {
@@ -2111,6 +2113,7 @@ export const id = {
     removeUser: "Hapus pengguna",
     roleFilter: "Peran:",
     roleUsers: "{count} pengguna aktif · menyetujui sebagai",
+    kpiLabel: "Ringkasan pengguna",
     roles: "Peran",
     rolesIntro: "Peran menentukan modul yang bisa dibuka penggunanya dan data outlet mana yang terlihat.",
     selectedOutlets: "Hanya outlet terpilih",

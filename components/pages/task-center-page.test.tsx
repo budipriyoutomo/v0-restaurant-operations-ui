@@ -64,7 +64,7 @@ describe('TaskCenterPage — server columns (Todo-Pilot §22)', () => {
     expect(api.getPage).toHaveBeenCalledWith('/api/tasks?status=closed&limit=50&offset=0')
     expect(screen.getAllByText(/^Task \d+$/)).toHaveLength(50)
     expect(screen.getByText('+ 3 more — narrow the search')).toBeInTheDocument()
-    expect(screen.getByText('Total tasks').previousSibling).toHaveTextContent('53')
+    expect(screen.getByText('Total tasks').nextElementSibling).toHaveTextContent('53')
   })
 })
 
@@ -77,5 +77,14 @@ describe('TaskCenterPage — on a phone', () => {
     expect(screen.getByText('Live task')).toBeInTheDocument()
     expect(screen.queryByText('Old task')).not.toBeInTheDocument()     // in the Resolved tab
     expect(screen.getByRole('tab', { name: /Resolved\s*1/ })).toBeInTheDocument()
+  })
+})
+
+// Todo-Modern-UI Fase 4: one status bar, not four cards.
+describe('TaskCenterPage — status bar', () => {
+  it('sums up the tasks in one named region', async () => {
+    await renderBoard()
+    const kpi = screen.getByRole('region', { name: 'Tasks summary' })
+    expect(kpi).toHaveTextContent(/2/)
   })
 })
