@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { Megaphone, Plus, Clock, CheckCircle2, XCircle, Loader2, Pencil, Trash2, X, Calendar, TrendingUp } from 'lucide-react'
+import { Megaphone, Plus, CheckCircle2, Loader2, Pencil, Trash2, X, Calendar, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
@@ -20,14 +20,19 @@ import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { byOutlet } from '@/lib/outlet-filter'
 import { Select } from '@/components/shared/select'
+import { KpiStrip } from '@/components/shared/kpi-strip'
+import { RecordList, RecordRow } from '@/components/shared/record-list'
+import { StatusLabel } from '@/components/shared/status-label'
+import { RowsSkeleton } from '@/components/shared/skeleton'
+import type { Signal } from '@/lib/tone'
 
 type Tab = 'campaigns' | 'approvals' | 'issues'
 
-const STATUS_COLORS: Record<CampaignStatus, string> = {
-  draft:     'bg-muted text-muted-foreground',
-  active:    'bg-primary/10 text-primary',
-  completed: 'bg-success/15 text-success',
-  cancelled: 'bg-destructive/10 text-destructive',
+const CAMPAIGN_SIGNAL: Record<CampaignStatus, Signal> = {
+  draft:     'neutral',
+  active:    'neutral',
+  completed: 'done',
+  cancelled: 'neutral',
 }
 
 const CAMPAIGN_TYPES: CampaignType[] = ['promotion', 'event', 'social-media', 'email', 'other']
@@ -89,12 +94,13 @@ export function MarketingPage() {
       </>}
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label={t('marketing.totalCampaigns')} value={stats.campaigns} color="text-foreground" />
-        <StatCard label={label('campaignStatus', 'active')} value={stats.active}    color="text-foreground" />
-        <StatCard label={t('assetsPage.pending')} value={stats.pending}  color="text-warning"  />
-        <StatCard label={label('campaignStatus', 'completed')} value={stats.completed} color="text-success"    />
-      </div>
+      {/* One status bar, only once there is something to count (Todo-Modern-UI Fase 4) */}
+      <KpiStrip label={t('marketing.kpiLabel')} items={[
+        { label: t('marketing.totalCampaigns'), value: stats.campaigns },
+        { label: label('campaignStatus', 'active'), value: stats.active },
+        { label: t('assetsPage.pending'), value: stats.pending, signal: 'waiting' },
+        { label: label('campaignStatus', 'completed'), value: stats.completed },
+      ]} />
 
       <SegmentedTabs label={t('nav.marketing')} value={tab} onChange={setTab} tabs={[
         { id: 'campaigns',  label: t('marketing.tab.campaigns', { count: campaigns.length }) },
@@ -128,26 +134,17 @@ export function MarketingPage() {
         approvalsM.length === 0 ? (
           <EmptyState icon={<CheckCircle2 className="size-8 text-muted-foreground" />} label={t('marketing.noApprovals')} hint={t('marketing.noApprovalsHint')} />
         ) : (
-          <div className="space-y-2">
+          <RecordList label={t('marketing.tab.approvals', { count: approvalsM.length })}>
             {approvalsM.map(a => (
-              <button type="button" key={a.id} onClick={() => navigate(recordPath('approvals', a.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <span className="text-xs font-mono text-muted-foreground">{a.number}</span>
-                  <p className="text-sm font-semibold mt-0.5">{a.title}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
-                    <span>{a.outlet}</span><span>·</span><span>{t('assetsPage.by', { name: a.requester })}</span>
-                    {a.amount != null && <><span>·</span><span className="font-semibold text-foreground">{formatMoney(a.amount, a.currency)}</span></>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {a.status === 'pending'  && <Clock className="size-4 text-warning" />}
-                  {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
-                  {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
+              <RecordRow key={a.id} id={a.id} number={a.number} title={a.title}
+                meta={[a.outlet, t('assetsPage.by', { name: a.requester })]}
+                aside={<>
                   <StatusBadge status={a.status} />
-                </div>
-              </button>
+                  {a.amount != null && <span className="text-xs font-medium tabular-nums">{formatMoney(a.amount, a.currency)}</span>}
+                </>}
+                onOpen={() => navigate(recordPath('approvals', a.id))} />
             ))}
-          </div>
+          </RecordList>
         )
       )}
 
@@ -155,24 +152,14 @@ export function MarketingPage() {
         marketingIssues.length === 0 ? (
           <EmptyState icon={<Megaphone className="size-8 text-muted-foreground" />} label={t('marketing.noIssues')} hint={t('marketing.noIssuesHint')} />
         ) : (
-          <div className="space-y-2">
+          <RecordList label={t('marketing.tab.issues', { count: marketingIssues.length })}>
             {marketingIssues.map(i => (
-              <button type="button" key={i.id} onClick={() => navigate(recordPath('issues', i.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-muted-foreground">{i.number}</span>
-                    <PriorityBadge priority={i.priority} />
-                  </div>
-                  <p className="text-sm font-semibold">{i.title}</p>
-                  {i.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{i.description}</p>}
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                    <span>{i.outlet}</span><span>·</span><span>{i.assignee || t('common.unassigned')}</span>
-                  </div>
-                </div>
-                <StatusBadge status={i.status} />
-              </button>
+              <RecordRow key={i.id} id={i.id} number={i.number} title={i.title}
+                meta={[i.outlet, i.assignee || t('common.unassigned')]}
+                aside={<><StatusBadge status={i.status} /><PriorityBadge priority={i.priority} /></>}
+                onOpen={() => navigate(recordPath('issues', i.id))} />
             ))}
-          </div>
+          </RecordList>
         )
       )}
 
@@ -219,7 +206,7 @@ function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatu
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
-  if (loading && campaigns.length === 0) return <div className="flex justify-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+  if (loading && campaigns.length === 0) return <RowsSkeleton rows={3} />
   if (campaigns.length === 0) return <EmptyState icon={<Megaphone className="size-8 text-muted-foreground" />} label={t('marketing.noCampaigns')} hint={t('marketing.noCampaignsHint')} />
 
   const handleDelete = async (id: string) => {
@@ -234,9 +221,9 @@ function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatu
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-snug">{c.title}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={cn('text-xs px-2 py-0.5 rounded-md font-semibold', STATUS_COLORS[c.status as CampaignStatus])}>{label('campaignStatus', c.status)}</span>
-                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md font-semibold">{label('campaignType', c.type)}</span>
+              <div className="flex items-center gap-3 mt-1">
+                <StatusLabel signal={CAMPAIGN_SIGNAL[c.status as CampaignStatus] ?? 'neutral'}>{label('campaignStatus', c.status)}</StatusLabel>
+                <span className="text-xs text-muted-foreground">{label('campaignType', c.type)}</span>
               </div>
             </div>
             {canManage && (
@@ -591,14 +578,6 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
   )
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="p-4 rounded-2xl border border-border bg-card">
-      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-      <p className={cn('text-2xl font-bold', color)}>{value}</p>
-    </div>
-  )
-}
 
 function EmptyState({ icon, label, hint }: { icon: React.ReactElement; label: string; hint: string }) {
   return (

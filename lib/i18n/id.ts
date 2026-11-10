@@ -888,6 +888,7 @@ export const id = {
     revenuePerSpent: "Omzet per 1 biaya",
     spend: "Biaya {amount}",
     startDate: "Tanggal mulai",
+    kpiLabel: "Ringkasan pemasaran",
     subtitle: "Pengelolaan kampanye, promosi, dan persetujuan inisiatif pemasaran",
     sumBudget: "Anggaran",
     sumRevenue: "Omzet",

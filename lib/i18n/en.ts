@@ -890,6 +890,7 @@ export const en: Messages = {
     revenuePerSpent: "Revenue per 1 spent",
     spend: "Spend {amount}",
     startDate: "Start Date",
+    kpiLabel: "Marketing summary",
     subtitle: "Campaign management, promotions, and marketing initiative approvals",
     sumBudget: "Budget",
     sumRevenue: "Revenue",
