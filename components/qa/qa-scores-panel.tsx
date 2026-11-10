@@ -12,6 +12,7 @@ import { qaApi } from '@/lib/qa-audit-api'
 import type { QAScores } from '@/lib/types'
 import { useT } from '@/lib/i18n'
 import { TONE_CLASS } from './tone'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 const LINE_COLORS = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d']
 
@@ -25,7 +26,7 @@ export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?
   }, [refreshKey])
 
   if (error) return <p className="text-xs text-destructive">{error}</p>
-  if (!data) return <p className="text-xs text-muted-foreground">{t('qaScores.loading')}</p>
+  if (!data) return <RowsSkeleton label={t('qaScores.loading')} />
   if (data.outlets.length === 0) {
     return <p className="text-sm text-muted-foreground py-6 text-center">{t('qaScores.empty')}</p>
   }

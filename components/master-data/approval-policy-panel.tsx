@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { Select } from '@/components/shared/select'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 const APPROVAL_TYPES: ApprovalType[] = ['maintenance', 'procurement', 'marketing', 'training', 'asset-purchase']
 const ROLES: ApproverRole[] = ['staff', 'manager', 'admin']
@@ -220,7 +221,7 @@ export function ApprovalPolicyPanel() {
 
       {/* List */}
       {policiesLoading ? (
-        <p className="text-xs text-muted-foreground text-center py-6">{t('policy.loading')}</p>
+        <RowsSkeleton label={t('policy.loading')} />
       ) : approvalPolicies.length === 0 ? (
         <SharedEmptyState title={t('policy.empty')} className="py-10 text-sm" />
       ) : (

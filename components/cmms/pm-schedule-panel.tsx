@@ -11,6 +11,7 @@ import { useT } from '@/lib/i18n'
 import { AssigneePicker } from '@/components/shared/assignee-picker'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { Select } from '@/components/shared/select'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 const EMPTY_FORM: CreatePMScheduleInput = {
   assetId: '',
@@ -328,7 +329,7 @@ export function PMSchedulePanel() {
 
       {/* Schedule list */}
       {pmLoading ? (
-        <p className="text-xs text-muted-foreground text-center py-6">{t('pm.loading')}</p>
+        <RowsSkeleton label={t('pm.loading')} />
       ) : pmSchedules.length === 0 ? (
         <SharedEmptyState title={t('pm.empty')} className="py-10 text-sm" />
       ) : (

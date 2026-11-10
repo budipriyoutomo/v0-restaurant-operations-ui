@@ -7,6 +7,7 @@ import { api, apiErrorMessage } from '@/lib/api-client'
 import { rateLabel } from '@/lib/training'
 import { useT } from '@/lib/i18n'
 import type { AttendanceBucket, AttendanceRecap as Recap } from '@/lib/types'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 export function AttendanceRecap({ refreshKey = 0 }: { refreshKey?: number }) {
   const { t, label } = useT()
@@ -18,7 +19,7 @@ export function AttendanceRecap({ refreshKey = 0 }: { refreshKey?: number }) {
   }, [refreshKey])
 
   if (error) return <p className="text-xs text-destructive">{error}</p>
-  if (!r) return <p className="text-xs text-muted-foreground">{t('attendance.loading')}</p>
+  if (!r) return <RowsSkeleton label={t('attendance.loading')} />
   if (r.totals.enrolled === 0) return <p className="text-sm text-muted-foreground py-10 text-center">{t('attendance.empty')}</p>
 
   return (

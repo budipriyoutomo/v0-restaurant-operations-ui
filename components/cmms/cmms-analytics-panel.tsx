@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { toneIfAny } from '@/lib/tone'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 function fmtHours(h: number, t: (k: 'cmmsAnalytics.days' | 'cmmsAnalytics.hours', v: { n: string }) => string): string {
   if (h <= 0) return '—'
@@ -48,7 +49,7 @@ export function CMMSAnalyticsPanel() {
       </div>
 
       {cmmsAnalyticsLoading && !cmmsAnalytics ? (
-        <p className="text-xs text-muted-foreground text-center py-6">{t('cmmsAnalytics.loading')}</p>
+        <RowsSkeleton label={t('cmmsAnalytics.loading')} />
       ) : (
         <>
           {/* Fleet roll-up */}

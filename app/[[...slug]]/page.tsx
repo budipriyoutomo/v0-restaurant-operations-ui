@@ -48,6 +48,7 @@ import { MasterDataPage }          from '@/components/pages/master-data-page'
 import { UsersPage }               from '@/components/pages/users-page'
 import { NotificationsPage }       from '@/components/pages/notifications-page'
 import { SettingsPage }            from '@/components/pages/settings-page'
+import { AppShellSkeleton } from '@/components/shared/skeleton'
 
 // One catch-all route renders the whole app shell; the URL (not component
 // state) decides the page and the open record — Todo-Pilot §14 / UX-1.
@@ -102,11 +103,7 @@ function App() {
 
   // Waiting for session restore check on first load
   if (!sessionChecked || authLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen text-muted-foreground text-sm">
-        {t('common.loading')}
-      </div>
-    )
+    return <AppShellSkeleton />
   }
 
   // Not authenticated — show login

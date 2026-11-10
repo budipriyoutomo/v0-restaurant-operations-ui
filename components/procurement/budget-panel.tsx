@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { Select } from '@/components/shared/select'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 const rp = (n: number) => formatMoney(n ?? 0)
 
@@ -105,7 +106,7 @@ export function BudgetPanel() {
       )}
 
       {loading ? (
-        <p className="text-xs text-muted-foreground text-center py-6">{t('purchasing.loading')}</p>
+        <RowsSkeleton label={t('purchasing.loading')} />
       ) : rows.length === 0 ? (
         <SharedEmptyState title={t('budget.empty', { period })} className="py-8 text-sm" />
       ) : (

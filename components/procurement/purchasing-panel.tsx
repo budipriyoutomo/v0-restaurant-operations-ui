@@ -13,6 +13,7 @@ import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { StatusLabel } from '@/components/shared/status-label'
 import { statusSignal } from '@/lib/tone'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 const rp = (n: number) => formatMoney(n ?? 0)
 
@@ -77,7 +78,7 @@ export function PurchasingPanel() {
         </div>
 
         {procurementLoading && purchaseRequests.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-6">{t('purchasing.loading')}</p>
+          <RowsSkeleton label={t('purchasing.loading')} />
         ) : purchaseRequests.length === 0 ? (
           <SharedEmptyState title={t('purchasing.noPr')} className="py-8 text-sm" />
         ) : (

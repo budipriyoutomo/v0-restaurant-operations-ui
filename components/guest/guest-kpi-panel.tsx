@@ -11,6 +11,7 @@ import { guestApi } from '@/lib/guest-service-api'
 import { useT } from '@/lib/i18n'
 import type { GuestChannel, GuestKpis } from '@/lib/types'
 import { formatMoney } from '@/lib/money'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 export function GuestKpiPanel({ refreshKey = 0, compact = false }: { refreshKey?: number; compact?: boolean }) {
   const { t, label, locale } = useT()
@@ -22,7 +23,7 @@ export function GuestKpiPanel({ refreshKey = 0, compact = false }: { refreshKey?
   }, [refreshKey])
 
   if (error) return <p className="text-xs text-destructive">{error}</p>
-  if (!k) return <p className="text-xs text-muted-foreground">{t('guestKpi.loading')}</p>
+  if (!k) return <RowsSkeleton label={t('guestKpi.loading')} />
   if (k.cases === 0) return <p className="text-sm text-muted-foreground py-6 text-center">{t('guestKpi.empty')}</p>
 
   const within = k.withinTargetPct
