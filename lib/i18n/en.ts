@@ -1646,6 +1646,7 @@ export const en: Messages = {
     remove: "Remove",
     removeConfirm: "Remove {name}?",
     saveChanges: "Save Changes",
+    kpiLabel: "Procurement summary",
     subtitle: "Purchase requests, vendor management, and approval tracking",
     tab: {
       approvals: "Approvals ({count})",

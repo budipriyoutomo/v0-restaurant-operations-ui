@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { ShoppingCart, Plus, Clock, CheckCircle2, XCircle, Building2, Loader2, Pencil, Trash2, X } from 'lucide-react'
+import { ShoppingCart, Plus, CheckCircle2, Building2, Loader2, Pencil, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
@@ -21,6 +21,10 @@ import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { byOutlet } from '@/lib/outlet-filter'
 import { Select } from '@/components/shared/select'
+import { KpiStrip } from '@/components/shared/kpi-strip'
+import { RecordList, RecordRow } from '@/components/shared/record-list'
+import { StatusLabel } from '@/components/shared/status-label'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 type Tab = 'requests' | 'purchasing' | 'budget' | 'approvals' | 'vendors'
 
@@ -80,13 +84,13 @@ export function ProcurementPage() {
       </>}
       />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label={t('assetsPage.total')} value={stats.total}           color="text-foreground"  />
-        <StatCard label={t('assetsPage.pending')} value={stats.pending}         color="text-warning"   />
-        <StatCard label={label('approvalStatus', 'approved')} value={stats.approved}        color="text-success"      />
-        <StatCard label={t('procurement.activeVendors')} value={activeVendors.length}  color="text-primary"      />
-      </div>
+      {/* One status bar, only once there is something to count (Todo-Modern-UI Fase 4) */}
+      <KpiStrip label={t('procurement.kpiLabel')} items={[
+        { label: t('assetsPage.total'), value: stats.total },
+        { label: t('assetsPage.pending'), value: stats.pending, signal: 'waiting' },
+        { label: label('approvalStatus', 'approved'), value: stats.approved },
+        { label: t('procurement.activeVendors'), value: activeVendors.length },
+      ]} />
 
       {/* Tabs */}
       <SegmentedTabs label={t('nav.procurement')} value={tab} onChange={setTab} tabs={([
@@ -101,7 +105,8 @@ export function ProcurementPage() {
       )} />
 
       {tab === 'requests' && (
-        <IssueList issues={requests} emptyLabel={t('procurement.noRequests')} emptyHint={t('procurement.noRequestsHint')} />
+        <IssueList issues={requests} label={t('procurement.tab.requests', { count: requests.length })}
+          emptyLabel={t('procurement.noRequests')} emptyHint={t('procurement.noRequestsHint')} />
       )}
       {tab === 'purchasing' && (
         <PurchasingPanel />
@@ -154,16 +159,7 @@ export function ProcurementPage() {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="p-4 rounded-2xl border border-border bg-card">
-      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-      <p className={cn('text-2xl font-bold', color)}>{value}</p>
-    </div>
-  )
-}
-
-function IssueList({ issues, emptyLabel, emptyHint }: { issues: Issue[]; emptyLabel: string; emptyHint: string }) {
+function IssueList({ issues, label, emptyLabel, emptyHint }: { issues: Issue[]; label: string; emptyLabel: string; emptyHint: string }) {
   const { t, date } = useT()
   if (issues.length === 0) {
     return (
@@ -171,25 +167,14 @@ function IssueList({ issues, emptyLabel, emptyHint }: { issues: Issue[]; emptyLa
     )
   }
   return (
-    <div className="space-y-2">
+    <RecordList label={label}>
       {issues.map((issue) => (
-        <button type="button" key={issue.id} onClick={() => navigate(recordPath('issues', issue.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-mono text-muted-foreground">{issue.number}</span>
-              <PriorityBadge priority={issue.priority} />
-            </div>
-            <p className="text-sm font-semibold">{issue.title}</p>
-            {issue.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{issue.description}</p>}
-            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-              <span>{issue.outlet}</span><span>·</span><span>{issue.assignee || t('common.unassigned')}</span>
-              {issue.dueDate && <><span>·</span><span>{t('procurement.due', { date: date(issue.dueDate) })}</span></>}
-            </div>
-          </div>
-          <StatusBadge status={issue.status} />
-        </button>
+        <RecordRow key={issue.id} id={issue.id} number={issue.number} title={issue.title}
+          meta={[issue.outlet, issue.assignee || t('common.unassigned'), issue.dueDate && t('procurement.due', { date: date(issue.dueDate) })]}
+          aside={<><StatusBadge status={issue.status} /><PriorityBadge priority={issue.priority} /></>}
+          onOpen={() => navigate(recordPath('issues', issue.id))} />
       ))}
-    </div>
+    </RecordList>
   )
 }
 
@@ -201,29 +186,17 @@ function ApprovalList({ approvals }: { approvals: ApprovalRequest[] }) {
     )
   }
   return (
-    <div className="space-y-2">
+    <RecordList label={t('procurement.tab.approvals', { count: approvals.length })}>
       {approvals.map((a) => (
-        <button type="button" key={a.id} onClick={() => navigate(recordPath('approvals', a.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-mono text-muted-foreground">{a.number}</span>
-              <span className="text-xs bg-muted px-2 py-0.5 rounded-md font-semibold text-muted-foreground">{label('approvalType', a.type)}</span>
-            </div>
-            <p className="text-sm font-semibold">{a.title}</p>
-            <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
-              <span>{a.outlet}</span><span>·</span><span>{t('assetsPage.by', { name: a.requester })}</span>
-              {a.amount != null && <><span>·</span><span className="font-semibold text-foreground">{formatMoney(a.amount, a.currency)}</span></>}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {a.status === 'pending'  && <Clock className="size-4 text-warning" />}
-            {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
-            {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
+        <RecordRow key={a.id} id={a.id} number={a.number} title={a.title}
+          meta={[label('approvalType', a.type), a.outlet, t('assetsPage.by', { name: a.requester })]}
+          aside={<>
             <StatusBadge status={a.status} />
-          </div>
-        </button>
+            {a.amount != null && <span className="text-xs font-medium tabular-nums">{formatMoney(a.amount, a.currency)}</span>}
+          </>}
+          onOpen={() => navigate(recordPath('approvals', a.id))} />
       ))}
-    </div>
+    </RecordList>
   )
 }
 
@@ -240,7 +213,7 @@ function VendorList({ vendors, loading, canManage, onEdit, onDelete, onToggleAct
   const { t } = useT()
 
   if (loading && vendors.length === 0) {
-    return <div className="flex justify-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+    return <RowsSkeleton rows={3} />
   }
   if (vendors.length === 0) {
     return (
@@ -260,7 +233,7 @@ function VendorList({ vendors, loading, canManage, onEdit, onDelete, onToggleAct
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate">{v.name}</p>
-              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md font-semibold">{v.category}</span>
+              {v.category && <p className="text-xs text-muted-foreground">{v.category}</p>}
             </div>
             {canManage && (
               <div className="flex gap-1 flex-shrink-0">
@@ -278,9 +251,9 @@ function VendorList({ vendors, loading, canManage, onEdit, onDelete, onToggleAct
           {v.contact_email && <p className="text-xs text-muted-foreground truncate">{v.contact_email}</p>}
           {v.outlet        && <p className="text-xs text-muted-foreground">{t('procurement.outlet', { name: v.outlet })}</p>}
           <div className="flex items-center justify-between pt-1 border-t border-border">
-            <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-md', v.is_active ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>
+            <StatusLabel signal={v.is_active ? 'done' : 'neutral'}>
               {v.is_active ? t('procurement.active') : t('procurement.inactive')}
-            </span>
+            </StatusLabel>
             {canManage && (
               <button onClick={() => onToggleActive(v)} className="text-xs text-muted-foreground hover:text-foreground underline">
                 {v.is_active ? t('procurement.deactivate') : t('procurement.activate')}

@@ -1644,6 +1644,7 @@ export const id = {
     remove: "Hapus",
     removeConfirm: "Hapus {name}?",
     saveChanges: "Simpan perubahan",
+    kpiLabel: "Ringkasan pengadaan",
     subtitle: "Permintaan pembelian, pengelolaan vendor, dan pelacakan persetujuan",
     tab: {
       approvals: "Persetujuan ({count})",
