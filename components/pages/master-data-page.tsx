@@ -19,11 +19,14 @@ import { formatMoney } from '@/lib/money'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { PageHeader } from '@/components/shared/page-header'
 import { SegmentedTabs } from '@/components/shared/segmented-tabs'
+import { StatusLabel } from '@/components/shared/status-label'
+import type { Signal } from '@/lib/tone'
 
-const statusColors: Record<OutletStatus, { bg: string; text: string }> = {
-  operational: { bg: 'bg-success/20', text: 'text-success' },
-  warning:     { bg: 'bg-warning/20',  text: 'text-warning' },
-  critical:    { bg: 'bg-destructive/20', text: 'text-destructive' },
+// Running normally needs no signal (Todo-Modern-UI Fase 4).
+const OUTLET_SIGNAL: Record<OutletStatus, Signal> = {
+  operational: 'neutral',
+  warning:     'waiting',
+  critical:    'action',
 }
 
 export function MasterDataPage() {
@@ -100,9 +103,6 @@ export function MasterDataPage() {
 
   const getCategoryName = (id: string) =>
     categories.find((c) => c.id === id)?.name ?? id
-
-  const getCategoryModule = (id: string) =>
-    categories.find((c) => c.id === id)?.module
 
   // -------------------------------------------------------------------------
   // Tab switch helper
@@ -209,13 +209,7 @@ export function MasterDataPage() {
                         <span className="font-mono text-sm text-muted-foreground">{outlet.code}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={cn(
-                          'text-xs font-semibold px-2.5 py-1 rounded-full',
-                          statusColors[outlet.status].bg,
-                          statusColors[outlet.status].text
-                        )}>
-                          {label('outletStatus', outlet.status)}
-                        </span>
+                        <StatusLabel signal={OUTLET_SIGNAL[outlet.status] ?? 'neutral'}>{label('outletStatus', outlet.status)}</StatusLabel>
                       </td>
                       <td className="px-6 py-4 text-sm">
                         {outlet.approvalThreshold == null ? (
@@ -280,21 +274,15 @@ export function MasterDataPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-bold text-foreground">{category.name}</h3>
-                          <span className={cn(
-                            'text-xs font-semibold px-2 py-0.5 rounded-full',
-                            category.module === 'maintenance' ? 'bg-warning-mark/10 text-warning' : 'bg-muted text-foreground'
-                          )}>
-                            {label('categoryModule', category.module)}
-                          </span>
+                          {/* Plain facts, not pills (Todo-Modern-UI Fase 4) */}
+                          <span className="text-xs text-muted-foreground">{label('categoryModule', category.module)}</span>
                           {category.isSystem && (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                              <Lock className="size-2.5" aria-hidden /> {t('masterData.systemBadge')}
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <Lock className="size-3" aria-hidden /> {t('masterData.systemBadge')}
                             </span>
                           )}
                           {!category.isActive && (
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                              {t('masterData.inactiveBadge')}
-                            </span>
+                            <span className="text-xs font-medium text-muted-foreground">{t('masterData.inactiveBadge')}</span>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">{category.description}</p>
@@ -391,28 +379,11 @@ export function MasterDataPage() {
 
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">{t('masterData.assignedCategories')}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {pic.categories.length === 0 ? (
-                        <p className="text-sm text-muted-foreground italic">{t('masterData.noAssigned')}</p>
-                      ) : (
-                        pic.categories.map((catId) => {
-                          const isMaintenance = getCategoryModule(catId) === 'maintenance'
-                          return (
-                            <span
-                              key={catId}
-                              className={cn(
-                                'text-xs font-semibold px-2.5 py-1 rounded-full',
-                                isMaintenance
-                                  ? 'bg-warning-mark/10 text-warning'
-                                  : 'bg-muted text-foreground'
-                              )}
-                            >
-                              {getCategoryName(catId)}
-                            </span>
-                          )
-                        })
-                      )}
-                    </div>
+                    {pic.categories.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">{t('masterData.noAssigned')}</p>
+                    ) : (
+                      <p className="text-sm">{pic.categories.map((catId) => getCategoryName(catId)).join(' · ')}</p>
+                    )}
                   </div>
                 </div>
               ))}
