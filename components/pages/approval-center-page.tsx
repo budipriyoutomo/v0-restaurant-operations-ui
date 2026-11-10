@@ -426,7 +426,7 @@ export function ApprovalCenterPage() {
                   return (
                     <div className={cn(
                       'p-4 rounded-md border space-y-1',
-                      selectedApproval.status === 'approved' ? 'bg-success/10/50 border-success/40' : 'bg-destructive-soft/50 border-destructive/40'
+                      selectedApproval.status === 'approved' ? 'bg-success/10 border-success/40' : 'bg-destructive-soft/50 border-destructive/40'
                     )}>
                       <p className={cn('text-sm font-semibold', selectedApproval.status === 'approved' ? 'text-success' : 'text-destructive')}>
                         {t('approvals.hasBeen', { status: label('approvalStatus', selectedApproval.status).toLowerCase() })}

@@ -316,7 +316,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
 
         {/* Bulk close of finished work (Todo-Pilot §18) */}
         {readyOnly && can.updateIssueStatus && readyIds.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap p-3 rounded-xl border border-success/40 bg-success/10/60 text-sm">
+          <div className="flex items-center gap-2 flex-wrap p-3 rounded-xl border border-success/40 bg-success/10 text-sm">
             <span className="text-success">
               {readyIds.length === 1 ? t('issues.bulkHintOne') : t('issues.bulkHintMany', { count: readyIds.length })}
             </span>
@@ -475,7 +475,7 @@ export function IssuesListPage({ view }: { view?: IssueViewId } = {}) {
               )}
 
               {selectedIssue.closureBlockers.length > 0 && !FINAL_STATUSES.includes(selectedIssue.status) && (
-                <div className="p-4 rounded-md bg-warning-mark/10/50 border border-warning-mark/40 space-y-2">
+                <div className="p-4 rounded-md bg-warning-mark/10 border border-warning-mark/40 space-y-2">
                   <p className="text-sm font-semibold text-warning flex items-center gap-2">
                     <Lock className="size-4" /> {t('issueDrawer.blockedTitle')}
                   </p>

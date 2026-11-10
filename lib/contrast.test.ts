@@ -96,3 +96,13 @@ describe('raw hex colours', () => {
     expect(offenders).toEqual([])
   })
 })
+
+// "bg-success/10/60" is no class at all: Tailwind drops it and the box loses
+// its background. One opacity per colour.
+describe('colour opacity', () => {
+  it('is written once per class', () => {
+    const DOUBLE = /(?:bg|text|border|ring)-[a-z-]+\/\d+\/\d+/
+    const offenders = [...files].filter(([, src]) => DOUBLE.test(src)).map(([f]) => f)
+    expect(offenders).toEqual([])
+  })
+})
