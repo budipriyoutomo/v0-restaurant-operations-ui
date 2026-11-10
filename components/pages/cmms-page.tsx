@@ -1,10 +1,12 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { QrCode, Calendar, Wrench, Package, Clock, Plus } from 'lucide-react'
+import { QrCode, Package, Plus } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
-import { StatCard } from '@/components/shared/stat-card'
+import { KpiStrip } from '@/components/shared/kpi-strip'
+import { StatusLabel } from '@/components/shared/status-label'
+import { RecordId } from '@/components/shared/record-id'
 import { PriorityBadge, StatusBadge } from '@/components/shared/priority-badge'
 import { CreateAssetDialog } from '@/components/dialogs/create-asset-dialog'
 import { CreateWorkOrderDialog } from '@/components/dialogs/create-work-order-dialog'
@@ -22,8 +24,7 @@ import { byOutlet } from '@/lib/outlet-filter'
 import { useRecordRoute } from '@/lib/use-route'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { toneIfAny } from '@/lib/tone'
-import { assetStatusColor } from '@/components/cmms/asset-status'
+import { assetSignal } from '@/components/cmms/asset-status'
 import { PMCalendar } from '@/components/cmms/pm-calendar'
 import { AssetDetailPanel } from '@/components/cmms/asset-detail-panel'
 import { WorkOrderDetailDrawer } from '@/components/cmms/work-order-drawer'
@@ -143,13 +144,14 @@ export function CMMSPage() {
         )}
       />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard title={t('cmms.totalAssets')} value={String(assets.length)} subtitle={t('cmms.registered')} icon={Package} />
-        <StatCard title={t('cmms.openWos')} value={String(openWOs.length)} subtitle={t('cmms.overdueCount', { count: overdueWOs.length })} icon={Wrench} variant={overdueWOs.length > 0 ? 'warning' : undefined} />
-        <StatCard title={t('cmms.pmCompliance')} value={pmCompliance === null ? '—' : `${pmCompliance}%`} subtitle={t('cmms.pmCompleted')} icon={Calendar} variant={toneIfAny(pmCompliance, 'success' as const)} />
-        <StatCard title={t('cmms.correctiveWos')} value={String(correctiveCount)} subtitle={t('cmms.allTime')} icon={Clock} variant={toneIfAny(correctiveCount, 'critical' as const)} />
-      </div>
+      {/* One status bar, only once there is something to count (Todo-Modern-UI Fase 4) */}
+      <KpiStrip label={t('cmms.kpiLabel')} items={[
+        { label: t('cmms.totalAssets'), value: assets.length },
+        { label: t('cmms.openWos'), value: openWOs.length, signal: overdueWOs.length > 0 ? 'waiting' : undefined,
+          hint: overdueWOs.length > 0 ? t('cmms.overdueCount', { count: overdueWOs.length }) : undefined },
+        { label: t('cmms.pmCompliance'), value: pmCompliance === null ? null : `${pmCompliance}%` },
+        { label: t('cmms.correctiveWos'), value: correctiveCount, hint: t('cmms.allTime') },
+      ]} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Asset table */}
@@ -185,38 +187,42 @@ export function CMMSPage() {
                     <th className="text-left px-4 py-3.5 font-semibold text-muted-foreground">{t('wo.asset')}</th>
                     <th className="text-left px-4 py-3.5 font-semibold text-muted-foreground">{t('common.outlet')}</th>
                     <th className="text-left px-4 py-3.5 font-semibold text-muted-foreground">{t('common.status')}</th>
-                    <th className="text-left px-4 py-3.5 font-semibold text-muted-foreground">{t('asset.lastPm')}</th>
+                    <th className="text-left px-4 py-3.5 font-semibold text-muted-foreground max-sm:hidden">{t('asset.lastPm')}</th>
                     <th className="text-left px-4 py-3.5 font-semibold text-muted-foreground">{t('asset.nextPm')}</th>
-                    <th className="text-left px-4 py-3.5 font-semibold text-muted-foreground">{t('cmms.wos')}</th>
+                    <th className="text-left px-4 py-3.5 font-semibold text-muted-foreground max-sm:hidden">{t('cmms.wos')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredAssets.map((asset) => {
                     const woCount = workOrders.filter((wo) => wo.assetId === asset.id).length
                     const pmOverdue = asset.nextPM && new Date(asset.nextPM) < new Date()
+                    const open = selectedAsset?.id === asset.id
+                    const toggle = () => setSelectedAsset(open ? null : asset)
                     return (
                       <tr
                         key={asset.id}
-                        className={cn('hover:bg-muted/30 transition-colors cursor-pointer', selectedAsset?.id === asset.id && 'bg-accent/50')}
-                        onClick={() => setSelectedAsset(selectedAsset?.id === asset.id ? null : asset)}
+                        className={cn('hover:bg-muted/30 transition-colors cursor-pointer', open && 'bg-accent/50')}
+                        onClick={toggle}
                       >
                         <td className="px-4 py-3.5">
-                          <p className="font-medium">{asset.name}</p>
-                          <p className="text-muted-foreground font-mono">{asset.number}</p>
+                          {/* The keyboard way in; the whole row stays clickable for the mouse. */}
+                          <button type="button" aria-expanded={open} onClick={(e) => { e.stopPropagation(); toggle() }}
+                            className="text-left font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm">
+                            {asset.name}
+                          </button>
+                          <RecordId id={asset.number} className="block" />
                         </td>
                         <td className="px-4 py-3.5 text-muted-foreground">{asset.outlet}</td>
                         <td className="px-4 py-3.5">
-                          <span className={cn('px-2 py-0.5 rounded-md text-xs font-semibold border', assetStatusColor(asset.status))}>
-                            {label('assetStatus', asset.status)}
-                          </span>
+                          <StatusLabel signal={assetSignal(asset.status)}>{label('assetStatus', asset.status)}</StatusLabel>
                         </td>
-                        <td className="px-4 py-3.5 text-muted-foreground">{date(asset.lastPM)}</td>
+                        <td className="px-4 py-3.5 text-muted-foreground max-sm:hidden">{date(asset.lastPM)}</td>
                         <td className="px-4 py-3.5">
                           <span className={cn(pmOverdue ? 'text-destructive font-semibold' : 'text-muted-foreground')}>
                             {date(asset.nextPM)}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 text-muted-foreground">{woCount}</td>
+                        <td className="px-4 py-3.5 text-muted-foreground tabular-nums max-sm:hidden">{woCount}</td>
                       </tr>
                     )
                   })}
@@ -243,7 +249,7 @@ export function CMMSPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
-            <h3 className="text-sm font-semibold">{t('cmms.workOrders')}</h3>
+            <h3 id="cmms-wo-heading" className="text-sm font-semibold">{t('cmms.workOrders')}</h3>
             <FilterSelect label={t('common.status')} value={woScope}
               options={[{ value: 'open', label: t('cmms.openCount', { count: openWOs.length }) }, { value: 'all', label: t('cmms.allCount', { count: workOrders.length }) }]}
               onChange={(v) => { setWoScope(v ?? 'open'); setShowAllWOs(false) }} />
@@ -254,35 +260,30 @@ export function CMMSPage() {
             </p>
           ) : (
             <div className="space-y-2">
+              {/* Dense rows, one button each, like the Issues list (Todo-Modern-UI Fase 4) */}
+              <ul aria-labelledby="cmms-wo-heading" className="divide-y divide-border rounded-lg border border-border">
               {visibleWOs.map((wo) => (
-                <div
-                  key={wo.id}
-                  onClick={() => setSelectedWOId(wo.id)}
-                  className="flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex-shrink-0">
-                    <p className="text-xs font-mono text-muted-foreground">{wo.number}</p>
-                    <p className="text-xs font-semibold mt-0.5">{wo.assetName}</p>
-                  </div>
-                  <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-muted-foreground truncate">{wo.outlet}</span>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className={cn(
-                      'text-xs bg-muted rounded px-1.5 py-0.5',
-                      wo.type === 'preventive' ? 'text-primary' : 'text-muted-foreground'
-                    )}>
-                      {label('woType', wo.type)}
+                <li key={wo.id}>
+                  <button type="button" onClick={() => setSelectedWOId(wo.id)}
+                    aria-labelledby={`wo-${wo.id}-number wo-${wo.id}-asset`}
+                    className="w-full grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 px-3 py-2.5 text-left hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
+                    <span className="min-w-0">
+                      <span id={`wo-${wo.id}-asset`} className="block text-sm font-medium truncate">{wo.assetName}</span>
+                      <span className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                        <span id={`wo-${wo.id}-number`}><RecordId id={wo.number} /></span>
+                        <span>{wo.outlet}</span>
+                        <span>{label('woType', wo.type)}</span>
+                        {wo.assignee && wo.assignee !== 'Unassigned' && <span>{wo.assignee}</span>}
+                      </span>
                     </span>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <PriorityBadge priority={wo.priority} />
-                    <StatusBadge status={wo.status} />
-                  </div>
-                  <div className="text-xs text-muted-foreground flex-shrink-0 hidden sm:block">
-                    {wo.assignee.split(' ')[0]}
-                  </div>
-                </div>
+                    <span className="flex flex-col items-end gap-0.5">
+                      <StatusBadge status={wo.status} />
+                      <PriorityBadge priority={wo.priority} />
+                    </span>
+                  </button>
+                </li>
               ))}
+              </ul>
               {listedWOs.length > 10 && (
                 <button
                   onClick={() => setShowAllWOs((v) => !v)}
@@ -311,7 +312,7 @@ export function CMMSPage() {
                   contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-popover)', color: 'var(--color-foreground)' }}
                   formatter={(v: number) => [`${v}`, t('cmms.wos')]}
                 />
-                <Bar dataKey="count" radius={[0, 3, 3, 0]} fill="#ef4444" />
+                <Bar dataKey="count" radius={[0, 3, 3, 0]} fill="var(--chart-1)" />
               </BarChart>
             </ResponsiveContainer>
           )}

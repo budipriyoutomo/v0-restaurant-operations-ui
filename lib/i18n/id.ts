@@ -205,6 +205,7 @@ export const id = {
     completedCorrective: "Perintah kerja korektif yang selesai",
     correctiveByOutlet: "Perintah kerja korektif per outlet",
     correctiveWos: "Perintah kerja korektif",
+    kpiLabel: "Ringkasan aset & perawatan",
     newWo: "Perintah Kerja Baru",
     noAssets: "Belum ada aset terdaftar.",
     noAssetsHint: "Daftarkan tiap mesin dengan “Aset Baru”, lalu cetak stiker QR-nya — staf bisa melaporkan kerusakan dengan memindainya.",

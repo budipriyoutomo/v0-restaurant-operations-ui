@@ -207,6 +207,7 @@ export const en: Messages = {
     completedCorrective: "Completed corrective work orders",
     correctiveByOutlet: "Corrective work orders by outlet",
     correctiveWos: "Corrective work orders",
+    kpiLabel: "Assets & maintenance summary",
     newWo: "New Work Order",
     noAssets: "No assets registered yet.",
     noAssetsHint: "Register each machine with “New Asset”, then print its QR sticker — staff can report a breakdown by scanning it.",
