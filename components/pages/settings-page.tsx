@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { useTheme } from 'next-themes'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { InstallAppGroup } from '@/components/shared/install-app'
+import { Select } from '@/components/shared/select'
 
 interface AppPreferences {
   darkMode: boolean
@@ -165,14 +166,13 @@ export function SettingsPage() {
               <p className="text-xs text-muted-foreground mt-0.5">{t('settings.languageHint')}</p>
             </div>
           </div>
-          <select
+          <Select
             id="settings-language"
             value={locale}
             onChange={(e) => setLocale(normalizeLocale(e.target.value))}
-            className="w-full sm:w-auto h-10 sm:h-9 rounded-lg border border-border bg-background px-3 text-sm"
-          >
+            className="w-full sm:w-auto">
             {LOCALES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
-          </select>
+          </Select>
         </div>
       </SettingGroup>
 

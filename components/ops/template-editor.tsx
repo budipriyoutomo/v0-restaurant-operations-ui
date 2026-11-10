@@ -14,6 +14,7 @@ import type { OpsItemType, OpsShift, OpsTemplate, OpsTemplateItemInput } from '@
 import { useT } from '@/lib/i18n'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
+import { Select } from '@/components/shared/select'
 
 const SHIFTS: OpsShift[] = ['opening', 'midday', 'closing', 'other']
 const TYPES: OpsItemType[] = ['check', 'number', 'temperature']
@@ -97,9 +98,9 @@ export function OpsTemplateEditor({ template, onClose, onSaved }: {
             </div>
             <div>
               <label htmlFor="ops-tpl-shift" className="block text-xs font-semibold mb-1">{t('ops.shiftLabel')}</label>
-              <select id="ops-tpl-shift" value={shift} onChange={(e) => setShift(e.target.value as OpsShift)} className={field}>
+              <Select id="ops-tpl-shift" value={shift} onChange={(e) => setShift(e.target.value as OpsShift)} className="w-full">
                 {SHIFTS.map((s) => <option key={s} value={s}>{label('opsShift', s)}</option>)}
-              </select>
+              </Select>
             </div>
           </div>
           <div>
@@ -130,23 +131,23 @@ export function OpsTemplateEditor({ template, onClose, onSaved }: {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-7">
                   <input value={it.section} onChange={(e) => set(idx, { section: e.target.value })} className={field}
                     aria-label={t('ops.section')} placeholder={t('ops.sectionPlaceholder')} />
-                  <select value={it.itemType} onChange={(e) => set(idx, { itemType: e.target.value as OpsItemType,
-                    unit: e.target.value === 'temperature' && !it.unit ? '°C' : it.unit })} className={field} aria-label={t('ops.itemType')}>
+                  <Select value={it.itemType} onChange={(e) => set(idx, { itemType: e.target.value as OpsItemType,
+                    unit: e.target.value === 'temperature' && !it.unit ? '°C' : it.unit })} className="w-full" aria-label={t('ops.itemType')}>
                     {TYPES.map((ty) => <option key={ty} value={ty}>{label('opsItemType', ty)}</option>)}
-                  </select>
-                  <select value={it.issueCategoryId ?? ''} onChange={(e) => set(idx, { issueCategoryId: e.target.value || null })}
-                    className={cn(field, 'col-span-2')} aria-label={t('ops.issueCategory')}>
+                  </Select>
+                  <Select value={it.issueCategoryId ?? ''} onChange={(e) => set(idx, { issueCategoryId: e.target.value || null })}
+                    className="w-full col-span-2" aria-label={t('ops.issueCategory')}>
                     <option value="">{t('ops.issueCategoryDefault')}</option>
                     {categories.map((c) => <option key={c.id} value={c.id}>{label('category', c.name)}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 {it.itemType === 'temperature' && monitored.length > 0 && (
                   <div className="pl-7">
-                    <select value={it.assetId ?? ''} onChange={(e) => set(idx, { assetId: e.target.value || null })}
-                      className={field} aria-label={t('ops.asset')}>
+                    <Select value={it.assetId ?? ''} onChange={(e) => set(idx, { assetId: e.target.value || null })}
+                      className="w-full" aria-label={t('ops.asset')}>
                       <option value="">{t('ops.noAsset')}</option>
                       {monitored.map((a) => <option key={a.id} value={a.id}>{a.name} · {a.outlet} ({a.tempMin ?? '—'} – {a.tempMax ?? '—'} °C)</option>)}
-                    </select>
+                    </Select>
                     {it.assetId && <p className="text-xs text-muted-foreground mt-1">{t('ops.assetLimitsHint')}</p>}
                   </div>
                 )}

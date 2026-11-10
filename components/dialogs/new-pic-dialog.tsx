@@ -7,6 +7,7 @@ import { useT } from '@/lib/i18n'
 import type { AssignableUser, MasterCategory, PIC } from '@/lib/types'
 import { useIssueStore } from '@/lib/store'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { Select } from '@/components/shared/select'
 
 interface NewPICDialogProps {
   open: boolean
@@ -153,34 +154,32 @@ export function NewPICDialog({ open, onOpenChange, categories, initialData, onSu
 
           <div>
             <label htmlFor="pic-department" className="block text-sm font-semibold mb-1.5">{t('picDialog.department')}</label>
-            <select id="pic-department"
+            <Select id="pic-department"
               name="department"
               value={formData.department}
               onChange={handleChange}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+              className="w-full">
               {departments.map((dept) => (
                 <option key={dept} value={dept}>
                   {t(`picDialog.dept.${dept}`)}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
             <label htmlFor="pic-user" className="block text-sm font-semibold mb-1.5">{t('picDialog.userAccount')}</label>
-            <select id="pic-user"
+            <Select id="pic-user"
               value={formData.userId ?? ''}
               onChange={(e) => setFormData((prev) => ({ ...prev, userId: e.target.value || null }))}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+              className="w-full">
               <option value="">{t('picDialog.noUser')}</option>
               {/* Keep the current link visible even if the user list has not loaded / excludes them. */}
               {formData.userId && !users.some((u) => u.id === formData.userId) && (
                 <option value={formData.userId}>{initialData?.userName ?? formData.userId}</option>
               )}
               {users.map((u) => <option key={u.id} value={u.id}>{u.name} · {u.role_name}</option>)}
-            </select>
+            </Select>
             <p className="text-xs text-muted-foreground mt-1">{t('picDialog.userHint')}</p>
           </div>
 

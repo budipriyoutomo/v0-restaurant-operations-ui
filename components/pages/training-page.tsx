@@ -21,6 +21,7 @@ import { SegmentedTabs } from '@/components/shared/segmented-tabs'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { byOutlet } from '@/lib/outlet-filter'
+import { Select } from '@/components/shared/select'
 
 type Tab = 'sessions' | 'approvals' | 'programs' | 'attendance'
 
@@ -271,15 +272,14 @@ function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusC
           </button>
           {canManage && (
             <div className="pt-1 border-t border-border">
-              <select
+              <Select
                 value={p.status}
                 onChange={e => onStatusChange(p.id, e.target.value as TrainingProgramStatus)}
-                className="w-full px-2 py-1 text-xs rounded border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary/50"
-              >
+                className="w-full" size="sm">
                 {(['scheduled', 'ongoing', 'completed', 'cancelled'] as const).map((st) => (
                   <option key={st} value={st}>{label('trainingStatus', st)}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
           {confirmDelete === p.id && (
@@ -377,29 +377,27 @@ function ProgramFormModal({ program, outlets, onClose, onSubmit }: {
           ))}
           <div>
             <label htmlFor="program-role" className="block text-xs font-semibold mb-1">{t('training.targetRole')}</label>
-            <select
+            <Select
               id="program-role"
               value={form.target_role}
               onChange={e => setForm(f => ({ ...f, target_role: e.target.value }))}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+              className="w-full">
               <option value="staff">{label('tier', 'staff')}</option>
               <option value="manager">{label('tier', 'manager')}</option>
               <option value="admin">{label('tier', 'admin')}</option>
               <option value="all">{t('training.allRoles')}</option>
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor="program-outlet" className="block text-xs font-semibold mb-1">{t('common.outlet')}</label>
-            <select
+            <Select
               id="program-outlet"
               value={form.outlet}
               onChange={e => setForm(f => ({ ...f, outlet: e.target.value }))}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+              className="w-full">
               <option value="">{t('cmms.allOutlets')}</option>
               {outlets.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

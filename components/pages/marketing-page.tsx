@@ -19,6 +19,7 @@ import { SegmentedTabs } from '@/components/shared/segmented-tabs'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { byOutlet } from '@/lib/outlet-filter'
+import { Select } from '@/components/shared/select'
 
 type Tab = 'campaigns' | 'approvals' | 'issues'
 
@@ -267,15 +268,14 @@ function CampaignList({ campaigns, loading, canManage, onEdit, onDelete, onStatu
           )}
           {canManage && (
             <div className="pt-1 border-t border-border">
-              <select
+              <Select
                 value={c.status}
                 onChange={e => onStatusChange(c.id, e.target.value as CampaignStatus)}
-                className="w-full px-2 py-1 text-xs rounded border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary/50"
-              >
+                className="w-full" size="sm">
                 {(['draft', 'active', 'completed', 'cancelled'] as const).map((st) => (
                   <option key={st} value={st}>{label('campaignStatus', st)}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
           {confirmDelete === c.id && (
@@ -512,13 +512,12 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
           </div>
           <div>
             <label htmlFor="campaign-type" className="block text-xs font-semibold mb-1">{t('common.type')}</label>
-            <select id="campaign-type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as CampaignType }))}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+            <Select id="campaign-type" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as CampaignType }))}
+              className="w-full">
               {CAMPAIGN_TYPES.map((v) => (
                 <option key={v} value={v}>{label('campaignType', v)}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor="campaign-description" className="block text-xs font-semibold mb-1">{t('common.description')}</label>
@@ -529,21 +528,19 @@ function CampaignFormModal({ campaign, outlets, onClose, onSubmit }: {
           </div>
           <div>
             <label htmlFor="campaign-outlet" className="block text-xs font-semibold mb-1">{t('common.outlet')}</label>
-            <select id="campaign-outlet" value={form.outlet} onChange={e => setForm(f => ({ ...f, outlet: e.target.value }))}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+            <Select id="campaign-outlet" value={form.outlet} onChange={e => setForm(f => ({ ...f, outlet: e.target.value }))}
+              className="w-full">
               <option value="">{t('cmms.allOutlets')}</option>
               {outlets.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor="campaign-budget" className="block text-xs font-semibold mb-1">{t('marketing.budget')}</label>
             <div className="flex gap-2">
-              <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                className="px-2 py-2 rounded-md border border-border bg-muted/20 text-sm">
+              <Select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}>
                 <option value="IDR">IDR</option>
                 <option value="MYR">MYR</option>
-              </select>
+              </Select>
               <input id="campaign-budget" type="text" inputMode="numeric" placeholder="5000000" value={form.budget}
                 onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
                 className="flex-1 px-3 py-2 rounded-md border border-border bg-muted/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"

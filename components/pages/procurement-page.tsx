@@ -20,6 +20,7 @@ import { SegmentedTabs } from '@/components/shared/segmented-tabs'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { byOutlet } from '@/lib/outlet-filter'
+import { Select } from '@/components/shared/select'
 
 type Tab = 'requests' | 'purchasing' | 'budget' | 'approvals' | 'vendors'
 
@@ -396,15 +397,14 @@ function VendorFormModal({ vendor, outlets, onClose, onSubmit }: {
           {field(t('procurement.address'), 'address', 'text', 'Jl. Sudirman No. 1, Jakarta')}
           <div>
             <label htmlFor="vendor-outlet" className="block text-xs font-semibold mb-1">{t('common.outlet')}</label>
-            <select
+            <Select
               id="vendor-outlet"
               value={form.outlet}
               onChange={e => setForm(f => ({ ...f, outlet: e.target.value }))}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+              className="w-full">
               <option value="">{t('cmms.allOutlets')}</option>
               {outlets.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
+            </Select>
           </div>
           {field(t('common.notes'), 'notes', 'text', t('procurement.notesPlaceholder'))}
           <div className="flex gap-2 pt-2">

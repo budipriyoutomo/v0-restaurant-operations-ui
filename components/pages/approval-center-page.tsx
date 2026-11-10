@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
 import { FilterBar, FilterSelect } from '@/components/shared/filter-menu'
 import { StatusBadge } from '@/components/shared/priority-badge'
+import { Select } from '@/components/shared/select'
 
 const typeIcons: Record<ApprovalType, React.ReactNode> = {
   procurement: <ShoppingCart className="size-5" />,
@@ -538,16 +539,15 @@ export function ApprovalCenterPage() {
                           {t('approvals.delegateLabel')}
                         </label>
                         <div className="flex gap-2">
-                          <select
+                          <Select
                             value={delegateTo}
                             onChange={(e) => setDelegateTo(e.target.value)}
-                            className="flex-1 h-9 rounded-lg border border-border bg-muted/20 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          >
+                            className="flex-1" size="sm">
                             <option value="">{t('approvals.pickApprover')}</option>
                             {delegateCandidates.map((u) => (
                               <option key={u.id} value={u.id}>{u.name} ({u.role_name})</option>
                             ))}
-                          </select>
+                          </Select>
                           <button
                             onClick={handleDelegate}
                             disabled={isDelegating || !delegateTo}

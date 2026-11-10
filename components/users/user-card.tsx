@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Shield, Eye, EyeOff, Loader2, Trash2, ChevronDown, KeyRound, Store, MessageCircle, Copy, Check } from 'lucide-react'
+import { Shield, Eye, EyeOff, Loader2, Trash2, KeyRound, Store, MessageCircle, Copy, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { translate, useT } from '@/lib/i18n'
@@ -9,6 +9,7 @@ import { User } from '@/lib/types'
 import { validateResetPassword } from '@/lib/password'
 import { passwordApi } from '@/lib/password-api'
 import { ErrorBox, Field, Modal, ModalActions, OutletChecklist, apiError, getInitials, inputCls, outletSummary, roleBadge } from './shared'
+import { Select } from '@/components/shared/select'
 
 // ---------------------------------------------------------------------------
 // User card
@@ -156,24 +157,19 @@ export function UserCard({ user, isCurrentUser, canManage }: { user: User; isCur
         <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-border">
           {/* Phones: the role picker gets its own line, the buttons the next */}
           <div className="relative basis-full sm:basis-auto sm:flex-1">
-            <select
+            <Select
               value={user.role}
               disabled={roleLoading}
               aria-label={t('users.changeRole')}
               onChange={e => handleRoleChange(e.target.value)}
-              className={cn(
-                'w-full appearance-none h-10 sm:h-9 pl-3 pr-7 text-sm rounded-lg border border-border bg-background',
-                'focus:outline-none focus:ring-1 focus:ring-primary/50',
-                roleLoading && 'opacity-50 cursor-not-allowed'
-              )}
+              className="w-full"
             >
               {roles.map(r => <option key={r.key} value={r.key}>{r.name}</option>)}
               {!roles.some(r => r.key === user.role) && <option value={user.role}>{user.role_name}</option>}
-            </select>
-            {roleLoading
-              ? <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 animate-spin text-muted-foreground" />
-              : <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-            }
+            </Select>
+            {roleLoading && (
+              <Loader2 aria-hidden="true" className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground bg-card" />
+            )}
           </div>
 
           <button

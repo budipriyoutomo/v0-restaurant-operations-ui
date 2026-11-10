@@ -13,6 +13,7 @@ import { useMyOutlets } from '@/lib/permissions'
 import { frequencyDefaults, fromWindowInput, scheduleProblem, toWindowInput, windowUnit } from '@/lib/ops-schedule'
 import type { OpsSchedule, OpsScheduleFrequency, OpsTemplate } from '@/lib/types'
 import { useT } from '@/lib/i18n'
+import { Select } from '@/components/shared/select'
 
 const DAYS = [1, 2, 3, 4, 5, 6, 7]
 const FREQUENCIES: OpsScheduleFrequency[] = ['daily', 'weekly', 'monthly']
@@ -97,15 +98,15 @@ export function OpsSchedulePanel({ schedules, templates, onChanged }: {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label htmlFor="ops-sch-template" className="block text-xs font-semibold mb-1">{t('ops.template')}</label>
-            <select id="ops-sch-template" value={tplId} onChange={(e) => setTemplateId(e.target.value)} className={field}>
+            <Select id="ops-sch-template" value={tplId} onChange={(e) => setTemplateId(e.target.value)} className="w-full">
               {active.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor="ops-sch-outlet" className="block text-xs font-semibold mb-1">{t('common.outlet')}</label>
-            <select id="ops-sch-outlet" value={outletName} onChange={(e) => setOutlet(e.target.value)} className={field}>
+            <Select id="ops-sch-outlet" value={outletName} onChange={(e) => setOutlet(e.target.value)} className="w-full">
               {outlets.map((o) => <option key={o.id} value={o.name}>{o.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor="ops-sch-time" className="block text-xs font-semibold mb-1">{t('ops.dueTime')}</label>

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { CreateOutletInput, Outlet, OutletStatus } from '@/lib/types'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { Select } from '@/components/shared/select'
 
 interface NewOutletDialogProps {
   open: boolean
@@ -126,34 +127,32 @@ export function NewOutletDialog({ open, onOpenChange, initialData, onSubmit }: N
 
           <div>
             <label htmlFor="outlet-status" className="block text-sm font-semibold mb-1.5">{t('common.status')}</label>
-            <select id="outlet-status"
+            <Select id="outlet-status"
               name="status"
               value={formData.status}
               onChange={handleChange}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+              className="w-full">
               {statuses.map((status) => (
                 <option key={status} value={status}>
                   {label('outletStatus', status)}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
             <label htmlFor="outlet-timezone" className="block text-sm font-semibold mb-1.5">{t('outletDialog.timezone')}</label>
-            <select id="outlet-timezone"
+            <Select id="outlet-timezone"
               name="timezone"
               value={formData.timezone}
               onChange={handleChange}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+              className="w-full">
               {(TIMEZONES.includes(formData.timezone) ? TIMEZONES : [formData.timezone, ...TIMEZONES]).map((tz) => (
                 <option key={tz} value={tz}>
                   {TIMEZONES.includes(tz) ? t(`outletDialog.tz.${tz.replace('/', '_')}` as 'outletDialog.tz.Asia_Jakarta') : tz}
                 </option>
               ))}
-            </select>
+            </Select>
             <p className="text-xs text-muted-foreground mt-1">{t('outletDialog.timezoneHint')}</p>
           </div>
 

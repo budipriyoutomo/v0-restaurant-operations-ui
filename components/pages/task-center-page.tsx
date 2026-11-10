@@ -19,6 +19,7 @@ import { PriorityBadge } from '@/components/shared/priority-badge'
 import { useOutletFilter } from '@/lib/permissions'
 import { outletQuery } from '@/lib/outlet-filter'
 import { SIGNAL_DOT, SIGNAL_EDGE, SIGNAL_RING, statusSignal } from '@/lib/tone'
+import { Select } from '@/components/shared/select'
 
 // Cards per column; the rest is counted (Todo-Pilot §22).
 const COLUMN_LIMIT = 50
@@ -274,19 +275,18 @@ function TaskCard({
       {/* Footer: issue link + accessible status move (keyboard / touch fallback) */}
       <div className="mt-2.5 pt-2.5 border-t border-border flex items-center justify-between gap-2">
         <span className="font-mono text-xs text-primary font-semibold">{task.issueNumber}</span>
-        <select
+        <Select
           value={task.status}
           onChange={(e) => onMove(task.id, e.target.value as TaskStatus)}
           onClick={(e) => e.stopPropagation()}
           aria-label={t('tasks.moveTo')}
           disabled={!!block}
           aria-describedby={block ? `${task.id}-block` : undefined}
-          className="h-10 sm:h-8 text-xs border border-border rounded-lg px-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+          size="sm">
           {COLUMN_ORDER.map((id) => (
             <option key={id} value={id}>{label('status', id)}</option>
           ))}
-        </select>
+        </Select>
       </div>
       {block && (
         <p id={`${task.id}-block`} className="mt-1.5 text-xs text-muted-foreground">{t(block.key, block.params)}</p>

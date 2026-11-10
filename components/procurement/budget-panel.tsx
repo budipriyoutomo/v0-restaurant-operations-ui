@@ -10,6 +10,7 @@ import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { Select } from '@/components/shared/select'
 
 const rp = (n: number) => formatMoney(n ?? 0)
 
@@ -85,11 +86,11 @@ export function BudgetPanel() {
         <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-muted/20 p-3">
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">{t('common.outlet')}</span>
-            <select value={form.outletId} onChange={(e) => setForm((f) => ({ ...f, outletId: e.target.value }))}
-              className="h-9 rounded-lg border border-border bg-background px-2 text-xs">
+            <Select value={form.outletId} onChange={(e) => setForm((f) => ({ ...f, outletId: e.target.value }))}
+              size="sm">
               <option value="">{t('budget.outletOption')}</option>
               {outlets.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+            </Select>
           </label>
           <label className="flex flex-col gap-1 text-xs">
             <span className="font-semibold text-muted-foreground">{t('budget.amount', { period })}</span>

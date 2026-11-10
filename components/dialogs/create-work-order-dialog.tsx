@@ -7,6 +7,7 @@ import { Asset, CreateWorkOrderInput, Priority, WorkOrderType } from '@/lib/type
 import { AssigneePicker } from '@/components/shared/assignee-picker'
 import { useT } from '@/lib/i18n'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { Select } from '@/components/shared/select'
 
 interface CreateWorkOrderDialogProps {
   open: boolean
@@ -139,12 +140,12 @@ export function CreateWorkOrderDialog({
                 {t('createWo.noAssets')}
               </p>
             ) : (
-              <select id={`${id}-asset`} name="assetId" value={form.assetId} onChange={handleChange}
-                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
+              <Select id={`${id}-asset`} name="assetId" value={form.assetId} onChange={handleChange}
+                className="w-full">
                 {assets.map((a) => (
                   <option key={a.id} value={a.id}>{a.name} — {a.outlet}</option>
                 ))}
-              </select>
+              </Select>
             )}
             {selectedAsset && (
               <p className="text-xs text-muted-foreground mt-1 font-mono">{selectedAsset.number} · {selectedAsset.category}</p>
@@ -204,12 +205,12 @@ export function CreateWorkOrderDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor={`${id}-priority`} className="block text-sm font-semibold mb-1.5">{t('common.priority')}</label>
-              <select id={`${id}-priority`} name="priority" value={form.priority} onChange={handleChange}
-                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
+              <Select id={`${id}-priority`} name="priority" value={form.priority} onChange={handleChange}
+                className="w-full">
                 {PRIORITIES.map((p) => (
                   <option key={p} value={p}>{label('priority', p)}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label htmlFor={`${id}-assignee`} className="block text-sm font-semibold mb-1.5">{t('common.assignTo')}</label>
@@ -221,9 +222,9 @@ export function CreateWorkOrderDialog({
                   onChange={(userId, name) => setForm((prev) => ({ ...prev, assigneeUserId: userId, assignee: name }))}
                 />
               ) : (
-                <select id={`${id}-assignee`} disabled className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
+                <Select id={`${id}-assignee`} disabled className="w-full">
                   <option>{t('createWo.pickAssetFirst')}</option>
-                </select>
+                </Select>
               )}
             </div>
           </div>

@@ -13,6 +13,7 @@ import { apiErrorMessage } from '@/lib/api-client'
 import type { AssignableUser } from '@/lib/types'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
+import { Select } from '@/components/shared/select'
 
 const fieldClass = 'w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40'
 
@@ -81,24 +82,24 @@ export function AssignmentRulesPanel() {
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end rounded-lg border border-border p-4">
           <div>
             <label htmlFor="rule-category" className="block text-xs font-semibold mb-1">{t('assignmentRules.category')}</label>
-            <select id="rule-category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={fieldClass}>
+            <Select id="rule-category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-full">
               {options.map((c) => <option key={c.id} value={c.id}>{label('category', c.name)}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor="rule-outlet" className="block text-xs font-semibold mb-1">{t('assignmentRules.outlet')}</label>
-            <select id="rule-outlet" value={outletId} onChange={(e) => setOutletId(e.target.value)} className={fieldClass}>
+            <Select id="rule-outlet" value={outletId} onChange={(e) => setOutletId(e.target.value)} className="w-full">
               <option value="">{t('assignmentRules.allOutlets')}</option>
               {outlets.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor="rule-assignee" className="block text-xs font-semibold mb-1">{t('assignmentRules.assignTo')}</label>
-            <select id="rule-assignee" value={assigneeUserId} onChange={(e) => setAssigneeUserId(e.target.value)}
-              disabled={people === null} className={fieldClass}>
+            <Select id="rule-assignee" value={assigneeUserId} onChange={(e) => setAssigneeUserId(e.target.value)}
+              disabled={people === null} className="w-full">
               <option value="">{t('assignmentRules.pickUser')}</option>
               {(people ?? []).map((u) => <option key={u.id} value={u.id}>{u.name} · {u.role_name}</option>)}
-            </select>
+            </Select>
           </div>
           <button type="button" onClick={add} disabled={!categoryId || !assigneeUserId || saving}
             className={cn('flex items-center justify-center gap-1.5 h-9 px-4 rounded-lg text-sm font-medium transition-colors',

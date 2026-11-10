@@ -24,6 +24,7 @@ import { SegmentedTabs } from '@/components/shared/segmented-tabs'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { Select } from '@/components/shared/select'
 
 type Tab = 'audits' | 'scores' | 'templates' | 'issues'
 
@@ -219,14 +220,14 @@ function StartAuditDialog({ templates, outlets, onClose, onStarted }: {
         ) : (
           <div className="space-y-3">
             <Field label={t('qa.checklist')}>
-              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-border bg-background text-sm">
+              <Select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full">
                 {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.items.length} items)</option>)}
-              </select>
+              </Select>
             </Field>
             <Field label={t('common.outlet')}>
-              <select value={outlet} onChange={(e) => setOutlet(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-border bg-background text-sm">
+              <Select value={outlet} onChange={(e) => setOutlet(e.target.value)} className="w-full">
                 {outlets.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
+              </Select>
             </Field>
             <Field label={t('qa.auditDate')}>
               <input type="date" value={auditDate} onChange={(e) => setAuditDate(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-border bg-background text-sm" />

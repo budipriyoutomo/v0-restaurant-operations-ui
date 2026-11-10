@@ -10,6 +10,7 @@ import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { Select } from '@/components/shared/select'
 
 const APPROVAL_TYPES: ApprovalType[] = ['maintenance', 'procurement', 'marketing', 'training', 'asset-purchase']
 const ROLES: ApproverRole[] = ['staff', 'manager', 'admin']
@@ -132,13 +133,12 @@ export function ApprovalPolicyPanel() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold text-muted-foreground">{t('policy.type')}</span>
-              <select
+              <Select
                 value={form.approvalType}
                 onChange={(e) => setForm({ ...form, approvalType: e.target.value as ApprovalType })}
-                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
-              >
+                size="sm">
                 {APPROVAL_TYPES.map((at) => <option key={at} value={at}>{label('approvalType', at)}</option>)}
-              </select>
+              </Select>
             </label>
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold text-muted-foreground">{t('policy.min')}</span>
@@ -164,14 +164,13 @@ export function ApprovalPolicyPanel() {
             </label>
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold text-muted-foreground">{t('policy.outletOptional')}</span>
-              <select
+              <Select
                 value={form.outlet ?? ''}
                 onChange={(e) => setForm({ ...form, outlet: e.target.value || null })}
-                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
-              >
+                size="sm">
                 <option value="">{t('common.allOutlets')}</option>
                 {outlets.map((o) => <option key={o.id} value={o.name}>{o.name}</option>)}
-              </select>
+              </Select>
             </label>
           </div>
 
@@ -182,14 +181,13 @@ export function ApprovalPolicyPanel() {
               {form.steps.map((s, idx) => (
                 <div key={idx} className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">{idx + 1}.</span>
-                  <select
+                  <Select
                     value={s.role}
                     onChange={(e) => setStepRole(idx, e.target.value as ApproverRole)}
                     aria-label={`${t('policy.chain')} ${idx + 1}`}
-                    className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
-                  >
+                    size="sm">
                     {ROLES.map((r) => <option key={r} value={r}>{label('tier', r)}</option>)}
-                  </select>
+                  </Select>
                   {form.steps.length > 1 && (
                     <button onClick={() => removeStep(idx)} aria-label={t('policy.removeStep')} className="size-10 sm:size-8 inline-flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
                       <X className="size-3" />

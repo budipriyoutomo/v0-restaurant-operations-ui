@@ -8,6 +8,7 @@ import { CATEGORY_MODULES } from '@/lib/categories'
 import type { ApprovalType, CategoryModule, MasterCategory } from '@/lib/types'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 import { CATEGORY_ICON_NAMES, CategoryIcon } from '@/components/shared/category-icon'
+import { Select } from '@/components/shared/select'
 
 // Issue categories are master data (Todo-Ops-Checklist P1). The module decides
 // behaviour; system categories can be renamed but keep their module and stay active.
@@ -127,11 +128,11 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
 
           <div>
             <label htmlFor="category-module" className="block text-sm font-semibold mb-1.5">{t('categoryDialog.module')}</label>
-            <select id="category-module" name="module" value={formData.module} disabled={isSystem}
+            <Select id="category-module" name="module" value={formData.module} disabled={isSystem}
               onChange={(e) => set('module', e.target.value as CategoryModule)}
-              className={cn(fieldClass, isSystem && 'opacity-60 cursor-not-allowed')}>
+              className="w-full">
               {CATEGORY_MODULES.map((m) => <option key={m} value={m}>{label('categoryModule', m)}</option>)}
-            </select>
+            </Select>
             <p className="text-xs text-muted-foreground mt-1">{t('categoryDialog.moduleHint')}</p>
           </div>
 
@@ -170,11 +171,11 @@ export function NewCategoryDialog({ open, onOpenChange, initialData, onSubmit }:
 
           <div>
             <label htmlFor="category-approval-type" className="block text-sm font-semibold mb-1.5">{t('categoryDialog.approvalType')}</label>
-            <select id="category-approval-type" value={formData.approvalType ?? ''}
-              onChange={(e) => set('approvalType', (e.target.value || null) as ApprovalType | null)} className={fieldClass}>
+            <Select id="category-approval-type" value={formData.approvalType ?? ''}
+              onChange={(e) => set('approvalType', (e.target.value || null) as ApprovalType | null)} className="w-full">
               <option value="">{t('categoryDialog.approvalTypeDefault')}</option>
               {APPROVAL_TYPES.map((a) => <option key={a} value={a}>{label('approvalType', a)}</option>)}
-            </select>
+            </Select>
           </div>
 
           {isEdit && (

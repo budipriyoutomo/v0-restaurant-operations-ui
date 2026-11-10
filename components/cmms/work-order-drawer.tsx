@@ -16,6 +16,7 @@ import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { SideDrawer } from '@/components/shared/side-drawer'
+import { Select } from '@/components/shared/select'
 
 // ---------------------------------------------------------------------------
 // Work Order detail drawer — slides in from right when a WO row is clicked
@@ -265,7 +266,7 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
                         outlet={detail.outlet}
                         value={detail.assigneeUserId ?? null}
                         legacyName={detail.assignee}
-                        className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs"
+                        className="w-full" size="sm"
                         onChange={(userId) => {
                           assignWorkOrder(detail.id, userId)
                             .then((wo) => setDetail((d) => d && { ...d, assignee: wo.assignee, assigneeUserId: wo.assigneeUserId }))
@@ -364,16 +365,15 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
                 )}
                 {can.manageCMMS && !isDone && (
                   <div className="flex gap-1.5 pt-1">
-                    <select
+                    <Select
                       value={partForm.partId}
                       onChange={(e) => setPartForm((p) => ({ ...p, partId: e.target.value }))}
-                      className="flex-1 h-9 rounded-lg border border-border bg-muted/20 px-1.5 text-xs"
-                    >
+                      className="flex-1" size="sm">
                       <option value="">{t('wo.pickPartOption')}</option>
                       {parts.filter((p) => p.isActive && p.stockQty > 0).map((p) => (
                         <option key={p.id} value={p.id}>{p.name} ({t('wo.stock', { qty: p.stockQty })})</option>
                       ))}
-                    </select>
+                    </Select>
                     <input
                       type="number" min={1} value={partForm.quantity}
                       onChange={(e) => setPartForm((p) => ({ ...p, quantity: e.target.value }))}
@@ -418,16 +418,15 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
                 )}
                 {can.manageCMMS && !isDone && (
                   <div className="flex gap-1.5 pt-1">
-                    <select
+                    <Select
                       value={vendorForm.vendorId}
                       onChange={(e) => setVendorForm((v) => ({ ...v, vendorId: e.target.value }))}
-                      className="flex-1 h-9 rounded-lg border border-border bg-muted/20 px-1.5 text-xs"
-                    >
+                      className="flex-1" size="sm">
                       <option value="">{t('wo.pickVendorOption')}</option>
                       {vendors.filter((v) => v.is_active).map((v) => (
                         <option key={v.id} value={v.id}>{v.name}</option>
                       ))}
-                    </select>
+                    </Select>
                     <input
                       type="date" value={vendorForm.slaDue}
                       onChange={(e) => setVendorForm((v) => ({ ...v, slaDue: e.target.value }))}

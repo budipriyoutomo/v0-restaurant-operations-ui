@@ -22,6 +22,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { FilterBar, FilterSelect } from '@/components/shared/filter-menu'
 import { StatusBoard, type CardDrag } from '@/components/shared/status-board'
 import { useUrlState } from '@/lib/use-route'
+import { Select } from '@/components/shared/select'
 
 // Theme-aware status presentation — matches the Task Center kanban.
 // Column look follows the three signals (Todo-Modern-UI Fase 1).
@@ -197,17 +198,15 @@ export function MaintenanceModulePage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground font-medium">{t('common.status')}</span>
                 {can.updateIssueStatus && !LOCKED_STATUSES.includes(selectedIssue.status) ? (
-                  <select
+                  <Select
                     value={selectedIssue.status}
-                    onChange={(e) => updateIssueStatus(selectedIssue.id, e.target.value as IssueStatus)}
-                    className="h-9 text-sm border border-border rounded-lg px-2.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  >
+                    onChange={(e) => updateIssueStatus(selectedIssue.id, e.target.value as IssueStatus)}>
                     {COLUMN_ORDER.map((id) => (
                       <option key={id} value={id} disabled={id !== selectedIssue.status && !!moveBlockedReason(selectedIssue, id)}>
                         {status(id)}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 ) : (
                   <StatusBadge status={selectedIssue.status} />
                 )}

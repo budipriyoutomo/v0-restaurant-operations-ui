@@ -8,6 +8,7 @@ import { useT } from '@/lib/i18n'
 import { AccessLevel, ModuleDef, Outlet, RoleDef } from '@/lib/types'
 import { ErrorBox, Field, Modal, ModalActions, OutletChecklist, apiError, inputCls, roleBadge, useModuleLabels } from './shared'
 import { AccessLevelPicker } from './access-level-picker'
+import { Select } from '@/components/shared/select'
 
 // ---------------------------------------------------------------------------
 // Roles tab
@@ -222,11 +223,11 @@ export function RoleEditor({ role, modules, outlets, onClose }: {
 
         {/* Landing page after sign-in (Todo-Pilot §19); only pages the role can open */}
         <Field label={t('users.homePage')} hint={t('users.homePageHint')}>
-          <select value={form.home_page ?? 'my-work'} onChange={e => setForm(f => ({ ...f, home_page: e.target.value }))} className={inputCls}>
+          <Select value={form.home_page ?? 'my-work'} onChange={e => setForm(f => ({ ...f, home_page: e.target.value }))} className="w-full">
             {['my-work', 'notifications', ...modules.map(m => m.key).filter(k => k !== 'vendors' && k !== 'budgets')]
               .filter(k => locked || ['my-work', 'notifications', 'settings'].includes(k) || (form.permissions[k] ?? 'none') !== 'none')
               .map(k => <option key={k} value={k}>{k === 'my-work' ? t('nav.my-work') : k === 'notifications' ? t('nav.notifications') : moduleLabel({ key: k, label: modules.find(m => m.key === k)?.label ?? k })}</option>)}
-          </select>
+          </Select>
         </Field>
 
         {locked ? (
@@ -296,13 +297,13 @@ export function RoleEditor({ role, modules, outlets, onClose }: {
 
             {/* Approval tier */}
             <Field label={t('users.approvesAs')} hint={t('users.approvesAsHint')}>
-              <select value={form.approval_tier}
+              <Select value={form.approval_tier}
                 onChange={e => setForm(f => ({ ...f, approval_tier: e.target.value as RoleInput['approval_tier'] }))}
-                className={inputCls}>
+                className="w-full">
                 <option value="staff">{label('tier', 'staff')}</option>
                 <option value="manager">{label('tier', 'manager')}</option>
                 <option value="admin">{label('tier', 'admin')}</option>
-              </select>
+              </Select>
             </Field>
           </>
         )}

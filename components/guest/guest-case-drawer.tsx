@@ -16,6 +16,7 @@ import { useT } from '@/lib/i18n'
 import type { CompensationType, GuestCase, GuestChannel } from '@/lib/types'
 import { SideDrawer } from '@/components/shared/side-drawer'
 import { ListSkeleton } from '@/components/shared/skeleton'
+import { Select } from '@/components/shared/select'
 
 export function GuestCaseDrawer({ caseId, canManage, targetMinutes, onClose, onChanged }: {
   caseId: string
@@ -111,12 +112,12 @@ export function GuestCaseDrawer({ caseId, canManage, targetMinutes, onClose, onC
           {canManage ? (
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
-                <select value={rec.type} onChange={(e) => {
+                <Select value={rec.type} onChange={(e) => {
                   const type = e.target.value as CompensationType
                   setRec((r) => ({ ...r, type, value: type === 'none' ? '0' : r.value }))
-                }} aria-label={t('guestCase.recovery')} className="h-9 px-2 rounded-lg border border-border bg-background text-sm">
+                }} aria-label={t('guestCase.recovery')}>
                   {COMPENSATION_TYPES.map((ct) => <option key={ct} value={ct}>{label('compensation', ct)}</option>)}
-                </select>
+                </Select>
                 <input type="number" min={0} value={rec.value} disabled={rec.type === 'none'}
                   onChange={(e) => setRec((r) => ({ ...r, value: e.target.value }))} placeholder={t('guestCase.value')} aria-label={t('guestCase.value')}
                   className="h-9 px-2 rounded-lg border border-border bg-background text-sm disabled:opacity-50" />
@@ -145,11 +146,11 @@ export function GuestCaseDrawer({ caseId, canManage, targetMinutes, onClose, onC
             className="w-full h-9 px-2 rounded-lg border border-border bg-background text-sm" />
           <input value={guest.guestContact} onChange={(e) => setGuest((g) => ({ ...g, guestContact: e.target.value }))} placeholder={t('guestCase.contact')} aria-label={t('guestCase.contact')}
             className="w-full h-9 px-2 rounded-lg border border-border bg-background text-sm" />
-          <select value={guest.channel} onChange={(e) => setGuest((g) => ({ ...g, channel: e.target.value as GuestChannel }))}
+          <Select value={guest.channel} onChange={(e) => setGuest((g) => ({ ...g, channel: e.target.value as GuestChannel }))}
             aria-label={t('guest.channel')}
-            className="w-full h-9 px-2 rounded-lg border border-border bg-background text-sm">
+            className="w-full">
             {GUEST_CHANNELS.map((ch) => <option key={ch} value={ch}>{label('guestChannel', ch)}</option>)}
-          </select>
+          </Select>
           {guestDirty && (
             <button disabled={busy} onClick={() => run(() => guestApi.update(c.id, guest), t('guestCase.guestSaved'))}
               className="px-4 h-9 rounded-lg border border-border text-sm font-semibold hover:bg-muted/50 disabled:opacity-50">

@@ -23,6 +23,7 @@ import { ListSkeleton } from '@/components/shared/skeleton'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
 import { FilterBar, FilterOptions, FilterSelect } from '@/components/shared/filter-menu'
+import { Select } from '@/components/shared/select'
 
 type Tab = 'complaints' | 'kpis' | 'issues'
 
@@ -180,16 +181,16 @@ function NewComplaintDialog({ outlets, onClose, onCreated }: {
         <textarea className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm" rows={3} placeholder={t('guest.details')} aria-label={t('guest.details')}
           value={form.description} onChange={(e) => set('description', e.target.value)} />
         <div className="grid grid-cols-2 gap-2">
-          <select className={input} aria-label={t('guest.channel')} value={form.channel} onChange={(e) => set('channel', e.target.value as GuestChannel)}>
+          <Select className="w-full" aria-label={t('guest.channel')} value={form.channel} onChange={(e) => set('channel', e.target.value as GuestChannel)}>
             {GUEST_CHANNELS.map((ch) => <option key={ch} value={ch}>{label('guestChannel', ch)}</option>)}
-          </select>
-          <select className={input} aria-label={t('common.priority')} value={form.priority} onChange={(e) => set('priority', e.target.value as Priority)}>
+          </Select>
+          <Select className="w-full" aria-label={t('common.priority')} value={form.priority} onChange={(e) => set('priority', e.target.value as Priority)}>
             {(['low', 'medium', 'high', 'critical'] as Priority[]).map((p) => <option key={p} value={p}>{label('priority', p)}</option>)}
-          </select>
+          </Select>
         </div>
-        <select className={input} aria-label={t('common.outlet')} value={form.outlet} onChange={(e) => set('outlet', e.target.value)}>
+        <Select className="w-full" aria-label={t('common.outlet')} value={form.outlet} onChange={(e) => set('outlet', e.target.value)}>
           {outlets.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
+        </Select>
         <div className="grid grid-cols-2 gap-2">
           <input className={input} placeholder={t('guest.guestName')} aria-label={t('guest.guestName')} value={form.guestName} onChange={(e) => set('guestName', e.target.value)} />
           <input className={input} placeholder={t('guest.contact')} aria-label={t('guest.contact')} value={form.guestContact} onChange={(e) => set('guestContact', e.target.value)} />
