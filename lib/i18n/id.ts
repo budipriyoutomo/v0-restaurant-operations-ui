@@ -2026,6 +2026,7 @@ export const id = {
     durationValue: "Durasi: {n} jam",
     editProgram: "Ubah Program",
     fieldTitle: "Judul *",
+    attendedCount: "{n} hadir",
     full: "penuh",
     maxParticipants: "Maks. peserta",
     newProgram: "Program Baru",
@@ -2043,6 +2044,7 @@ export const id = {
     role: "Peran:",
     scheduled: "Terjadwal: {date}",
     scheduledDate: "Tanggal terjadwal",
+    kpiLabel: "Ringkasan pelatihan",
     subtitle: "Program pelatihan staf, pelacakan sertifikasi, dan penjadwalan sesi",
     tab: {
       approvals: "Persetujuan ({count})",

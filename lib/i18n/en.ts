@@ -2028,6 +2028,7 @@ export const en: Messages = {
     durationValue: "Duration: {n}h",
     editProgram: "Edit Program",
     fieldTitle: "Title *",
+    attendedCount: "{n} attended",
     full: "full",
     maxParticipants: "Max Participants",
     newProgram: "New Program",
@@ -2045,6 +2046,7 @@ export const en: Messages = {
     role: "Role:",
     scheduled: "Scheduled: {date}",
     scheduledDate: "Scheduled Date",
+    kpiLabel: "Training summary",
     subtitle: "Staff training programs, certification tracking, and session scheduling",
     tab: {
       approvals: "Approvals ({count})",
