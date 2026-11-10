@@ -209,9 +209,9 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-snug">{f.title}</p>
         <div className="flex items-center gap-1 flex-shrink-0">
-          {f.isCritical && <Badge className="bg-destructive-soft text-destructive"><Star className="size-2.5" /> {t('qaRunner.critical')}</Badge>}
-          {f.requiresPhoto && <Badge className={needsPhoto ? 'bg-warning-mark/10 text-warning' : 'bg-muted text-muted-foreground'}><Camera className="size-2.5" /> {t('qaRunner.photo')}</Badge>}
-          {f.isRepeat && <Badge className="bg-warning-mark/10 text-warning"><Repeat className="size-2.5" /> {t('qaRunner.repeat')}</Badge>}
+          {f.isCritical && <Badge className="text-destructive"><Star className="size-2.5" /> {t('qaRunner.critical')}</Badge>}
+          {f.requiresPhoto && <Badge className={needsPhoto ? 'text-warning' : 'text-muted-foreground'}><Camera className="size-2.5" /> {t('qaRunner.photo')}</Badge>}
+          {f.isRepeat && <Badge className="text-warning"><Repeat className="size-2.5" /> {t('qaRunner.repeat')}</Badge>}
           <span className="text-xs text-muted-foreground">×{f.weight}</span>
         </div>
       </div>
@@ -279,8 +279,9 @@ function FindingCard({ finding: f, editable, queuedPhotos, onResult, onNotes, on
   )
 }
 
+// A marker is an icon + text in its signal colour, not a pill (Todo-Modern-UI Fase 4).
 function Badge({ className, children }: { className: string; children: React.ReactNode }) {
-  return <span className={cn('inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold', className)}>{children}</span>
+  return <span className={cn('inline-flex items-center gap-1 text-xs font-medium', className)}>{children}</span>
 }
 
 function Shell({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {

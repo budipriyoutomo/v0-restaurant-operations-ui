@@ -1715,6 +1715,7 @@ export const id = {
     failed: "{count} gagal",
     inProgress: "Sedang berjalan",
     inactive: " · nonaktif",
+    itemCount: "{count} butir",
     needTemplate: "Buat templat daftar periksa aktif dulu (tab Templat daftar periksa).",
     newTemplate: "Templat baru",
     noAuditsCreate: "Belum ada audit. Buat templat daftar periksa dulu, lalu mulai audit.",

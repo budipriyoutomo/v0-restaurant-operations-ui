@@ -4,7 +4,7 @@
 // saved Issues view: audits, scores per outlet, checklist templates, and the
 // Compliance issues that failed items raise.
 import { useEffect, useState, useRef } from 'react'
-import { ClipboardCheck, Plus, Repeat, Pencil } from 'lucide-react'
+import { Plus, Repeat, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { apiErrorMessage } from '@/lib/api-client'
@@ -25,6 +25,7 @@ import { ListSkeleton } from '@/components/shared/skeleton'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { Select } from '@/components/shared/select'
+import { RecordList, RecordRow } from '@/components/shared/record-list'
 
 type Tab = 'audits' | 'scores' | 'templates' | 'issues'
 
@@ -87,7 +88,9 @@ export function QAPage() {
             {inProgress.length > 0 && (
               <section className="space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('qa.inProgress')}</h3>
-                {inProgress.map((a) => <AuditRow key={a.id} audit={a} onOpen={() => setOpenAuditId(a.id)} />)}
+                <RecordList label={t('qa.inProgress')}>
+                  {inProgress.map((a) => <AuditRow key={a.id} audit={a} onOpen={() => setOpenAuditId(a.id)} />)}
+                </RecordList>
               </section>
             )}
             <section className="space-y-2">
@@ -96,7 +99,11 @@ export function QAPage() {
                 ? <Empty text={templates.length === 0 && can.manageQA
                     ? t('qa.noAuditsCreate')
                     : t('qa.noSubmitted')} />
-                : submitted.map((a) => <AuditRow key={a.id} audit={a} onOpen={() => setOpenAuditId(a.id)} />)}
+                : (
+                  <RecordList label={t('qa.submitted')}>
+                    {submitted.map((a) => <AuditRow key={a.id} audit={a} onOpen={() => setOpenAuditId(a.id)} />)}
+                  </RecordList>
+                )}
             </section>
           </div>
         )
@@ -155,30 +162,19 @@ export function QAPage() {
 function AuditRow({ audit: a, onOpen }: { audit: QAAuditSummary; onOpen: () => void }) {
   const { t, date } = useT()
   return (
-    <button onClick={onOpen}
-      className="w-full text-left p-3 sm:p-4 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors flex items-center gap-3">
-      <ClipboardCheck className="size-5 text-muted-foreground flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-xs text-muted-foreground">{a.number}</span>
-          <span className="text-sm font-semibold truncate">{a.templateName}</span>
-        </div>
-        <p className="text-xs text-muted-foreground">{a.outlet} · {date(a.auditDate)} · {a.auditor}</p>
-      </div>
-      <div className="text-right flex-shrink-0">
-        {a.status === 'submitted' ? (
-          <>
-            <p className={cn('text-lg font-bold leading-none', TONE_CLASS[scoreTone(a.score)])}>{a.score ?? '—'}</p>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 justify-end">
-              {t('qa.failed', { count: a.failedCount })}
-              {a.repeatCount > 0 && <span className="text-warning inline-flex items-center gap-0.5"><Repeat className="size-3" />{a.repeatCount}</span>}
-            </p>
-          </>
-        ) : (
-          <p className="text-xs font-semibold text-primary">{t('qa.answered', { done: a.progress.answered, total: a.progress.total })}</p>
-        )}
-      </div>
-    </button>
+    <RecordRow id={a.id} number={a.number} title={a.templateName} onOpen={onOpen}
+      meta={[a.outlet, date(a.auditDate), a.auditor]}
+      aside={a.status === 'submitted' ? (
+        <>
+          <span className={cn('text-base font-semibold tabular-nums leading-none', TONE_CLASS[scoreTone(a.score)])}>{a.score ?? '—'}</span>
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            {t('qa.failed', { count: a.failedCount })}
+            {a.repeatCount > 0 && <span className="text-warning inline-flex items-center gap-0.5"><Repeat className="size-3" aria-hidden="true" />{a.repeatCount}</span>}
+          </span>
+        </>
+      ) : (
+        <span className="text-xs font-medium tabular-nums">{t('qa.answered', { done: a.progress.answered, total: a.progress.total })}</span>
+      )} />
   )
 }
 
@@ -213,15 +209,15 @@ function StartAuditDialog({ templates, outlets, onClose, onStarted }: {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-2xl border border-border shadow-2xl w-full max-w-sm p-5 space-y-4">
-        <h2 className="font-semibold">{t('qa.startAudit')}</h2>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="qa-start-heading" className="bg-background rounded-2xl border border-border shadow-2xl w-full max-w-sm p-5 space-y-4">
+        <h2 id="qa-start-heading" className="font-semibold">{t('qa.startAudit')}</h2>
         {templates.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('qa.needTemplate')}</p>
         ) : (
           <div className="space-y-3">
             <Field label={t('qa.checklist')}>
               <Select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full">
-                {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.items.length} items)</option>)}
+                {templates.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name} ({t('qa.itemCount', { count: tpl.items.length })})</option>)}
               </Select>
             </Field>
             <Field label={t('common.outlet')}>

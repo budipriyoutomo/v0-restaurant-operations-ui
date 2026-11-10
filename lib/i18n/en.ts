@@ -1717,6 +1717,7 @@ export const en: Messages = {
     failed: "{count} failed",
     inProgress: "In progress",
     inactive: " · inactive",
+    itemCount: "{count} items",
     needTemplate: "Create an active checklist template first (Checklist templates tab).",
     newTemplate: "New template",
     noAuditsCreate: "No audits yet. Create a checklist template first, then start an audit.",

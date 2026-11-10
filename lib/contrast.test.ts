@@ -86,3 +86,13 @@ describe('raw palette colours', () => {
     expect(offenders).toEqual([])
   })
 })
+
+// Todo-Modern-UI Fase 4: chart colours too come from the theme (--chart-1…5),
+// so they follow dark mode. lib/pwa.ts keeps the brand hex for the manifest.
+describe('raw hex colours', () => {
+  it('are not written in components', () => {
+    const HEX = /['"]#[0-9a-fA-F]{3,8}['"]/
+    const offenders = [...files].filter(([f, src]) => f.startsWith('components') && HEX.test(src)).map(([f]) => f)
+    expect(offenders).toEqual([])
+  })
+})

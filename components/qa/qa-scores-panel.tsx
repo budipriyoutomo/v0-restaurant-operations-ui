@@ -14,7 +14,8 @@ import { useT } from '@/lib/i18n'
 import { TONE_CLASS } from './tone'
 import { RowsSkeleton } from '@/components/shared/skeleton'
 
-const LINE_COLORS = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d']
+// Theme chart colours (app/globals.css), so the lines follow dark mode too.
+const LINE_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)']
 
 export function QAScoresPanel({ refreshKey = 0, compact = false }: { refreshKey?: number; compact?: boolean }) {
   const { t, date } = useT()
