@@ -8,7 +8,7 @@ import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
-export function SideDrawer({ label, number, title, subtitle, closeLabel, onClose, children, className }: {
+export function SideDrawer({ label, number, title, subtitle, closeLabel, onClose, children, className, wide = false }: {
   label: string
   number?: React.ReactNode       // record number above the title (mono, primary)
   title: React.ReactNode
@@ -17,6 +17,8 @@ export function SideDrawer({ label, number, title, subtitle, closeLabel, onClose
   onClose: () => void
   children: React.ReactNode
   className?: string
+  /** Room for a service rail (the issue detail, Todo-Modern-UI Fase 3). */
+  wide?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
   // Escape closes, Tab stays in the drawer, focus returns to the opener (Todo-Pilot §26)
@@ -30,7 +32,7 @@ export function SideDrawer({ label, number, title, subtitle, closeLabel, onClose
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className={cn('fixed right-0 top-0 h-screen w-full sm:w-[440px] bg-background border-l border-border shadow-2xl z-50 overflow-y-auto', className)}
+        className={cn('fixed right-0 top-0 h-screen w-full bg-background border-l border-border shadow-2xl z-50 overflow-y-auto', wide ? 'sm:w-[720px]' : 'sm:w-[440px]', className)}
       >
         {/* Sticky header: the close button never scrolls away */}
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 px-6 py-4 bg-background/95 backdrop-blur border-b border-border">

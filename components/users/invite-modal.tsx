@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { translate, useT } from '@/lib/i18n'
 import { ErrorBox, Field, Modal, ModalActions, apiError, inputCls } from './shared'
+import { Select } from '@/components/shared/select'
 
 // ---------------------------------------------------------------------------
 // Invite modal
@@ -51,11 +52,11 @@ export function InviteModal({ onClose }: { onClose: () => void }) {
         </Field>
 
         <Field label={t('common.role')}>
-          <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className={inputCls}>
+          <Select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="w-full">
             {roles.map(r => (
               <option key={r.key} value={r.key}>{r.name}{r.description ? ` — ${r.description}` : ''}</option>
             ))}
-          </select>
+          </Select>
         </Field>
 
         <Field label={t('users.tempPassword')} hint={t('users.tempPasswordHint')}>

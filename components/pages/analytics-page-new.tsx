@@ -208,9 +208,9 @@ export function AnalyticsDashboardPage() {
                       <span className="font-semibold text-xs">{outlet}</span>
                       <span className={cn(
                         'text-xs font-bold px-2 py-0.5 rounded-full',
-                        resolvedPct >= 80 ? 'bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300' :
-                        resolvedPct >= 50 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300' :
-                        'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+                        resolvedPct >= 80 ? 'bg-success/10 text-success' :
+                        resolvedPct >= 50 ? 'bg-warning-mark/10 text-warning' :
+                        'bg-destructive-soft text-destructive'
                       )}>
                         {t('analytics.resolvedPct', { pct: resolvedPct })}
                       </span>
@@ -219,7 +219,7 @@ export function AnalyticsDashboardPage() {
                       <div className="flex-1">
                         <div className="w-full bg-muted rounded-full h-1.5">
                           <div
-                            className={cn('h-1.5 rounded-full', resolvedPct >= 80 ? 'bg-green-500' : resolvedPct >= 50 ? 'bg-amber-500' : 'bg-red-500')}
+                            className={cn('h-1.5 rounded-full', resolvedPct >= 80 ? 'bg-success' : resolvedPct >= 50 ? 'bg-warning-mark' : 'bg-destructive')}
                             style={{ width: `${resolvedPct}%` }}
                           />
                         </div>
@@ -264,9 +264,9 @@ export function AnalyticsDashboardPage() {
               {/* Status summary */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { text: label('approvalStatus', 'pending'),  count: pendingApprovals,  color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900' },
-                  { text: label('approvalStatus', 'approved'), count: approvedApprovals, color: 'text-green-700 dark:text-green-300', bg: 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-900' },
-                  { text: label('approvalStatus', 'rejected'), count: rejectedApprovals, color: 'text-red-600 dark:text-red-300',   bg: 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900' },
+                  { text: label('approvalStatus', 'pending'),  count: pendingApprovals,  color: 'text-warning', bg: 'bg-warning-mark/10 border-warning-mark/40' },
+                  { text: label('approvalStatus', 'approved'), count: approvedApprovals, color: 'text-success', bg: 'bg-success/10 border-success/40' },
+                  { text: label('approvalStatus', 'rejected'), count: rejectedApprovals, color: 'text-destructive',   bg: 'bg-destructive-soft border-destructive/40' },
                 ].map(({ text, count, color, bg }) => (
                   <div key={text} className={cn('p-3 rounded-xl border text-center', bg)}>
                     <p className={cn('text-xl font-bold', color)}>{count}</p>

@@ -1,5 +1,5 @@
 // CreateIssueDialog (Todo-Pilot §12, React Testing Library). Written first (TDD).
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { CreateIssueDialog } from './create-issue-dialog'
@@ -27,33 +27,94 @@ function setup(props: Partial<React.ComponentProps<typeof CreateIssueDialog>> = 
   return { ...utils, onSubmit, onOpenChange, user: userEvent.setup() }
 }
 
+// The minimum on top (Todo-Modern-UI Fase 3): title and due date; outlet and
+// category have defaults. The description is optional.
 async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/title/i), 'Kompor rusak')
-  await user.type(screen.getByLabelText(/description/i), 'Api tidak menyala')
-  fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-10-10' } })
+  fireEvent.change(screen.getByLabelText(/^due date/i), { target: { value: '2026-10-10' } })
+}
+
+/** Everything that is not required sits under "More details". */
+async function openDetails(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /more details/i }))
 }
 
 describe('CreateIssueDialog', () => {
-  it('labels every field so it can be found by its label', () => {
-    setup()
-    for (const label of [/title/i, /description/i, /outlet/i, /category/i, /priority/i, /assign to/i, /due date/i]) {
+  it('labels every field so it can be found by its label', async () => {
+    const { user } = setup()
+    for (const label of [/title/i, /outlet/i, /category/i, /priority/i, /^due date/i]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument()
     }
+    expect(screen.queryByLabelText(/description/i)).not.toBeInTheDocument()   // folded away
+    await openDetails(user)
+    for (const label of [/description/i, /assign to/i]) expect(screen.getByLabelText(label)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /close/i })).toBeInTheDocument()
   })
 
-  it('keeps Create disabled until the required fields are filled', async () => {
+  it('a disabled Create says what is still missing', async () => {
     const { user } = setup()
     const create = screen.getByRole('button', { name: 'Create Issue' })
     expect(create).toBeDisabled()
-    await fillRequired(user)
+    expect(create).toHaveAccessibleDescription('Fill in first: title, due date')
+    await user.type(screen.getByLabelText(/title/i), 'Kompor rusak')
+    expect(create).toHaveAccessibleDescription('Fill in first: due date')
+    fireEvent.change(screen.getByLabelText(/^due date/i), { target: { value: '2026-10-10' } })
     expect(create).toBeEnabled()
+    expect(create).not.toHaveAccessibleDescription(/fill in/i)
+  })
+
+  it('every role picks the category from big buttons, and the priority from four', async () => {
+    const { user, onSubmit } = setup()
+    expect(screen.getByRole('radio', { name: 'Maintenance' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Medium' })).toBeChecked()
+    await user.click(screen.getByRole('radio', { name: 'IT Support' }))
+    await user.click(screen.getByRole('radio', { name: 'Critical' }))
+    await fillRequired(user)
+    await user.click(screen.getByRole('button', { name: 'Create Issue' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ category: 'IT Support', priority: 'critical', description: '' })
+  })
+
+  it('shows the common categories first; the rest are one tap away', async () => {
+    const { user } = setup()
+    expect(screen.getAllByRole('radio', { name: /^(Maintenance|IT Support|Compliance|Food Safety|Training|Other)$/ })).toHaveLength(6)
+    expect(screen.queryByRole('radio', { name: 'Marketing' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'More categories (4)' }))
+    await user.click(screen.getByRole('radio', { name: 'Marketing' }))
+    expect(screen.getByRole('radio', { name: 'Marketing' })).toBeChecked()
+  })
+
+  it('quick due dates fill the date: today, tomorrow, 3 days, 1 week', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 28, 9, 0))   // 28 Nov
+    try {
+      const { user } = setup()
+      const due = screen.getByLabelText(/^due date/i)
+      const quickPick = screen.getByRole('group', { name: 'Quick pick' })
+      for (const [name, value] of [['Today', '2026-11-28'], ['Tomorrow', '2026-11-29'], ['3 days', '2026-12-01'], ['1 week', '2026-12-05']]) {
+        await user.click(within(quickPick).getByRole('button', { name }))
+        expect(due).toHaveValue(value)
+        expect(within(quickPick).getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true')
+      }
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('folded details still say what will be created from the category defaults', async () => {
+    const { user } = setup()
+    expect(screen.getByText('Will create: task')).toBeInTheDocument()
+    await openDetails(user)
+    await user.click(screen.getByLabelText(/create work order/i))
+    await user.click(screen.getByRole('button', { name: /more details/i }))   // fold again
+    expect(screen.getByText('Will create: task · work order')).toBeInTheDocument()
   })
 
   it('submits a maintenance issue with a work order, then closes', async () => {
     const { user, onSubmit, onOpenChange } = setup()
     await fillRequired(user)
     await user.selectOptions(screen.getByLabelText(/outlet/i), 'Bandung')
+    await openDetails(user)
     await user.click(screen.getByLabelText(/create work order/i))
     await user.selectOptions(screen.getByLabelText(/^asset$/i), 'as-1')
     await user.type(screen.getByLabelText(/^estimated cost/i), '2000000')
@@ -71,6 +132,7 @@ describe('CreateIssueDialog', () => {
   it('drops work-order fields when the work order is switched off again', async () => {
     const { user, onSubmit } = setup()
     await fillRequired(user)
+    await openDetails(user)
     const toggle = screen.getByLabelText(/create work order/i)
     await user.click(toggle)
     await user.type(screen.getByLabelText(/^estimated cost/i), '2000000')
@@ -95,6 +157,7 @@ describe('CreateIssueDialog', () => {
 
     it('warns only above the selected outlet’s threshold', async () => {
       const { user } = setup({ approvalThresholds: thresholds })
+      await openDetails(user)
       await user.click(screen.getByLabelText(/create work order/i))
       const cost = screen.getByLabelText(/^estimated cost/i)
 
@@ -112,6 +175,7 @@ describe('CreateIssueDialog', () => {
 
     it('the threshold itself does not need approval (strictly above, like the backend)', async () => {
       const { user } = setup({ approvalThresholds: thresholds })
+      await openDetails(user)
       await user.click(screen.getByLabelText(/create work order/i))
       await user.type(screen.getByLabelText(/^estimated cost/i), '5000000')
       expect(screen.queryByText(/approval will be created/i)).not.toBeInTheDocument()
@@ -119,6 +183,7 @@ describe('CreateIssueDialog', () => {
 
     it('falls back to Rp 1.000.000 when thresholds are not given', async () => {
       const { user } = setup()
+      await openDetails(user)
       await user.click(screen.getByLabelText(/create work order/i))
       await user.type(screen.getByLabelText(/^estimated cost/i), '1500000')
       expect(screen.getByText(/above rp 1\.000\.000/i)).toBeInTheDocument()
@@ -166,6 +231,7 @@ describe('CreateIssueDialog', () => {
   it('assigns to a user of the outlet and sends their id (Todo-Pilot §17)', async () => {
     const { user, onSubmit } = setup()
     await fillRequired(user)
+    await openDetails(user)
     await user.selectOptions(screen.getByLabelText(/assign to/i), 'u-budi')
     await user.click(screen.getByRole('button', { name: 'Create Issue' }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
@@ -175,6 +241,7 @@ describe('CreateIssueDialog', () => {
   it('changing outlet drops an assignee who cannot work there', async () => {
     const { user, onSubmit } = setup()
     await fillRequired(user)
+    await openDetails(user)
     await user.selectOptions(screen.getByLabelText(/assign to/i), 'u-budi')
     await user.selectOptions(screen.getByLabelText(/outlet/i), 'Bandung')
     await user.click(screen.getByRole('button', { name: 'Create Issue' }))
@@ -198,8 +265,12 @@ describe('quick report mode (Todo-Pilot §20)', () => {
     return { ...utils, onUploadPhoto }
   }
 
-  it('hides the advanced options', () => {
-    quick()
+  it('hides the advanced options', async () => {
+    const { user } = quick()
+    await openDetails(user)
+    expect(screen.getByLabelText(/description/i)).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Quick pick' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/will create/i)).not.toBeInTheDocument()
     for (const label of [/assign to/i, /due date/i, /create work order/i, /send for approval/i, /create task/i]) {
       expect(screen.queryByLabelText(label)).not.toBeInTheDocument()
     }
@@ -224,6 +295,7 @@ describe('quick report mode (Todo-Pilot §20)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/not assigned to an outlet/i)
     expect(screen.queryByRole('textbox', { name: /outlet/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Send report' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Send report' })).toHaveAccessibleDescription('Fill in first: title, outlet')
   })
 
   it('offline before the outlet list ever loaded: says to connect once, not "ask your manager"', () => {
@@ -338,7 +410,7 @@ describe('full form extras (Todo-Pilot §20)', () => {
     await user.click(screen.getByRole('button', { name: /scan asset qr/i }))
     await user.type(screen.getByPlaceholderText(/code from the sticker/i), 'tok-1')
     await user.click(screen.getByRole('button', { name: 'Open' }))
-    await waitFor(() => expect(screen.getByLabelText(/^asset$/i)).toHaveValue('as-1'))
+    await waitFor(() => expect(screen.getByLabelText(/^asset$/i)).toHaveValue('as-1'))   // details open by themselves
     expect(screen.getByLabelText(/create work order/i)).toBeChecked()
     expect(screen.getByLabelText(/outlet/i)).toHaveValue('Bandung')
   })

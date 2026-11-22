@@ -4,9 +4,9 @@
 import type { Metadata, Viewport } from 'next'
 
 export const BRAND = {
-  primary: '#0070c4',          // --primary (light)
-  background: '#f9fafb',       // --background (light)
-  backgroundDark: '#020405',   // --background (.dark)
+  primary: '#0f5c4a',          // --primary (light)
+  background: '#f7f6f8',       // --background (light)
+  backgroundDark: '#141317',   // --background (.dark)
 } as const
 
 export const APP_NAME = 'RestaurantOps'

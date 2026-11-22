@@ -11,6 +11,7 @@ import { guestApi } from '@/lib/guest-service-api'
 import { useT } from '@/lib/i18n'
 import type { GuestChannel, GuestKpis } from '@/lib/types'
 import { formatMoney } from '@/lib/money'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 export function GuestKpiPanel({ refreshKey = 0, compact = false }: { refreshKey?: number; compact?: boolean }) {
   const { t, label, locale } = useT()
@@ -22,7 +23,7 @@ export function GuestKpiPanel({ refreshKey = 0, compact = false }: { refreshKey?
   }, [refreshKey])
 
   if (error) return <p className="text-xs text-destructive">{error}</p>
-  if (!k) return <p className="text-xs text-muted-foreground">{t('guestKpi.loading')}</p>
+  if (!k) return <RowsSkeleton label={t('guestKpi.loading')} />
   if (k.cases === 0) return <p className="text-sm text-muted-foreground py-6 text-center">{t('guestKpi.empty')}</p>
 
   const within = k.withinTargetPct
@@ -68,7 +69,7 @@ export function GuestKpiPanel({ refreshKey = 0, compact = false }: { refreshKey?
               <tbody className="divide-y divide-border">
                 {k.perOutlet.map((o) => (
                   <tr key={o.outlet}>
-                    <td className="px-4 py-3">{o.outlet}{o.open > 0 && <span className="ml-1 text-xs text-amber-700 dark:text-amber-400">{t('guestKpi.openCount', { count: o.open })}</span>}</td>
+                    <td className="px-4 py-3">{o.outlet}{o.open > 0 && <span className="ml-1 text-xs text-warning">{t('guestKpi.openCount', { count: o.open })}</span>}</td>
                     <td className="px-4 py-3 text-right">{o.cases}</td>
                     <td className="px-4 py-3 text-right">{formatDuration(o.avgFirstResponseMinutes, locale)}</td>
                     <td className="px-4 py-3 text-right hidden sm:table-cell">{formatDuration(o.avgResolutionMinutes, locale)}</td>
@@ -92,7 +93,7 @@ function Kpi({ icon: Icon, label, value, sub, tone }: {
         <Icon className="size-3.5" /> {label}
       </p>
       <p className={cn('text-2xl font-bold mt-1',
-        tone === 'good' && 'text-emerald-700 dark:text-emerald-400', tone === 'warn' && 'text-amber-700 dark:text-amber-400', tone === 'bad' && 'text-red-600')}>
+        tone === 'good' && 'text-success', tone === 'warn' && 'text-warning', tone === 'bad' && 'text-destructive')}>
         {value}
       </p>
       {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}

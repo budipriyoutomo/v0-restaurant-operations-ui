@@ -24,7 +24,7 @@ test('finished work order → "Awaiting Close" on the dashboard → bulk close',
   const res = await request.post(`${API}/api/issues`, {
     headers: auth,
     data: {
-      title, description: 'Lampu dapur mati', outlet: 'KL Central', category: 'Maintenance', priority: 'medium',
+      title, description: 'Lampu dapur mati', outlet: 'Kemang', category: 'Maintenance', priority: 'medium',
       generateTask: false, generateWorkOrder: true, estimatedCost: 100_000,
     },
   })

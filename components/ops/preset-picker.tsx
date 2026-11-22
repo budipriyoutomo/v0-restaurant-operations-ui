@@ -13,6 +13,7 @@ import { opsApi } from '@/lib/ops-checklist-api'
 import { useMyOutlets } from '@/lib/permissions'
 import type { OpsPreset, OpsScheduleFrequency } from '@/lib/types'
 import { useT } from '@/lib/i18n'
+import { Select } from '@/components/shared/select'
 
 export function PresetPicker({ onApplied }: { onApplied: () => void }) {
   const { t, label } = useT()
@@ -73,11 +74,11 @@ export function PresetPicker({ onApplied }: { onApplied: () => void }) {
       )}
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-xs">{t('opsPreset.scheduleAt')}
-          <select value={outlet} onChange={(e) => setOutlet(e.target.value)}
-            className="block mt-1 h-10 sm:h-9 px-2.5 rounded-lg border border-border bg-background text-sm">
+          <Select value={outlet} onChange={(e) => setOutlet(e.target.value)}
+            className="flex w-fit mt-1">
             <option value="">{t('opsPreset.noSchedule')}</option>
             {outlets.map((o) => <option key={o.id} value={o.name}>{o.name}</option>)}
-          </select>
+          </Select>
         </label>
         <button type="button" onClick={apply} disabled={!choice || busy}
           className="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">

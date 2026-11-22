@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { AssigneePicker } from '@/components/shared/assignee-picker'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { Select } from '@/components/shared/select'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 const EMPTY_FORM: CreatePMScheduleInput = {
   assetId: '',
@@ -163,16 +165,15 @@ export function PMSchedulePanel() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold text-muted-foreground">{t('pm.asset')}</span>
-              <select
+              <Select
                 value={form.assetId}
                 onChange={(e) => setForm({ ...form, assetId: e.target.value, assigneeUserId: undefined, assigneeName: '' })}
-                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
-              >
+                size="sm">
                 <option value="">{t('pm.pickAssetOption')}</option>
                 {assets.map((a) => (
                   <option key={a.id} value={a.id}>{a.name} · {a.outlet}</option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold text-muted-foreground">{t('pm.name')}</span>
@@ -188,14 +189,13 @@ export function PMSchedulePanel() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <label className="flex flex-col gap-1 text-xs">
               <span className="font-semibold text-muted-foreground">{t('pm.trigger')}</span>
-              <select
+              <Select
                 value={form.triggerType}
                 onChange={(e) => setForm({ ...form, triggerType: e.target.value as PMTriggerType })}
-                className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
-              >
+                size="sm">
                 <option value="calendar">{t('pm.triggerCalendar')}</option>
                 <option value="meter">{t('pm.triggerMeter')}</option>
-              </select>
+              </Select>
             </label>
 
             {isMeter ? (
@@ -220,15 +220,14 @@ export function PMSchedulePanel() {
                       onChange={(e) => setForm({ ...form, intervalValue: Number(e.target.value) })}
                       className="h-9 w-14 rounded-lg border border-border bg-background px-2 text-xs"
                     />
-                    <select
+                    <Select
                       value={form.intervalType}
                       onChange={(e) => setForm({ ...form, intervalType: e.target.value as PMIntervalType })}
-                      className="h-9 flex-1 rounded-lg border border-border bg-background px-1 text-xs"
-                    >
+                      className="flex-1" size="sm">
                       <option value="days">{t('pm.days')}</option>
                       <option value="weeks">{t('pm.weeks')}</option>
                       <option value="months">{t('pm.months')}</option>
-                    </select>
+                    </Select>
                   </div>
                 </label>
                 <label className="flex flex-col gap-1 text-xs">
@@ -265,12 +264,12 @@ export function PMSchedulePanel() {
                   outlet={formAsset.outlet}
                   value={form.assigneeUserId ?? null}
                   onChange={(userId, name) => setForm({ ...form, assigneeUserId: userId ?? undefined, assigneeName: userId ? name : '' })}
-                  className="h-9 w-full rounded-lg border border-border bg-background px-2 text-xs"
+                  className="w-full" size="sm"
                 />
               ) : (
-                <select id="pm-assignee" disabled className="h-9 rounded-lg border border-border bg-background px-2 text-xs">
+                <Select id="pm-assignee" disabled  size="sm">
                   <option>{t('pm.pickAssetForAssignee')}</option>
-                </select>
+                </Select>
               )}
             </div>
             <label className="flex flex-col gap-1 text-xs">
@@ -306,14 +305,13 @@ export function PMSchedulePanel() {
         <div className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-border bg-muted/10 p-2.5">
           <Gauge className="size-4 text-primary mb-1.5" />
           <span className="text-xs font-semibold text-muted-foreground mb-1.5">{t('pm.recordReading')}</span>
-          <select
+          <Select
             value={meterAsset}
             onChange={(e) => setMeterAsset(e.target.value)}
-            className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
-          >
+            size="sm">
             <option value="">{t('pm.assetOption')}</option>
             {assets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
+          </Select>
           <input
             type="number" min={0} value={meterValue}
             onChange={(e) => setMeterValue(e.target.value)}
@@ -331,7 +329,7 @@ export function PMSchedulePanel() {
 
       {/* Schedule list */}
       {pmLoading ? (
-        <p className="text-xs text-muted-foreground text-center py-6">{t('pm.loading')}</p>
+        <RowsSkeleton label={t('pm.loading')} />
       ) : pmSchedules.length === 0 ? (
         <SharedEmptyState title={t('pm.empty')} className="py-10 text-sm" />
       ) : (

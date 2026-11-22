@@ -9,7 +9,7 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
 const API = 'http://localhost:8001'
-const OUTLET = 'KL Central'
+const OUTLET = 'Kemang'
 const ADMIN = { email: 'admin@restaurant.com', password: 'admin123' }
 
 async function apiToken(request: APIRequestContext) {

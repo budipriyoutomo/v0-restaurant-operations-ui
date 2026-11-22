@@ -17,6 +17,10 @@ export const PAGE_IDS = [
 // before sign-in. Must match backend password_reset_service's link.
 export const PUBLIC_RESET_PAGE = 'reset-password'
 
+// The sign-in form shows on any URL; `/login` is only a known address for it.
+// Once signed in there, the app shell moves on to the role's home page.
+export const PUBLIC_LOGIN_PAGE = 'login'
+
 // Pages whose detail drawer is addressed by the URL.
 export const RECORD_PAGES = ['issues', 'it-support', 'approvals', 'cmms', 'ops'] as const
 
@@ -44,7 +48,7 @@ export function parseRoute(pathname: string): Route {
   if (segments.length === 0) return { page: 'home', recordId: null, notFound: false }
 
   const page = SEGMENT_TO_PAGE[segments[0]] ?? segments[0]
-  const known = (PAGE_IDS as readonly string[]).includes(page)
+  const known = (PAGE_IDS as readonly string[]).includes(page) || page === PUBLIC_LOGIN_PAGE
   const hostsRecords = (RECORD_PAGES as readonly string[]).includes(page)
 
   if (!known || segments.length > 2 || (segments.length === 2 && !hostsRecords)) {

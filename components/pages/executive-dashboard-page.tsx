@@ -1,24 +1,38 @@
 'use client'
 
-import { TrendingUp, TrendingDown, AlertCircle, CheckCircle2, Clock, Zap, ShoppingCart, Megaphone, BookOpen, Package, Wrench } from 'lucide-react'
+// GM dashboard (Todo-Modern-UI Fase 3): the title says how today is going, then
+// the outlet rail (most urgent first), the decisions waiting for me and what
+// goes past due today. The numbers and charts follow under "Details".
+import { CheckCircle2, ChevronRight, ShoppingCart, Megaphone, BookOpen, Package, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { ApprovalType } from '@/lib/types'
 import { useEffect, useState } from 'react'
 import { overviewApi, type Overview } from '@/lib/overview-api'
+import { outletsApi, type OutletComparison as CompareData } from '@/lib/outlets-api'
+import { myWorkApi, type MyWork } from '@/lib/my-work-api'
+import { api } from '@/lib/api-client'
+import { headlineParts } from '@/lib/dashboard'
+import { formatMoney } from '@/lib/money'
+import type { Issue } from '@/lib/types'
 import { recordPath } from '@/lib/routes'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { useOutletFilter, usePermissions } from '@/lib/permissions'
 import { useT } from '@/lib/i18n'
 import { navigate } from '@/lib/use-route'
 import { OnboardingChecklist } from '@/components/shared/onboarding-checklist'
+import { StatCard } from '@/components/shared/stat-card'
+import { toneIfAny } from '@/lib/tone'
 import { OutletComparison } from '@/components/dashboard/outlet-comparison'
+import { OutletRail } from '@/components/dashboard/outlet-rail'
+import { RecordId } from '@/components/shared/record-id'
+import { PriorityBadge } from '@/components/shared/priority-badge'
 import { PageHeader } from '@/components/shared/page-header'
 
 export function ExecutiveDashboardPage() {
   const listVersion = useIssueStore((st) => st.listVersion)
   const { canViewPage } = usePermissions()
-  const { t, label } = useT()
+  const { t, label, relative } = useT()
 
   // Counted by the server (Todo-Pilot §22) — the browser no longer holds every
   // issue. "In progress" vs "awaiting close" as in Todo-Pilot §18.
@@ -30,7 +44,28 @@ export function ExecutiveDashboardPage() {
     return () => { live = false }
   }, [listVersion, outlet])
 
+  // Today's three questions: which outlet, which decision, what goes late.
+  const [compare, setCompare] = useState<CompareData | null>(null)
+  const [decisions, setDecisions] = useState<MyWork['approvals']>(null)
+  const [dueToday, setDueToday] = useState<{ items: Issue[]; total: number } | null>(null)
+  const canIssues = canViewPage('issues')
+  useEffect(() => {
+    let live = true
+    outletsApi.compare(30).then((d) => { if (live) setCompare(d) }).catch(() => {})
+    myWorkApi.get(5, outlet).then((w) => { if (live) setDecisions(w.approvals) }).catch(() => {})
+    if (canIssues) {
+      api.getPage<Issue>(`/api/issues?due=today&limit=5${outlet ? `&outlet=${encodeURIComponent(outlet)}` : ''}`)
+        .then((d) => { if (live) setDueToday(d) }).catch(() => {})
+    }
+    return () => { live = false }
+  }, [listVersion, outlet, canIssues])
+
   if (!data) return <ListSkeleton rows={6} />
+
+  const flagged = compare?.outlets.filter((r) => r.flags.length > 0).length ?? 0
+  const headline = headlineParts(flagged, data.issues.slaBreached)
+    .map((p) => t(p.key, p.count === undefined ? undefined : { count: p.count })).join(' · ')
+  const showTable = () => document.getElementById('outlet-cmp-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   const categoryEntries = Object.entries(data.issues.byCategory).sort((a, b) => b[1] - a[1])
   const maxCat = categoryEntries[0]?.[1] ?? 1
@@ -47,36 +82,99 @@ export function ExecutiveDashboardPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-5">
-      <OnboardingChecklist />
       {/* Header */}
-      <PageHeader
-        title={t('dashboard.title')}
-        description={t('dashboard.subtitle')}
-      />
+      <PageHeader title={headline} description={t('dashboard.subtitle')} />
+      <OnboardingChecklist />
 
-      {/* Outlets side by side, exceptions first (Todo-Pilot §25) */}
-      <OutletComparison />
+      {compare && <OutletRail rows={compare.outlets} onShowTable={showTable} />}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {decisions && (
+          <section aria-labelledby="dash-decisions" className="rounded-md border border-border bg-card">
+            <h2 id="dash-decisions" className="px-4 py-3 border-b border-border font-semibold">{t('dashboard.decisions')}</h2>
+            {decisions.items.length === 0 ? (
+              <p className="px-4 py-4 text-sm text-muted-foreground">{t('dashboard.decisionsEmpty')}</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {decisions.items.map((a) => (
+                  <li key={a.id}>
+                    <button type="button" onClick={() => navigate(recordPath('approvals', a.id))}
+                      className="w-full min-h-14 text-left px-4 py-2.5 hover:bg-muted/40 flex items-center gap-3">
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-medium truncate">{a.title}</span>
+                        <span className="block text-xs text-muted-foreground truncate mt-0.5">
+                          <RecordId id={a.number} />{a.outlet && ` · ${a.outlet}`}{a.amount != null && ` · ${formatMoney(a.amount)}`}
+                          {a.waitingSince && ` · ${t('myWork.waitingSince', { time: relative(a.waitingSince) })}`}
+                        </span>
+                      </span>
+                      <ChevronRight className="size-4 text-muted-foreground/50 flex-shrink-0" aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {decisions.count > decisions.items.length && (
+              <button type="button" onClick={() => navigate('/approvals')}
+                className="w-full px-4 py-2.5 text-left text-sm font-medium text-primary border-t border-border hover:bg-muted/40">
+                {t('dashboard.seeAll')} ({decisions.count})
+              </button>
+            )}
+          </section>
+        )}
+
+        {canIssues && dueToday && (
+          <section aria-labelledby="dash-due-today" className="rounded-md border border-border bg-card">
+            <h2 id="dash-due-today" className="px-4 py-3 border-b border-border font-semibold">{t('dashboard.dueToday')}</h2>
+            {dueToday.items.length === 0 ? (
+              <p className="px-4 py-4 text-sm text-muted-foreground">{t('dashboard.dueTodayEmpty')}</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {dueToday.items.map((i) => (
+                  <li key={i.id}>
+                    <button type="button" onClick={() => navigate(recordPath('issues', i.id))}
+                      className="w-full min-h-14 text-left px-4 py-2.5 hover:bg-muted/40 flex items-center gap-3">
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-medium truncate">{i.title}</span>
+                        <span className="block text-xs text-muted-foreground truncate mt-0.5"><RecordId id={i.number} />{i.outlet && ` · ${i.outlet}`}</span>
+                      </span>
+                      <PriorityBadge priority={i.priority} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {dueToday.total > 0 && (
+              <button type="button" onClick={() => navigate('/issues?due=today')}
+                className="w-full px-4 py-2.5 text-left text-sm font-medium text-primary border-t border-border hover:bg-muted/40">
+                {t('dashboard.seeAll')} ({dueToday.total})
+              </button>
+            )}
+          </section>
+        )}
+      </div>
+
+      <h2 className="pt-2 text-sm font-semibold text-muted-foreground">{t('dashboard.more')}</h2>
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KPICard title={t('dashboard.totalIssues')} value={String(data.issues.total)} subtitle={t('dashboard.allTime')} />
-        <KPICard title={t('dashboard.inProgress')} value={String(data.issues.inProgress)} subtitle={t('dashboard.inProgressSub')} />
-        <KPICard
+        <StatCard title={t('dashboard.totalIssues')} value={String(data.issues.total)} subtitle={t('dashboard.allTime')} />
+        <StatCard title={t('dashboard.inProgress')} value={String(data.issues.inProgress)} subtitle={t('dashboard.inProgressSub')} />
+        <StatCard
           title={t('dashboard.awaitingClose')}
           value={String(data.issues.awaitingClose)}
           subtitle={t('dashboard.awaitingCloseSub')}
           onClick={canViewPage('issues') ? () => navigate('/issues?ready=1') : undefined}
         />
-        <KPICard
+        <StatCard
           title={t('dashboard.slaBreaches')}
           value={String(data.issues.slaBreached)}
           subtitle={t('dashboard.overdue')}
-          tone={data.issues.slaBreached > 0 ? 'critical' : undefined}
+          variant={toneIfAny(data.issues.slaBreached, 'critical' as const)}
           onClick={canViewPage('issues') ? () => navigate('/issues?late=1') : undefined}
         />
-        <KPICard title={t('dashboard.activeTasks')} value={data.tasks ? String(data.tasks.active) : '—'} subtitle={t('dashboard.activeTasksSub')} />
-        <KPICard title={t('dashboard.pendingApprovals')} value={data.approvals ? String(data.approvals.pending) : '—'} subtitle={t('dashboard.pendingApprovalsSub')}
-          tone={(data.approvals?.pending ?? 0) > 0 ? 'warning' : undefined} />
+        <StatCard title={t('dashboard.activeTasks')} value={data.tasks ? String(data.tasks.active) : '—'} subtitle={t('dashboard.activeTasksSub')} />
+        <StatCard title={t('dashboard.pendingApprovals')} value={data.approvals ? String(data.approvals.pending) : '—'} subtitle={t('dashboard.pendingApprovalsSub')}
+          variant={toneIfAny(data.approvals?.pending, 'warning' as const)} />
       </div>
 
       {/* Issues by Category & Outlet */}
@@ -127,7 +225,7 @@ export function ExecutiveDashboardPage() {
         <div className="lg:col-span-2 p-5 rounded-2xl border border-border bg-card">
           <h3 className="font-semibold mb-4">{t('dashboard.criticalHigh')}</h3>
           {data.issues.urgent.length === 0 ? (
-            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl p-3 dark:text-green-300 dark:bg-green-950/30 dark:border-green-900">
+            <div className="flex items-center gap-2 text-sm text-success bg-success/10 border border-success/40 rounded-xl p-3">
               <CheckCircle2 className="size-4 flex-shrink-0" />
               {t('dashboard.noCriticalHigh')}
             </div>
@@ -144,7 +242,7 @@ export function ExecutiveDashboardPage() {
                     </div>
                     <span className={cn(
                       'text-xs font-semibold px-2 py-1 rounded-full ml-2 whitespace-nowrap',
-                      issue.priority === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                      issue.priority === 'critical' ? 'bg-destructive-soft text-destructive' : 'bg-warning-mark/10 text-warning'
                     )}>
                       {label('priority', issue.priority)}
                     </span>
@@ -175,29 +273,9 @@ export function ExecutiveDashboardPage() {
           </div>
         </div>
       </div>
-    </div>
-  )
-}
 
-// Same look as shared/stat-card; numbers wear text colour, status colour only
-// for a state to act on (dataviz). Clickable cards drill down to the filtered list.
-function KPICard({
-  title, value, subtitle, tone, onClick,
-}: {
-  title: string; value: string; subtitle: string; tone?: 'warning' | 'critical'; onClick?: () => void
-}) {
-  const body = (
-    <>
-      <p className="text-xs font-medium text-muted-foreground mb-1">{title}</p>
-      <p className={cn('text-2xl font-bold tabular-nums', tone === 'critical' && 'text-destructive', tone === 'warning' && 'text-amber-700 dark:text-amber-300')}>{value}</p>
-      <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{subtitle}</p>
-    </>
-  )
-  const cls = 'p-4 rounded-2xl border border-border bg-card shadow-xs transition-[border-color,box-shadow]'
-  // Clickable cards drill down to the matching filtered list.
-  return onClick ? (
-    <button type="button" data-kpi onClick={onClick} className={cn(cls, 'text-left w-full hover:border-primary/40 hover:shadow-sm')}>{body}</button>
-  ) : (
-    <div data-kpi className={cls}>{body}</div>
+      {/* Outlets side by side, every number (Todo-Pilot §25) */}
+      <OutletComparison />
+    </div>
   )
 }

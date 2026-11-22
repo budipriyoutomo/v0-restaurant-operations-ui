@@ -10,7 +10,7 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test'
 
 const API = 'http://localhost:8001'
-const OUTLET = { id: '44444444-0000-0000-0000-000000000001', name: 'KL Central' }
+const OUTLET = { id: '44444444-0000-0000-0000-000000000001', name: 'Kemang' }
 const MANAGER = { id: '00000000-0000-0000-0000-000000000002', email: 'manager@restaurant.com', password: 'manager123' }
 const ADMIN = { email: 'admin@restaurant.com', password: 'admin123' }
 
@@ -53,10 +53,12 @@ test('maintenance issue > Rp 1 juta: 2-step approval → work order completed �
   await manager.getByRole('button', { name: 'Laporan Baru' }).click()
   const dialog = manager.locator('form').filter({ has: manager.getByRole('button', { name: 'Buat Laporan' }) })
   await dialog.getByLabel('Judul').fill(title)
-  await dialog.getByLabel('Deskripsi').fill('Bau gas di dapur utama, kompor harus diganti selangnya')
+  await dialog.getByRole('radio', { name: 'Pemeliharaan' }).check()
   await dialog.getByLabel('Outlet', { exact: true }).selectOption(OUTLET.name)
-  await dialog.getByLabel('Kategori').selectOption({ label: 'Pemeliharaan' })
-  await dialog.getByLabel('Tenggat').fill('2026-12-31')
+  await dialog.getByRole('textbox', { name: /^Tenggat/ }).fill('2026-12-31')
+  // Optional fields are folded under "Detail lain" (Todo-Modern-UI Fase 3).
+  await dialog.getByRole('button', { name: 'Detail lain' }).click()
+  await dialog.getByLabel(/^Keterangan/).fill('Bau gas di dapur utama, kompor harus diganti selangnya')
   await dialog.getByLabel(/buat tugas/i).uncheck()
   await dialog.getByLabel(/buat perintah kerja/i).check()
   await dialog.getByLabel(/^estimasi biaya/i).fill('2500000')
@@ -67,9 +69,9 @@ test('maintenance issue > Rp 1 juta: 2-step approval → work order completed �
 
   // 2. Manager approves step 1 — straight from "Pekerjaan Saya", the manager's
   //    home page (Todo-Pilot §19): the approval is waiting for them there.
+  //    One queue since Todo-Modern-UI Fase 3: on the rail or in the list below.
   await manager.goto('/')
-  const waiting = manager.getByRole('region', { name: 'Menunggu keputusan saya' })
-  await waiting.getByText(`Approval biaya: ${title}`).click()
+  await manager.getByRole('main').getByText(`Approval biaya: ${title}`).click()
   await expect(manager.getByText(/giliran anda — langkah 1 \(manajer\)/i)).toBeVisible()
   await manager.getByRole('button', { name: 'Setujui Langkah 1' }).click()
   // The decision is confirmed after reading what it does (Todo-Pilot §23).
@@ -101,7 +103,8 @@ test('maintenance issue > Rp 1 juta: 2-step approval → work order completed �
   //    auto-resolve (roll-up needs ≥1 Task, Todo-Next §2.1) — the manager closes it.
   await goTo(manager, 'Laporan')
   await manager.getByText(title).first().click()
-  const linked = manager.getByText('Catatan terkait').locator('..')
+  // Every child on the handling path, with its own status (Todo-Modern-UI Fase 3).
+  const linked = manager.getByRole('region', { name: 'Jalur penanganan' })
   await expect(linked.getByText('Disetujui')).toBeVisible()
   await expect(linked.getByText('Selesai')).toBeVisible()           // the WO is listed too
   await expect(manager.getByText(/belum bisa diselesaikan|selesaikan atau batalkan/i)).toHaveCount(0)

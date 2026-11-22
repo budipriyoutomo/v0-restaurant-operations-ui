@@ -91,7 +91,7 @@ describe('WorkOrderDetailDrawer — why an action is not possible', () => {
     render(<WorkOrderDetailDrawer woId="wo-x" onClose={() => {}} />)
     const button = await screen.findByRole('button', { name: 'Start Work Order' })
     expect(button).toBeDisabled()
-    expect(button).toHaveAccessibleDescription(/only users who manage cmms/i)
+    expect(button).toHaveAccessibleDescription(/only users who manage assets & maintenance/i)
   })
 
   it('warns about open checklist items but still lets the manager complete', async () => {

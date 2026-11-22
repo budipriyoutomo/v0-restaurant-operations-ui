@@ -7,14 +7,10 @@ import { translate, useT } from '@/lib/i18n'
 import { Outlet, User } from '@/lib/types'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
 
-export const SYSTEM_BADGES: Record<string, string> = {
-  admin:   'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300',
-  manager: 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300',
-  staff:   'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
-}
-
-export function roleBadge(key: string) {
-  return SYSTEM_BADGES[key] ?? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+// A role is not a status: every role badge is neutral, the name tells them apart
+// (Todo-Modern-UI Fase 1).
+export function roleBadge(_key: string) {
+  return 'bg-muted text-foreground'
 }
 
 export function getInitials(name: string) {

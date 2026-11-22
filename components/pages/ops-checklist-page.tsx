@@ -17,7 +17,8 @@ import { useMyOutlets, useOutletFilter, usePermissions } from '@/lib/permissions
 import { navigate, useRecordRoute, useUrlState } from '@/lib/use-route'
 import type { OpsRun, OpsRunStatus, OpsSchedule, OpsTemplate } from '@/lib/types'
 import { ChecklistRunner } from '@/components/ops/checklist-runner'
-import { WINDOW_TONE } from '@/lib/tone'
+import { WINDOW_SIGNAL } from '@/lib/tone'
+import { StatusLabel } from '@/components/shared/status-label'
 import { OpsTemplateEditor } from '@/components/ops/template-editor'
 import { OpsSchedulePanel } from '@/components/ops/schedule-panel'
 import { OpsKpiPanel } from '@/components/ops/kpi-panel'
@@ -121,9 +122,7 @@ function RunCard({ run, onOpen }: { run: OpsRun; onOpen: () => void }) {
           <p className="font-semibold truncate">{run.templateName}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{run.outlet} · {label('opsShift', run.shift)}</p>
         </div>
-        <span className={cn('px-2 py-0.5 rounded-md text-xs font-semibold whitespace-nowrap', WINDOW_TONE[state])}>
-          {t(`ops.state.${state}`)}
-        </span>
+        <StatusLabel signal={WINDOW_SIGNAL[state]}>{t(`ops.state.${state}`)}</StatusLabel>
       </div>
       <p className="text-xs text-muted-foreground">
         {t('ops.dueAt', { time: dateTime(run.dueAt) })}
@@ -137,9 +136,9 @@ function RunCard({ run, onOpen }: { run: OpsRun; onOpen: () => void }) {
       </div>
       {(run.failedCount > 0 || run.isLate) && (
         <p className="text-xs flex items-center gap-3 flex-wrap">
-          {run.failedCount > 0 && <span className="text-red-700 dark:text-red-400 inline-flex items-center gap-1"><AlertTriangle className="size-3" /> {t('ops.failedCount', { count: run.failedCount })}</span>}
-          {run.criticalFailed && <span className="text-red-700 dark:text-red-400 inline-flex items-center gap-1"><Star className="size-3" /> {t('ops.critical')}</span>}
-          {run.isLate && <span className="text-amber-700 dark:text-amber-400">{t('ops.lateBadge')}</span>}
+          {run.failedCount > 0 && <span className="text-destructive inline-flex items-center gap-1"><AlertTriangle className="size-3" /> {t('ops.failedCount', { count: run.failedCount })}</span>}
+          {run.criticalFailed && <span className="text-destructive inline-flex items-center gap-1"><Star className="size-3" /> {t('ops.critical')}</span>}
+          {run.isLate && <span className="text-warning">{t('ops.lateBadge')}</span>}
         </p>
       )}
     </button>
@@ -197,10 +196,10 @@ function HistoryTab({ refreshKey, onOpen, outlet, setOutlet }: {
                     <td className="px-4 py-3"><span className="font-medium">{r.templateName}</span> <span className="font-mono text-xs text-muted-foreground">{r.number}</span></td>
                     <td className="px-4 py-3">{r.outlet}</td>
                     <td className="px-4 py-3">
-                      <span className={cn('px-2 py-0.5 rounded-md text-xs font-semibold', WINDOW_TONE[windowState(r)])}>{label('opsRunStatus', r.status)}</span>
-                      {r.isLate && <span className="ml-1.5 text-xs text-amber-700 dark:text-amber-400">{t('ops.lateBadge')}</span>}
+                      <StatusLabel signal={WINDOW_SIGNAL[windowState(r)]}>{label('opsRunStatus', r.status)}</StatusLabel>
+                      {r.isLate && <span className="ml-1.5 text-xs text-warning">{t('ops.lateBadge')}</span>}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{r.score ?? '—'}{r.failedCount > 0 && <span className="ml-1 text-xs text-red-700 dark:text-red-400">({r.failedCount}✗)</span>}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{r.score ?? '—'}{r.failedCount > 0 && <span className="ml-1 text-xs text-destructive">({r.failedCount}✗)</span>}</td>
                   </tr>
                 ))}
               </tbody>

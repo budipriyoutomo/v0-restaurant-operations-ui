@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { BookOpen, Plus, Clock, CheckCircle2, XCircle, Users, Loader2, Pencil, Trash2, X } from 'lucide-react'
+import { BookOpen, Plus, CheckCircle2, Users, Loader2, Pencil, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIssueStore } from '@/lib/store'
 import { useEnsureLoaded } from '@/lib/use-ensure-loaded'
@@ -21,14 +21,20 @@ import { SegmentedTabs } from '@/components/shared/segmented-tabs'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
 import { byOutlet } from '@/lib/outlet-filter'
+import { Select } from '@/components/shared/select'
+import { KpiStrip } from '@/components/shared/kpi-strip'
+import { RecordList, RecordRow } from '@/components/shared/record-list'
+import { StatusLabel } from '@/components/shared/status-label'
+import { RowsSkeleton } from '@/components/shared/skeleton'
+import type { Signal } from '@/lib/tone'
 
 type Tab = 'sessions' | 'approvals' | 'programs' | 'attendance'
 
-const STATUS_COLORS: Record<TrainingProgramStatus, string> = {
-  scheduled:  'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
-  ongoing:    'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
-  completed:  'bg-success/15 text-success',
-  cancelled:  'bg-muted text-muted-foreground',
+const PROGRAM_SIGNAL: Record<TrainingProgramStatus, Signal> = {
+  scheduled: 'neutral',
+  ongoing:   'waiting',
+  completed: 'done',
+  cancelled: 'neutral',
 }
 
 export function TrainingPage() {
@@ -92,12 +98,13 @@ export function TrainingPage() {
       </>}
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label={t('training.totalSessions')} value={stats.total}    color="text-foreground" />
-        <StatCard label={t('assetsPage.pending')} value={stats.pending}  color="text-amber-700 dark:text-amber-400"  />
-        <StatCard label={t('training.upcoming')} value={stats.upcoming} color="text-blue-600"   />
-        <StatCard label={t('training.programs')} value={stats.programs} color="text-primary"    />
-      </div>
+      {/* One status bar, only once there is something to count (Todo-Modern-UI Fase 4) */}
+      <KpiStrip label={t('training.kpiLabel')} items={[
+        { label: t('training.totalSessions'), value: stats.total },
+        { label: t('assetsPage.pending'), value: stats.pending, signal: 'waiting' },
+        { label: t('training.upcoming'), value: stats.upcoming },
+        { label: t('training.programs'), value: stats.programs },
+      ]} />
 
       <SegmentedTabs label={t('nav.training')} value={tab} onChange={setTab} tabs={[
         { id: 'sessions',   label: t('training.tab.sessions', { count: sessions.length }) },
@@ -110,26 +117,14 @@ export function TrainingPage() {
         sessions.length === 0 ? (
           <EmptyState icon={<BookOpen className="size-8 text-muted-foreground" />} label={t('training.noSessions')} hint={t('training.noSessionsHint')} />
         ) : (
-          <div className="space-y-2">
+          <RecordList label={t('training.tab.sessions', { count: sessions.length })}>
             {sessions.map(s => (
-              <button type="button" key={s.id} onClick={() => navigate(recordPath('issues', s.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-muted-foreground">{s.number}</span>
-                    <PriorityBadge priority={s.priority} />
-                  </div>
-                  <p className="text-sm font-semibold">{s.title}</p>
-                  {s.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{s.description}</p>}
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Users className="size-3" />{s.outlet}</span>
-                    <span>·</span><span>{s.assignee || t('common.unassigned')}</span>
-                    {s.dueDate && <><span>·</span><span>{t('training.scheduled', { date: date(s.dueDate) })}</span></>}
-                  </div>
-                </div>
-                <StatusBadge status={s.status} />
-              </button>
+              <RecordRow key={s.id} id={s.id} number={s.number} title={s.title}
+                meta={[s.outlet, s.assignee || t('common.unassigned'), s.dueDate && t('training.scheduled', { date: date(s.dueDate) })]}
+                aside={<><StatusBadge status={s.status} /><PriorityBadge priority={s.priority} /></>}
+                onOpen={() => navigate(recordPath('issues', s.id))} />
             ))}
-          </div>
+          </RecordList>
         )
       )}
 
@@ -137,26 +132,17 @@ export function TrainingPage() {
         approvalsT.length === 0 ? (
           <EmptyState icon={<CheckCircle2 className="size-8 text-muted-foreground" />} label={t('training.noApprovals')} hint={t('training.noApprovalsHint')} />
         ) : (
-          <div className="space-y-2">
+          <RecordList label={t('training.tab.approvals', { count: approvalsT.length })}>
             {approvalsT.map(a => (
-              <button type="button" key={a.id} onClick={() => navigate(recordPath('approvals', a.id))} className="w-full text-left p-4 rounded-xl border border-border bg-card shadow-sm flex items-start justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <span className="text-xs font-mono text-muted-foreground">{a.number}</span>
-                  <p className="text-sm font-semibold mt-0.5">{a.title}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
-                    <span>{a.outlet}</span><span>·</span><span>{t('assetsPage.by', { name: a.requester })}</span>
-                    {a.amount != null && <><span>·</span><span className="font-semibold text-foreground">{formatMoney(a.amount, a.currency)}</span></>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {a.status === 'pending'  && <Clock className="size-4 text-amber-700 dark:text-amber-400" />}
-                  {a.status === 'approved' && <CheckCircle2 className="size-4 text-success" />}
-                  {a.status === 'rejected' && <XCircle className="size-4 text-destructive" />}
+              <RecordRow key={a.id} id={a.id} number={a.number} title={a.title}
+                meta={[a.outlet, t('assetsPage.by', { name: a.requester })]}
+                aside={<>
                   <StatusBadge status={a.status} />
-                </div>
-              </button>
+                  {a.amount != null && <span className="text-xs font-medium tabular-nums">{formatMoney(a.amount, a.currency)}</span>}
+                </>}
+                onOpen={() => navigate(recordPath('approvals', a.id))} />
             ))}
-          </div>
+          </RecordList>
         )
       )}
 
@@ -226,7 +212,7 @@ function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusC
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
-  if (loading && programs.length === 0) return <div className="flex justify-center py-20"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+  if (loading && programs.length === 0) return <RowsSkeleton rows={3} />
   if (programs.length === 0) return <EmptyState icon={<BookOpen className="size-8 text-muted-foreground" />} label={t('training.noPrograms')} hint={t('training.noProgramsHint')} />
 
   const handleDelete = async (id: string) => {
@@ -241,9 +227,9 @@ function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusC
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-snug">{p.title}</p>
-              <span className={cn('inline-block text-xs px-2 py-0.5 rounded-md font-semibold mt-1', STATUS_COLORS[p.status as TrainingProgramStatus])}>
+              <StatusLabel signal={PROGRAM_SIGNAL[p.status as TrainingProgramStatus] ?? 'neutral'} className="mt-1">
                 {label('trainingStatus', p.status)}
-              </span>
+              </StatusLabel>
             </div>
             {canManage && (
               <div className="flex gap-1">
@@ -265,21 +251,20 @@ function ProgramList({ programs, loading, canManage, onEdit, onDelete, onStatusC
             <span className="flex items-center gap-1.5 font-medium"><Users className="size-3.5" /> {t('training.participants')}</span>
             <span className="text-muted-foreground">
               {p.enrolled_count}{p.max_participants ? ` / ${p.max_participants}` : ''}
-              {placesLeft(p.max_participants, p.enrolled_count) === 0 && <span className="ml-1 text-amber-700 dark:text-amber-400 font-semibold">{t('training.full')}</span>}
-              {p.attended_count > 0 && <span className="ml-1">· {p.attended_count} attended</span>}
+              {placesLeft(p.max_participants, p.enrolled_count) === 0 && <span className="ml-1 text-warning font-semibold">{t('training.full')}</span>}
+              {p.attended_count > 0 && <span className="ml-1">· {t('training.attendedCount', { n: p.attended_count })}</span>}
             </span>
           </button>
           {canManage && (
             <div className="pt-1 border-t border-border">
-              <select
+              <Select
                 value={p.status}
                 onChange={e => onStatusChange(p.id, e.target.value as TrainingProgramStatus)}
-                className="w-full px-2 py-1 text-xs rounded border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary/50"
-              >
+                className="w-full" size="sm">
                 {(['scheduled', 'ongoing', 'completed', 'cancelled'] as const).map((st) => (
                   <option key={st} value={st}>{label('trainingStatus', st)}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
           {confirmDelete === p.id && (
@@ -377,29 +362,27 @@ function ProgramFormModal({ program, outlets, onClose, onSubmit }: {
           ))}
           <div>
             <label htmlFor="program-role" className="block text-xs font-semibold mb-1">{t('training.targetRole')}</label>
-            <select
+            <Select
               id="program-role"
               value={form.target_role}
               onChange={e => setForm(f => ({ ...f, target_role: e.target.value }))}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+              className="w-full">
               <option value="staff">{label('tier', 'staff')}</option>
               <option value="manager">{label('tier', 'manager')}</option>
               <option value="admin">{label('tier', 'admin')}</option>
               <option value="all">{t('training.allRoles')}</option>
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor="program-outlet" className="block text-xs font-semibold mb-1">{t('common.outlet')}</label>
-            <select
+            <Select
               id="program-outlet"
               value={form.outlet}
               onChange={e => setForm(f => ({ ...f, outlet: e.target.value }))}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40"
-            >
+              className="w-full">
               <option value="">{t('cmms.allOutlets')}</option>
               {outlets.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -437,15 +420,6 @@ function ProgramFormModal({ program, outlets, onClose, onSubmit }: {
           </div>
         </form>
       </div>
-    </div>
-  )
-}
-
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="p-4 rounded-2xl border border-border bg-card">
-      <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-      <p className={cn('text-2xl font-bold', color)}>{value}</p>
     </div>
   )
 }

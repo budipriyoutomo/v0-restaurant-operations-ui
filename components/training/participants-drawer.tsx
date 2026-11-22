@@ -154,7 +154,7 @@ export function ParticipantsDrawer({ program, canManage, onClose, onChanged }: {
                           <button key={s} disabled={!canManage || !!blocker}
                             onClick={() => patch(r, { status: active ? 'registered' : s })}
                             className={cn('flex-1 h-9 rounded-md border text-xs font-semibold flex items-center justify-center gap-1',
-                              active ? (s === 'attended' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-red-600 text-white border-red-600')
+                              active ? (s === 'attended' ? 'bg-success text-success-foreground border-success' : 'bg-destructive text-destructive-foreground border-destructive')
                                 : 'border-border hover:bg-muted/50', (!canManage || blocker) && !active && 'opacity-40')}>
                             {s === 'attended' ? <Check className="size-3.5" /> : <Minus className="size-3.5" />}
                             {label('enrollmentStatus', s)}

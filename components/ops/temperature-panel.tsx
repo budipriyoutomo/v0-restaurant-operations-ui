@@ -221,7 +221,7 @@ function ManualReading({ asset, onSaved }: { asset: Asset; onSaved: () => void }
           aria-label={t('ops.toggleSign')} className="size-10 rounded-md border border-border text-lg font-bold">±</button>
         <input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value.replace(/[^\d.,-]/g, ''))}
           aria-label={t('temp.reading')} placeholder="°C"
-          className={cn(field, 'w-24 h-10 text-base font-semibold tabular-nums', needsAction && 'border-red-400 text-red-700 dark:text-red-400')} />
+          className={cn(field, 'w-24 h-10 text-base font-semibold tabular-nums', needsAction && 'border-destructive/40 text-destructive')} />
         <button type="button" onClick={save} disabled={!ready || saving}
           className="h-10 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
           {saving ? t('common.saving') : t('temp.record')}
@@ -230,7 +230,7 @@ function ManualReading({ asset, onSaved }: { asset: Asset; onSaved: () => void }
       {needsAction && (
         <textarea value={action} onChange={(e) => setAction(e.target.value)} rows={2}
           aria-label={t('ops.correctiveAction')} placeholder={t('ops.correctivePlaceholder')}
-          className={cn(field, 'w-full border-red-300')} />
+          className={cn(field, 'w-full border-destructive/40')} />
       )}
     </div>
   )

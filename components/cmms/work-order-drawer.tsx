@@ -16,6 +16,7 @@ import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { SideDrawer } from '@/components/shared/side-drawer'
+import { Select } from '@/components/shared/select'
 
 // ---------------------------------------------------------------------------
 // Work Order detail drawer — slides in from right when a WO row is clicked
@@ -232,7 +233,7 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
                 <PriorityBadge priority={detail.priority} />
                 <span className="text-xs text-muted-foreground">{label('woType', detail.type)}</span>
                 {detail.requiresApproval && (
-                  <span className="text-xs px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-semibold">
+                  <span className="text-xs px-2 py-0.5 rounded-md bg-warning-mark/10 text-warning font-semibold">
                     {t('wo.needsApproval')}
                   </span>
                 )}
@@ -240,9 +241,9 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
 
               {/* Linked approval banner for on-hold WOs */}
               {detail.status === 'on-hold' && linkedApproval && (
-                <div className="p-3 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 space-y-1">
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">{t('wo.waitingApproval')}</p>
-                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                <div className="p-3 rounded-md bg-warning-mark/10 border border-warning-mark/40 space-y-1">
+                  <p className="text-xs font-semibold text-warning">{t('wo.waitingApproval')}</p>
+                  <p className="text-xs text-warning">
                     {t('wo.stepOf', {
                       number: linkedApproval.number, step: linkedApproval.currentStepOrder, total: linkedApproval.steps.length,
                       role: (() => { const r = linkedApproval.steps.find(s => s.stepOrder === linkedApproval.currentStepOrder)?.approverRole; return r ? label('tier', r) : t('wo.approver') })(),
@@ -265,7 +266,7 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
                         outlet={detail.outlet}
                         value={detail.assigneeUserId ?? null}
                         legacyName={detail.assignee}
-                        className="w-full px-2 py-1.5 rounded-md border border-border bg-muted/20 text-xs"
+                        className="w-full" size="sm"
                         onChange={(userId) => {
                           assignWorkOrder(detail.id, userId)
                             .then((wo) => setDetail((d) => d && { ...d, assignee: wo.assignee, assigneeUserId: wo.assigneeUserId }))
@@ -364,16 +365,15 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
                 )}
                 {can.manageCMMS && !isDone && (
                   <div className="flex gap-1.5 pt-1">
-                    <select
+                    <Select
                       value={partForm.partId}
                       onChange={(e) => setPartForm((p) => ({ ...p, partId: e.target.value }))}
-                      className="flex-1 h-9 rounded-lg border border-border bg-muted/20 px-1.5 text-xs"
-                    >
+                      className="flex-1" size="sm">
                       <option value="">{t('wo.pickPartOption')}</option>
                       {parts.filter((p) => p.isActive && p.stockQty > 0).map((p) => (
                         <option key={p.id} value={p.id}>{p.name} ({t('wo.stock', { qty: p.stockQty })})</option>
                       ))}
-                    </select>
+                    </Select>
                     <input
                       type="number" min={1} value={partForm.quantity}
                       onChange={(e) => setPartForm((p) => ({ ...p, quantity: e.target.value }))}
@@ -418,16 +418,15 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
                 )}
                 {can.manageCMMS && !isDone && (
                   <div className="flex gap-1.5 pt-1">
-                    <select
+                    <Select
                       value={vendorForm.vendorId}
                       onChange={(e) => setVendorForm((v) => ({ ...v, vendorId: e.target.value }))}
-                      className="flex-1 h-9 rounded-lg border border-border bg-muted/20 px-1.5 text-xs"
-                    >
+                      className="flex-1" size="sm">
                       <option value="">{t('wo.pickVendorOption')}</option>
                       {vendors.filter((v) => v.is_active).map((v) => (
                         <option key={v.id} value={v.id}>{v.name}</option>
                       ))}
-                    </select>
+                    </Select>
                     <input
                       type="date" value={vendorForm.slaDue}
                       onChange={(e) => setVendorForm((v) => ({ ...v, slaDue: e.target.value }))}
@@ -587,7 +586,7 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
                     primary.reason
                       ? 'bg-muted text-muted-foreground cursor-not-allowed'
                       : primary.kind === 'complete'
-                        ? 'bg-success text-white hover:bg-success/90'
+                        ? 'bg-success text-success-foreground hover:bg-success/90'
                         : 'bg-primary text-primary-foreground hover:bg-primary/90',
                     (transitioning) && 'opacity-60 cursor-not-allowed',
                   )}
@@ -601,7 +600,7 @@ export function WorkOrderDetailDrawer({ woId, onClose }: { woId: string; onClose
                     : primary.kind === 'start' ? t('wo.start') : primary.kind === 'resume' ? t('wo.resume') : t('wo.markCompleted')}
                 </button>
                 {(primary.reason || primary.warning) && (
-                  <p id={`${detail.id}-why`} className={cn('text-xs flex items-start gap-1.5', primary.reason ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-400')}>
+                  <p id={`${detail.id}-why`} className={cn('text-xs flex items-start gap-1.5', primary.reason ? 'text-muted-foreground' : 'text-warning')}>
                     {primary.reason ? <Info className="size-3.5 mt-0.5 shrink-0" /> : <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />}
                     {primary.reason ? t(primary.reason.key, primary.reason.params) : t(primary.warning!.key, primary.warning!.params)}
                   </p>

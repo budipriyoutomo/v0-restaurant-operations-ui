@@ -18,6 +18,9 @@ import { useUrlState } from '@/lib/use-route'
 import { PriorityBadge } from '@/components/shared/priority-badge'
 import { useOutletFilter } from '@/lib/permissions'
 import { outletQuery } from '@/lib/outlet-filter'
+import { SIGNAL_DOT, SIGNAL_EDGE, SIGNAL_RING, statusSignal } from '@/lib/tone'
+import { Select } from '@/components/shared/select'
+import { KpiStrip } from '@/components/shared/kpi-strip'
 
 // Cards per column; the rest is counted (Todo-Pilot §22).
 const COLUMN_LIMIT = 50
@@ -26,15 +29,13 @@ const COLUMN_LIMIT = 50
 // Status + priority presentation metadata (theme-aware — no hardcoded white)
 // ---------------------------------------------------------------------------
 // Labels: label('status', id).
-const STATUS_META: Record<TaskStatus, { dot: string; accent: string; ring: string }> = {
-  open:          { dot: 'bg-blue-500',    accent: 'border-t-blue-500',    ring: 'ring-blue-500/40' },
-  assigned:      { dot: 'bg-violet-500',  accent: 'border-t-violet-500',  ring: 'ring-violet-500/40' },
-  'in-progress': { dot: 'bg-amber-500',   accent: 'border-t-amber-500',   ring: 'ring-amber-500/40' },
-  waiting:       { dot: 'bg-cyan-500',    accent: 'border-t-cyan-500',    ring: 'ring-cyan-500/40' },
-  resolved:      { dot: 'bg-emerald-500', accent: 'border-t-emerald-500', ring: 'ring-emerald-500/40' },
-  closed:        { dot: 'bg-slate-400',   accent: 'border-t-slate-400',   ring: 'ring-slate-400/40' },
-  cancelled:     { dot: 'bg-rose-400',    accent: 'border-t-rose-400',    ring: 'ring-rose-400/40' },
-}
+// Column look follows the three signals (Todo-Modern-UI Fase 1).
+const STATUS_META = Object.fromEntries(
+  (['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed', 'cancelled'] as TaskStatus[]).map((s) => {
+    const signal = statusSignal(s)
+    return [s, { dot: SIGNAL_DOT[signal], accent: SIGNAL_EDGE[signal], ring: SIGNAL_RING[signal] }]
+  }),
+) as Record<TaskStatus, { dot: string; accent: string; ring: string }>
 
 // 'cancelled' (parent Issue cancelled) is kept off the board.
 const COLUMN_ORDER: TaskStatus[] = ['open', 'assigned', 'in-progress', 'waiting', 'resolved', 'closed']
@@ -118,12 +119,12 @@ export function TaskCenterPage() {
       <PageHeader title={t('tasks.title')} description={t('tasks.subtitle')} />
 
       {/* Overview stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard icon={ListChecks}  label={t('tasks.total')} value={stats.total}   tone="neutral" />
-        <StatCard icon={Loader2}     label={t('tasks.active')}      value={stats.active}  tone="blue" />
-        <StatCard icon={AlertTriangle} label={t('tasks.overdue')}   value={stats.overdue} tone="red" />
-        <StatCard icon={CircleCheck} label={t('tasks.completed')}   value={stats.done}    tone="green" />
-      </div>
+      <KpiStrip label={t('tasks.kpiLabel')} loading={loading} items={[
+        { label: t('tasks.total'),     value: stats.total },
+        { label: t('tasks.active'),    value: stats.active },
+        { label: t('tasks.overdue'),   value: stats.overdue, signal: 'action' },
+        { label: t('tasks.completed'), value: stats.done },
+      ]} />
 
       {/* Toolbar */}
       <div className="flex flex-col lg:flex-row gap-3 lg:items-center rounded-2xl border border-border bg-card p-3 sm:p-4">
@@ -169,40 +170,6 @@ export function TaskCenterPage() {
           <TaskCard task={task} block={blockOf(task)} drag={drag} onMove={updateTaskStatus} />
         )}
       />
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Stat card
-// ---------------------------------------------------------------------------
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: number
-  tone: 'neutral' | 'blue' | 'red' | 'green'
-}) {
-  const toneCls = {
-    neutral: 'text-muted-foreground bg-muted',
-    blue:    'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-950/50',
-    red:     'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-950/50',
-    green:   'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/50',
-  }[tone]
-
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-      <div className={cn('flex items-center justify-center size-9 rounded-lg shrink-0', toneCls)}>
-        <Icon className="size-4" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-2xl font-bold leading-none">{value}</p>
-        <p className="text-xs text-muted-foreground mt-1 truncate">{label}</p>
-      </div>
     </div>
   )
 }
@@ -255,7 +222,7 @@ function TaskCard({
           className={cn(
             'flex items-center justify-center size-6 rounded-full text-xs font-bold shrink-0',
             // amber = a name that is not a user: nobody gets notified (Todo-Pilot §17)
-            unlinkedAssigneeWarning(task, locale) ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 ring-1 ring-amber-400' : 'bg-primary/10 text-primary',
+            unlinkedAssigneeWarning(task, locale) ? 'bg-warning-mark/10 text-warning ring-1 ring-warning-mark' : 'bg-primary/10 text-primary',
           )}
         >
           {initials(task.assignee)}
@@ -264,7 +231,7 @@ function TaskCard({
         <span
           className={cn(
             'flex items-center gap-1 ml-auto shrink-0',
-            overdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-muted-foreground',
+            overdue ? 'text-destructive font-medium' : 'text-muted-foreground',
           )}
         >
           <Calendar className="size-3" />
@@ -275,19 +242,18 @@ function TaskCard({
       {/* Footer: issue link + accessible status move (keyboard / touch fallback) */}
       <div className="mt-2.5 pt-2.5 border-t border-border flex items-center justify-between gap-2">
         <span className="font-mono text-xs text-primary font-semibold">{task.issueNumber}</span>
-        <select
+        <Select
           value={task.status}
           onChange={(e) => onMove(task.id, e.target.value as TaskStatus)}
           onClick={(e) => e.stopPropagation()}
           aria-label={t('tasks.moveTo')}
           disabled={!!block}
           aria-describedby={block ? `${task.id}-block` : undefined}
-          className="h-10 sm:h-8 text-xs border border-border rounded-lg px-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+          size="sm">
           {COLUMN_ORDER.map((id) => (
             <option key={id} value={id}>{label('status', id)}</option>
           ))}
-        </select>
+        </Select>
       </div>
       {block && (
         <p id={`${task.id}-block`} className="mt-1.5 text-xs text-muted-foreground">{t(block.key, block.params)}</p>

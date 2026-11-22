@@ -10,7 +10,8 @@ import { Asset, AssetSummary, WorkOrder } from '@/lib/types'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
-import { assetStatusColor } from './asset-status'
+import { assetSignal } from './asset-status'
+import { StatusLabel } from '@/components/shared/status-label'
 
 // ---------------------------------------------------------------------------
 // Expandable asset detail panel (inline)
@@ -75,9 +76,7 @@ export function AssetDetailPanel({ asset, onClose, onSelectWO }: { asset: Asset;
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs mb-4">
         <div>
           <p className="text-muted-foreground">{t('common.status')}</p>
-          <span className={cn('px-2 py-0.5 rounded-md text-xs font-semibold border mt-1 inline-block', assetStatusColor(asset.status))}>
-            {label('assetStatus', asset.status)}
-          </span>
+          <StatusLabel signal={assetSignal(asset.status)} className="mt-1">{label('assetStatus', asset.status)}</StatusLabel>
         </div>
         <div>
           <p className="text-muted-foreground">{t('asset.lastPm')}</p>

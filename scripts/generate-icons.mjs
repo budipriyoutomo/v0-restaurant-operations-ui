@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const PRIMARY = '#0070c4'   // BRAND.primary in lib/pwa.ts
+const PRIMARY = '#0f5c4a'   // BRAND.primary in lib/pwa.ts
 const GLYPH = [               // lucide-react icons/utensils.js, 24×24 viewBox
   'M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2',
   'M7 2v20',

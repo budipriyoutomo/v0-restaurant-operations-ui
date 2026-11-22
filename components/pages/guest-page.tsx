@@ -23,6 +23,9 @@ import { ListSkeleton } from '@/components/shared/skeleton'
 import { EmptyState } from '@/components/shared/empty-state'
 import { PageHeader } from '@/components/shared/page-header'
 import { FilterBar, FilterOptions, FilterSelect } from '@/components/shared/filter-menu'
+import { Select } from '@/components/shared/select'
+import { RecordList, RecordRow } from '@/components/shared/record-list'
+import { StatusBadge } from '@/components/shared/priority-badge'
 
 type Tab = 'complaints' | 'kpis' | 'issues'
 
@@ -77,7 +80,7 @@ export function GuestPage() {
       />
 
       <SegmentedTabs<Tab> label={t('nav.guest-service')} value={tab} onChange={setTab} tabs={[
-        { id: 'complaints', label: <>{t('guest.tab.complaints')}{overdue > 0 && <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300">{t('guest.overdueBadge', { count: overdue })}</span>}</> },
+        { id: 'complaints', label: <>{t('guest.tab.complaints')}{overdue > 0 && <span className="ml-1.5 text-xs font-medium text-destructive">{t('guest.overdueBadge', { count: overdue })}</span>}</> },
         { id: 'kpis', label: t('guest.tab.kpis') },
         { id: 'issues', label: t('guest.tab.issues') },
       ]} />
@@ -94,7 +97,11 @@ export function GuestPage() {
           </FilterBar>
           {cases === null ? <ListSkeleton rows={3} className="p-0 sm:p-0" />
             : visible.length === 0 ? <EmptyState icon={MessageSquareWarning} title={t('guest.none')} />
-            : visible.map((c) => <CaseRow key={c.id} c={c} now={now} target={target} onOpen={() => setOpenId(c.id)} />)}
+            : (
+              <RecordList label={t('guest.tab.complaints')}>
+                {visible.map((c) => <CaseRow key={c.id} c={c} now={now} target={target} onOpen={() => setOpenId(c.id)} />)}
+              </RecordList>
+            )}
         </div>
       )}
 
@@ -114,28 +121,22 @@ export function GuestPage() {
 }
 
 function CaseRow({ c, now, target, onOpen }: { c: GuestCase; now: number; target: number; onOpen: () => void }) {
-  const { t, label, status, locale } = useT()
+  const { t, label, locale } = useT()
   const rs = responseState(c, now, target)
   return (
-    <button onClick={onOpen}
-      className="w-full text-left p-3 sm:p-4 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors flex items-center gap-3">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-xs text-muted-foreground">{c.issueNumber}</span>
-          <span className="text-xs px-2 py-0.5 rounded-md bg-muted font-semibold">{label('guestChannel', c.channel)}</span>
-          <span className="text-sm font-semibold truncate">{c.title}</span>
-        </div>
-        <p className="text-xs text-muted-foreground truncate">
-          {c.guestName || t('guest.unknownGuest')} · {c.outlet} · {status(c.status)}
-          {c.compensationType !== 'none' && <span className="inline-flex items-center gap-0.5 ml-1.5"><Wallet className="size-3" />{formatIDR(c.compensationValue)}</span>}
-        </p>
-      </div>
-      <div className="text-right flex-shrink-0 text-xs">
-        {rs.state === 'responded' && <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{t('guest.respondedIn', { time: formatDuration(c.firstResponseMinutes, locale) })}</span>}
-        {rs.state === 'waiting' && <span className="text-amber-700 dark:text-amber-400 font-semibold">{t('guest.waiting', { time: formatDuration(rs.minutes, locale) })}</span>}
-        {rs.state === 'overdue' && <span className="text-red-600 font-semibold">{t('guest.overdue', { time: formatDuration(rs.minutes, locale) })}</span>}
-      </div>
-    </button>
+    <RecordRow id={c.id} number={c.issueNumber} title={c.title} onOpen={onOpen}
+      meta={[
+        label('guestChannel', c.channel),
+        c.guestName || t('guest.unknownGuest'),
+        c.outlet,
+        c.compensationType !== 'none' && <span className="inline-flex items-center gap-0.5"><Wallet className="size-3" aria-hidden="true" />{formatIDR(c.compensationValue)}</span>,
+      ]}
+      aside={<>
+        <StatusBadge status={c.status} />
+        {rs.state === 'responded' && <span className="text-xs text-success font-medium">{t('guest.respondedIn', { time: formatDuration(c.firstResponseMinutes, locale) })}</span>}
+        {rs.state === 'waiting' && <span className="text-xs text-warning font-medium">{t('guest.waiting', { time: formatDuration(rs.minutes, locale) })}</span>}
+        {rs.state === 'overdue' && <span className="text-xs text-destructive font-medium">{t('guest.overdue', { time: formatDuration(rs.minutes, locale) })}</span>}
+      </>} />
   )
 }
 
@@ -174,22 +175,22 @@ function NewComplaintDialog({ outlets, onClose, onCreated }: {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-      <div ref={panelRef} role="dialog" aria-modal="true" className="bg-background rounded-2xl border border-border shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 space-y-3">
-        <h2 className="font-semibold">{t('guest.newTitle')}</h2>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="guest-new-heading" className="bg-background rounded-2xl border border-border shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 space-y-3">
+        <h2 id="guest-new-heading" className="font-semibold">{t('guest.newTitle')}</h2>
         <input className={input} placeholder={t('guest.whatHappened')} aria-label={t('common.title')} value={form.title} onChange={(e) => set('title', e.target.value)} />
         <textarea className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm" rows={3} placeholder={t('guest.details')} aria-label={t('guest.details')}
           value={form.description} onChange={(e) => set('description', e.target.value)} />
         <div className="grid grid-cols-2 gap-2">
-          <select className={input} aria-label={t('guest.channel')} value={form.channel} onChange={(e) => set('channel', e.target.value as GuestChannel)}>
+          <Select className="w-full" aria-label={t('guest.channel')} value={form.channel} onChange={(e) => set('channel', e.target.value as GuestChannel)}>
             {GUEST_CHANNELS.map((ch) => <option key={ch} value={ch}>{label('guestChannel', ch)}</option>)}
-          </select>
-          <select className={input} aria-label={t('common.priority')} value={form.priority} onChange={(e) => set('priority', e.target.value as Priority)}>
+          </Select>
+          <Select className="w-full" aria-label={t('common.priority')} value={form.priority} onChange={(e) => set('priority', e.target.value as Priority)}>
             {(['low', 'medium', 'high', 'critical'] as Priority[]).map((p) => <option key={p} value={p}>{label('priority', p)}</option>)}
-          </select>
+          </Select>
         </div>
-        <select className={input} aria-label={t('common.outlet')} value={form.outlet} onChange={(e) => set('outlet', e.target.value)}>
+        <Select className="w-full" aria-label={t('common.outlet')} value={form.outlet} onChange={(e) => set('outlet', e.target.value)}>
           {outlets.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
+        </Select>
         <div className="grid grid-cols-2 gap-2">
           <input className={input} placeholder={t('guest.guestName')} aria-label={t('guest.guestName')} value={form.guestName} onChange={(e) => set('guestName', e.target.value)} />
           <input className={input} placeholder={t('guest.contact')} aria-label={t('guest.contact')} value={form.guestContact} onChange={(e) => set('guestContact', e.target.value)} />

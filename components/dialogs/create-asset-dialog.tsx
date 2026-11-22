@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { AssetStatus, CreateAssetInput } from '@/lib/types'
 import { useModalKeyboard } from '@/lib/use-modal-keyboard'
+import { Select } from '@/components/shared/select'
 
 interface CreateAssetDialogProps {
   open: boolean
@@ -144,10 +145,10 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
           <div>
             <label htmlFor={`${id}-outlet`} className="block text-sm font-semibold mb-1.5">{t('common.outlet')} <span className="text-destructive">*</span></label>
             {outlets.length > 0 ? (
-              <select id={`${id}-outlet`} name="outlet" value={form.outlet} onChange={handleChange}
-                className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
+              <Select id={`${id}-outlet`} name="outlet" value={form.outlet} onChange={handleChange}
+                className="w-full">
                 {outlets.map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
+              </Select>
             ) : (
               <input
                 type="text" name="outlet" placeholder={t('createIssue.outletPlaceholder')}
@@ -160,12 +161,12 @@ export function CreateAssetDialog({ open, onOpenChange, outlets, onSubmit }: Cre
           {/* Status */}
           <div>
             <label htmlFor={`${id}-status`} className="block text-sm font-semibold mb-1.5">{t('common.status')}</label>
-            <select id={`${id}-status`} name="status" value={form.status} onChange={handleChange}
-              className="w-full min-h-10 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40">
+            <Select id={`${id}-status`} name="status" value={form.status} onChange={handleChange}
+              className="w-full">
               {ASSET_STATUSES.map((s) => (
                 <option key={s} value={s}>{label('assetStatus', s)}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Brand / Model — two columns */}

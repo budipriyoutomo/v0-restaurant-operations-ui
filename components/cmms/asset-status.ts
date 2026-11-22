@@ -1,13 +1,7 @@
 import type { AssetStatus } from '@/lib/types'
+import { ASSET_SIGNAL, type Signal } from '@/lib/tone'
 
-// ---------------------------------------------------------------------------
-// Asset status badge
-// ---------------------------------------------------------------------------
-export function assetStatusColor(status: AssetStatus) {
-  switch (status) {
-    case 'operational': return 'bg-success/15 text-success border-success/30'
-    case 'warning':     return 'bg-warning/15 text-warning border-warning/30'
-    case 'maintenance': return 'bg-primary/15 text-primary border-primary/30'
-    case 'critical':    return 'bg-destructive/15 text-destructive border-destructive/30'
-  }
+/** An asset's condition as a signal, for StatusLabel (Todo-Modern-UI Fase 4). */
+export function assetSignal(status: AssetStatus): Signal {
+  return ASSET_SIGNAL[status] ?? 'neutral'
 }

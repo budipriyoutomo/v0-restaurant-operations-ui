@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { useTheme } from 'next-themes'
 import { ListSkeleton } from '@/components/shared/skeleton'
 import { InstallAppGroup } from '@/components/shared/install-app'
+import { Select } from '@/components/shared/select'
 
 interface AppPreferences {
   darkMode: boolean
@@ -165,14 +166,13 @@ export function SettingsPage() {
               <p className="text-xs text-muted-foreground mt-0.5">{t('settings.languageHint')}</p>
             </div>
           </div>
-          <select
+          <Select
             id="settings-language"
             value={locale}
             onChange={(e) => setLocale(normalizeLocale(e.target.value))}
-            className="w-full sm:w-auto h-10 sm:h-9 rounded-lg border border-border bg-background px-3 text-sm"
-          >
+            className="w-full sm:w-auto">
             {LOCALES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
-          </select>
+          </Select>
         </div>
       </SettingGroup>
 
@@ -266,7 +266,7 @@ function WhatsAppGroup({ prefs, toggle }: { prefs: AppPreferences; toggle: (key:
     <SettingGroup label="WhatsApp">
       <div className="px-4 py-3.5 space-y-2">
         {serverEnabled === false && (
-          <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-100/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md px-2.5 py-1.5">
+          <p className="text-xs text-warning bg-warning-mark/10 border border-warning-mark/40 rounded-md px-2.5 py-1.5">
             {t('settings.wa.notConfigured')}
           </p>
         )}

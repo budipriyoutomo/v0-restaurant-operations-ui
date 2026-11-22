@@ -10,6 +10,7 @@ import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { formatMoney } from '@/lib/money'
 import { EmptyState as SharedEmptyState } from '@/components/shared/empty-state'
+import { RowsSkeleton } from '@/components/shared/skeleton'
 
 const EMPTY: CreatePartInput = {
   sku: '', name: '', category: 'General', unit: 'pcs',
@@ -145,7 +146,7 @@ export function PartsInventoryPanel() {
       )}
 
       {partsLoading ? (
-        <p className="text-xs text-muted-foreground text-center py-6">{t('parts.loading')}</p>
+        <RowsSkeleton label={t('parts.loading')} />
       ) : parts.length === 0 ? (
         <SharedEmptyState title={t('parts.empty')} className="py-10 text-sm" />
       ) : (

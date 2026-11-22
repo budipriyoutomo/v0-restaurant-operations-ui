@@ -49,7 +49,7 @@ export function DaySignoffList({ outlet, from, to, refreshKey = 0 }: {
                   className="w-full text-left px-3 py-2 flex items-center gap-3 hover:bg-muted/30 text-sm">
                   <span className="w-28 shrink-0 tabular-nums">{date(d)}</span>
                   {s ? (
-                    <span className="flex-1 min-w-0 text-xs text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-1.5 truncate">
+                    <span className="flex-1 min-w-0 text-xs text-success inline-flex items-center gap-1.5 truncate">
                       <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
                       {t('opsSignoff.signedBy', { name: s.signedByName, when: dateTime(s.signedAt) })}
                     </span>
@@ -128,7 +128,7 @@ export function SignDayDialog({ date: day, outlet, onClose, onSigned }: {
                   <div key={k} className="rounded-lg border border-border p-2">
                     <dt className="text-xs text-muted-foreground">{t(`opsSignoff.sum.${k}`)}</dt>
                     <dd className={cn('text-lg font-bold tabular-nums',
-                      (k === 'missed' || k === 'failedItems' || k === 'excursions') && v > 0 && 'text-red-700 dark:text-red-400')}>{v}</dd>
+                      (k === 'missed' || k === 'failedItems' || k === 'excursions') && v > 0 && 'text-destructive')}>{v}</dd>
                   </div>
                 ))}
               </dl>
@@ -146,13 +146,13 @@ export function SignDayDialog({ date: day, outlet, onClose, onSigned }: {
 
               {data.signoff ? (
                 <div className={cn('rounded-lg border p-3 text-sm space-y-1',
-                  state === 'changed' ? 'border-red-300 bg-red-50 dark:bg-red-950/30' : 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30')}>
+                  state === 'changed' ? 'border-destructive/40 bg-destructive-soft' : 'border-success/40 bg-success/10')}>
                   <p className="font-semibold inline-flex items-center gap-1.5">
-                    {state === 'changed' ? <AlertTriangle className="size-4 text-red-700 dark:text-red-400" aria-hidden /> : <CheckCircle2 className="size-4 text-emerald-700 dark:text-emerald-400" aria-hidden />}
+                    {state === 'changed' ? <AlertTriangle className="size-4 text-destructive" aria-hidden /> : <CheckCircle2 className="size-4 text-success" aria-hidden />}
                     {t('opsSignoff.signedBy', { name: data.signoff.signedByName, when: dateTime(data.signoff.signedAt) })}
                   </p>
                   {data.signoff.note && <p className="text-xs">“{data.signoff.note}”</p>}
-                  {state === 'changed' && <p className="text-xs text-red-700 dark:text-red-400">{t('opsSignoff.changed')}</p>}
+                  {state === 'changed' && <p className="text-xs text-destructive">{t('opsSignoff.changed')}</p>}
                   <p className="text-xs font-mono text-muted-foreground">{t('opsSignoff.code', { code: data.signoff.digest.slice(0, 12) })}</p>
                 </div>
               ) : data.canSign ? (

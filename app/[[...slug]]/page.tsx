@@ -8,7 +8,7 @@ import { api, cachedUser } from '@/lib/api-client'
 import { restoreSession } from '@/lib/session'
 import { User } from '@/lib/types'
 import { usePermissions } from '@/lib/permissions'
-import { pagePath, PUBLIC_RESET_PAGE } from '@/lib/routes'
+import { pagePath, PUBLIC_LOGIN_PAGE, PUBLIC_RESET_PAGE } from '@/lib/routes'
 import { homePage } from '@/lib/home'
 import { normalizeLocale, useT } from '@/lib/i18n'
 import { navigate, useRoute } from '@/lib/use-route'
@@ -48,6 +48,7 @@ import { MasterDataPage }          from '@/components/pages/master-data-page'
 import { UsersPage }               from '@/components/pages/users-page'
 import { NotificationsPage }       from '@/components/pages/notifications-page'
 import { SettingsPage }            from '@/components/pages/settings-page'
+import { AppShellSkeleton } from '@/components/shared/skeleton'
 
 // One catch-all route renders the whole app shell; the URL (not component
 // state) decides the page and the open record — Todo-Pilot §14 / UX-1.
@@ -63,7 +64,7 @@ function App() {
   const { page: routePage, notFound } = useRoute()
   const onNavigate = (page: string) => navigate(pagePath(page))
   const [sessionChecked, setSessionChecked] = useState(false)
-  const { currentUser, authLoading, loadAll, isLoading, error, lastSyncedAt } = useIssueStore()
+  const { currentUser, authLoading, loadAll, isLoading, error, lastSyncedAt, locale } = useIssueStore()
   const { canViewPage } = usePermissions()
   const { t } = useT()
 
@@ -89,16 +90,20 @@ function App() {
     }
   }, [currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // <html lang> follows the language in use (screen readers, hyphenation).
+  useEffect(() => { document.documentElement.lang = locale }, [locale])
+
+  // Signed in on /login: replace the address with the role's home ('/').
+  useEffect(() => {
+    if (currentUser && routePage === PUBLIC_LOGIN_PAGE) navigate('/', { replace: true })
+  }, [currentUser, routePage])
+
   // Public: the link from the "forgot password" email, signed in or not.
   if (routePage === PUBLIC_RESET_PAGE) return <ResetPasswordPage />
 
   // Waiting for session restore check on first load
   if (!sessionChecked || authLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen text-muted-foreground text-sm">
-        {t('common.loading')}
-      </div>
-    )
+    return <AppShellSkeleton />
   }
 
   // Not authenticated — show login
@@ -112,7 +117,7 @@ function App() {
   }
 
   // '/' = the role's home page (Todo-Pilot §19): set per role, default My Work.
-  const currentPage = routePage === 'home' ? homePage(currentUser) : routePage
+  const currentPage = routePage === 'home' || routePage === PUBLIC_LOGIN_PAGE ? homePage(currentUser) : routePage
 
   const renderPage = () => {
     if (notFound) return <NotFoundView />

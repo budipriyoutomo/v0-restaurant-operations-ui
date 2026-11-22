@@ -153,7 +153,7 @@ export function PlatformPage() {
             <button onClick={() => setConfirmDeactivate(null)} className="px-4 h-9 rounded-lg border border-border text-sm">{t('common.cancel')}</button>
             <button
               onClick={async () => { const c = confirmDeactivate; setConfirmDeactivate(null); await setActive(c, false) }}
-              className="px-4 h-9 rounded-lg bg-destructive text-white text-sm font-semibold"
+              className="px-4 h-9 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold"
             >
               {t('platform.yesDeactivate')}
             </button>
@@ -238,7 +238,7 @@ function CreateCompanyDialog({ onClose, onCreated }: { onClose: () => void; onCr
             )}
           </dl>
           {created.admin_password && (
-            <p className="text-xs text-amber-700 dark:text-amber-400">{t('platform.passwordOnce')}</p>
+            <p className="text-xs text-warning">{t('platform.passwordOnce')}</p>
           )}
         </div>
         <div className="flex justify-end pt-4">

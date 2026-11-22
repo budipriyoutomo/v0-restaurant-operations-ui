@@ -89,7 +89,7 @@ export function SensorPanel({ asset }: { asset: Asset }) {
                         : s.lastSeenAt ? t('tempSensor.lastSeen', { when: relative(s.lastSeenAt), value: s.lastValue ?? '—' })
                           : t('tempSensor.neverSeen')}
                       {offline && (
-                        <span className="ml-2 text-amber-700 dark:text-amber-400 inline-flex items-center gap-1">
+                        <span className="ml-2 text-warning inline-flex items-center gap-1">
                           <WifiOff className="size-3" aria-hidden /> {t('tempSensor.offline')}
                         </span>
                       )}
@@ -106,7 +106,7 @@ export function SensorPanel({ asset }: { asset: Asset }) {
         )}
 
       {newKey && (
-        <div role="status" className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2.5 space-y-1.5">
+        <div role="status" className="rounded-md border border-warning-mark/40 bg-warning-mark/10 p-2.5 space-y-1.5">
           <p className="text-xs font-semibold">{t('tempSensor.keyOnce')}</p>
           <div className="flex items-center gap-2">
             <code className="flex-1 min-w-0 break-all text-xs font-mono" data-testid="sensor-key">{newKey}</code>

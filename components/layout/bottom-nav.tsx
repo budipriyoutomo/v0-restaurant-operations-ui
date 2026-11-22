@@ -16,9 +16,10 @@ export function BottomNav({ currentPage }: { currentPage: string }) {
   const unread = useIssueStore((s) => s.unreadCount)
 
   const items = [
+    // Report sits in the middle, under the thumb (Todo-Modern-UI Fase 3).
     { id: 'home', label: t('bottomNav.home'), icon: Home, to: '/' },
-    ...(canViewPage('issues') ? [{ id: 'report', label: t('bottomNav.report'), icon: Plus, to: '/issues?new=1' }] : []),
     { id: 'my-work', label: t('bottomNav.myWork'), icon: ListChecks, to: '/my-work' },
+    ...(canViewPage('issues') ? [{ id: 'report', label: t('bottomNav.report'), icon: Plus, to: '/issues?new=1' }] : []),
     { id: 'notifications', label: t('bottomNav.notifications'), icon: Bell, to: '/notifications', badge: unread },
     { id: 'settings', label: t('bottomNav.account'), icon: UserRound, to: '/settings' },
   ]
@@ -39,7 +40,7 @@ export function BottomNav({ currentPage }: { currentPage: string }) {
                 <span className={cn('relative', id === 'report' && 'size-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center')}>
                   <Icon className="size-5" />
                   {!!badge && badge > 0 && (
-                    <span className="absolute -top-1.5 -right-2.5 min-w-5 h-5 px-1 rounded-full bg-destructive text-white text-xs font-bold ring-2 ring-background flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-2.5 min-w-5 h-5 px-1 rounded-full bg-destructive text-destructive-foreground text-xs font-bold ring-2 ring-background flex items-center justify-center">
                       {badge > 9 ? '9+' : badge}
                     </span>
                   )}

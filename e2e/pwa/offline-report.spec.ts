@@ -35,7 +35,7 @@ async function issuesTitled(request: APIRequestContext, auth: Record<string, str
 async function report(page: Page, title: string, photo: boolean) {
   const dialog = page.getByRole('dialog', { name: 'Lapor Masalah' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByText('KL Central', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('Kemang', { exact: true })).toBeVisible()
   await dialog.getByLabel(/^Judul/).fill(title)
   await dialog.getByRole('radiogroup').getByText('Lainnya', { exact: true }).click()
   if (photo) await dialog.getByLabel('Foto', { exact: true }).setInputFiles({ name: 'bocor.png', mimeType: 'image/png', buffer: PNG })
