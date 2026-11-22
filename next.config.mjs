@@ -9,9 +9,6 @@ process.env.NEXT_PUBLIC_BUILD_ID ||= (
 const nextConfig = {
   // Lets the Playwright server (NEXT_DIST_DIR=.next-e2e) run beside `next dev`.
   distDir: process.env.NEXT_DIST_DIR || '.next',
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
   },
