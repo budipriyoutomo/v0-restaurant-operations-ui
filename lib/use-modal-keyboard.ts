@@ -53,7 +53,6 @@ export function useModalKeyboard(ref: RefObject<HTMLElement | null>, onClose: ()
       stack.splice(stack.indexOf(token), 1)
       if (opener && document.contains(opener)) opener.focus()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, ref])
 
 }

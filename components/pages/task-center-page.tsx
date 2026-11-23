@@ -92,7 +92,7 @@ export function TaskCenterPage() {
     const total = COLUMN_ORDER.reduce((n, st) => n + pages[st].total, 0)
     const done = pages.resolved.total + pages.closed.total
     return { total, active: total - done, overdue: overdue ?? 0, done }
-  }, [pages, overdue]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pages, overdue])
 
   const columns = COLUMN_ORDER.map((id) => ({
     id,

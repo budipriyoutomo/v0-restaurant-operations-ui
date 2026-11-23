@@ -47,9 +47,13 @@ function fakeCaches(store: Store) {
   }
 }
 
+// The fake service-worker events carry whatever the handler under test reads.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SwEvent = any
+
 /** Boot sw.js as registered with `?v=<version>`. `network` answers fetch(); null = offline. */
 function bootSw(version = 'b1', store: Store = new Map()) {
-  const listeners: Record<string, (e: any) => void> = {}
+  const listeners: Record<string, (e: SwEvent) => void> = {}
   const network = { fn: null as null | ((url: string) => Response) }
   const fetch = vi.fn(async (req: Request | string) => {
     if (!network.fn) throw new TypeError('Failed to fetch')
@@ -58,7 +62,7 @@ function bootSw(version = 'b1', store: Store = new Map()) {
   const caches = fakeCaches(store)
   const self = {
     location: new URL(`/sw.js?v=${version}`, ORIGIN),
-    addEventListener: (type: string, fn: (e: any) => void) => { listeners[type] = fn },
+    addEventListener: (type: string, fn: (e: SwEvent) => void) => { listeners[type] = fn },
     skipWaiting: vi.fn(async () => {}),
     clients: { claim: vi.fn(async () => {}) },
   }
