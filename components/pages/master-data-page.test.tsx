@@ -39,9 +39,9 @@ describe('MasterDataPage', () => {
   it('a category names its module and system lock as plain text — maintenance is not a warning', async () => {
     render(<MasterDataPage />)
     await userEvent.click(screen.getByRole('tab', { name: /^Categories/ }))
-    const module = screen.getAllByText('Maintenance', { selector: 'span' })[0]
-    expect(module).not.toHaveClass('text-warning')
-    noPill(module)
+    const moduleLabel = screen.getAllByText('Maintenance', { selector: 'span' })[0]
+    expect(moduleLabel).not.toHaveClass('text-warning')
+    noPill(moduleLabel)
     noPill(screen.getAllByText('System')[0])
   })
 

@@ -108,7 +108,7 @@ export function SettingsPage() {
       })
       .catch(() => { /* defaults stay */ })
       .finally(() => setLoading(false))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const save = useCallback(async (next: AppPreferences) => {
     setSaving(true)

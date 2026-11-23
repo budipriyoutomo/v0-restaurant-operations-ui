@@ -410,7 +410,7 @@ export function ApprovalCenterPage() {
                               </p>
                             )}
                             {step.comment && (
-                              <p className="text-xs text-muted-foreground italic mt-0.5 truncate">"{step.comment}"</p>
+                              <p className="text-xs text-muted-foreground italic mt-0.5 truncate">&quot;{step.comment}&quot;</p>
                             )}
                           </div>
                         </div>
